@@ -1,0 +1,28 @@
+name: Deploy BranchLive
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  lint-and-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Lint JS
+        run: node lint.js
+      
+      - name: Deploy Worker (API)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: deploy
+      
+      - name: Deploy Pages (Frontend)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: pages deploy . --project-name branchlive --branch main --commit-dirty=true
