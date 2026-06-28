@@ -1,0 +1,10 @@
+{
+  "name": "branchlive",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Branch Live — AI receptionist client portal",
+  "scripts": {
+    "lint": "node lint.js",
+    "deploy": "node lint.js && npx wrangler pages deploy . --project-name branchlive --branch main --commit-dirty=true"
+  }
+}

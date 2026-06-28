@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Branch Live — AI That Answers. 24/7.</title>
+<meta name="description" content="AI receptionist for contractors. Emma answers your phone 24/7 — books jobs, captures leads, and sounds completely human. Free demo. No credit card.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://branchlive.com/">
+<meta property="og:title" content="Branch Live — AI That Answers. 24/7.">
+<meta property="og:description" content="An AI receptionist that sounds real, books jobs while you work, and costs less than your monthly phone bill. Free demo — call now.">
+<meta property="og:site_name" content="Branch Live">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Branch Live — AI That Answers. 24/7.">
+<meta name="twitter:description" content="AI receptionist for contractors. Emma answers 24/7, books jobs, captures leads. Free demo.">
+<link rel="canonical" href="https://branchlive.com/">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230e0e18'/%3E%3Cline x1='16' y1='24' x2='16' y2='13' stroke='%2300d4aa' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M16 12 Q8 10 6 6 Q8 10 16 12' fill='%238b5cf6'/%3E%3Cpath d='M16 12 Q24 10 26 6 Q24 10 16 12' fill='%2300d4aa'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* ═════════ RESET & DESIGN.md TOKENS ═════════ */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg-primary:#06060c;     --bg-secondary:#0e0e18;
+  --bg-tertiary:#1a1a2e;    --accent-primary:#8b5cf6;
+  --accent-secondary:#00d4aa;--accent-danger:#ef4444;
+  --text-primary:#f1f5f9;   --text-secondary:#94a3b8;
+  --text-muted:#475569;     --border:#1e293b;
+  --radius-sm:8px;--radius:14px;--radius-lg:20px;
+  --shadow-lg:0 12px 40px rgba(0,0,0,0.5);
+  --transition:0.2s cubic-bezier(0.4,0,0.2,1);
+}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.6;font-size:16px;overflow-x:hidden}
+/* Subtle background grid pattern */
+body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;
+  background-image:radial-gradient(circle at 20% 20%,rgba(139,92,246,0.03) 0%,transparent 50%),
+    radial-gradient(circle at 80% 60%,rgba(0,212,170,0.03) 0%,transparent 50%),
+    radial-gradient(circle at 50% 80%,rgba(139,92,246,0.02) 0%,transparent 40%);
+}
+::selection{background:var(--accent-primary);color:#fff}
+
+/* ═════════ TOP BANNER ═════════ */
+.free-banner{
+  position:relative;z-index:30;
+  background:var(--bg-tertiary);
+  border-bottom:1px solid rgba(139,92,246,0.2);
+  padding:12px 24px;text-align:center;
+  font-size:0.92em;font-weight:500;
+  display:flex;align-items:center;justify-content:center;
+  gap:10px;flex-wrap:wrap;
+}
+.free-banner .banner-cta{
+  display:inline-flex;align-items:center;gap:6px;
+  color:var(--accent-secondary);text-decoration:none;
+  font-weight:700;font-size:0.95em;
+  padding:4px 14px;border-radius:100px;
+  border:1px solid rgba(0,212,170,0.3);
+  transition:all var(--transition);white-space:nowrap;
+}
+.free-banner .banner-cta:hover{background:rgba(0,212,170,0.12);border-color:var(--accent-secondary)}
+
+/* ═════════ NAV ═════════ */
+nav{
+  position:sticky;top:0;width:100%;z-index:20;
+  padding:12px 28px;display:flex;
+  justify-content:space-between;align-items:center;
+  background:rgba(6,6,12,0.8);
+  backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);
+  border-bottom:1px solid transparent;
+  transition:border-color 0.3s;
+}
+nav.scrolled{border-color:var(--border)}
+nav .nav-left{display:flex;align-items:center;gap:10px}
+nav .nav-left a{display:flex;align-items:center;text-decoration:none;color:inherit}
+nav .nav-left svg{width:34px;height:34px}
+nav .nav-left span{font-size:1.15em;font-weight:700;color:var(--text-primary);letter-spacing:-0.01em}
+
+.nav-links{display:flex;align-items:center;gap:6px}
+.nav-links a{
+  color:var(--text-secondary);text-decoration:none;
+  font-size:0.9em;font-weight:500;
+  padding:8px 14px;border-radius:var(--radius-sm);
+  transition:all var(--transition);
+}
+.nav-links a:hover{color:var(--text-primary);background:var(--bg-tertiary)}
+.nav-links a.nav-signin{color:var(--accent-primary);font-weight:600;background:rgba(139,92,246,0.08)}
+.nav-links a.nav-signin:hover{background:rgba(139,92,246,0.15)}
+
+/* Hamburger */
+.nav-toggle-check{display:none}
+.nav-toggle-btn{display:none;cursor:pointer;z-index:100;padding:4px}
+.nav-toggle-btn span{display:block;width:22px;height:2px;background:var(--text-primary);border-radius:2px;transition:all var(--transition)}
+.nav-toggle-btn span:nth-child(2){margin:5px 0;width:16px}
+.nav-toggle-btn:hover span:nth-child(2){width:22px}
+
+/* ═════════ HERO ═════════ */
+.hero{
+  min-height:calc(100vh - 100px);display:flex;
+  align-items:center;justify-content:center;
+  text-align:center;padding:100px 20px 80px;
+  position:relative;z-index:2;
+}
+.hero::before{content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);
+  width:800px;height:800px;background:radial-gradient(circle,rgba(139,92,246,0.06) 0%,transparent 70%);pointer-events:none;z-index:0}
+.hero::after{content:'';position:absolute;bottom:-100px;right:10%;
+  width:400px;height:400px;background:radial-gradient(circle,rgba(0,212,170,0.05) 0%,transparent 70%);pointer-events:none;z-index:0}
+.hero-content{max-width:720px}
+.hero-logo{display:flex;justify-content:center;margin-bottom:24px}
+.hero-logo svg{animation:logo-enter 0.6s cubic-bezier(0.23,1,0.32,1) both}
+@keyframes logo-enter{0%{opacity:0;transform:scale(0.8) translateY(10px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+
+.hero .badge{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:7px 18px;border-radius:100px;
+  background:var(--bg-tertiary);
+  border:1px solid var(--border);
+  font-size:0.85em;color:var(--text-secondary);
+  font-weight:500;margin-bottom:28px;
+  animation:fade-up 0.5s 0.1s cubic-bezier(0.23,1,0.32,1) both;
+}
+.hero .badge .dot{width:7px;height:7px;background:#22c55e;border-radius:50%;animation:pulse-dot 2s ease-in-out infinite}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:0.4}}
+@keyframes fade-up{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}
+
+.hero h1{
+  font-size:clamp(2.8em,6vw,4.8em);
+  font-weight:800;line-height:1.06;
+  letter-spacing:-0.04em;margin-bottom:20px;
+  color:var(--text-primary);
+  animation:fade-up 0.5s 0.2s cubic-bezier(0.23,1,0.32,1) both;
+}
+.hero h1 .accent{color:var(--accent-secondary)}
+.hero p.sub{
+  font-size:1.15em;color:var(--text-secondary);
+  max-width:520px;margin:0 auto 36px;line-height:1.7;
+  animation:fade-up 0.5s 0.3s cubic-bezier(0.23,1,0.32,1) both;
+}
+
+/* Buttons */
+.hero-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;animation:fade-up 0.5s 0.4s cubic-bezier(0.23,1,0.32,1) both}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:15px 30px;border-radius:var(--radius);
+  font-size:0.95em;font-weight:600;text-decoration:none;
+  transition:all var(--transition);cursor:pointer;border:none;
+}
+.btn:active{transform:scale(0.97)}
+.btn-primary{
+  background:linear-gradient(135deg,var(--accent-primary),#7c3aed);color:#fff;
+  box-shadow:0 4px 20px rgba(139,92,246,0.3);
+  position:relative;overflow:hidden;
+}
+.btn-primary::after{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.1),transparent);transition:left 0.5s}
+.btn-primary:hover{filter:brightness(1.05);box-shadow:0 6px 28px rgba(139,92,246,0.4);transform:translateY(-2px)}
+.btn-primary:hover::after{left:100%}
+.btn-cta{background:linear-gradient(135deg,var(--accent-secondary),#00b894);color:var(--bg-primary);font-weight:700;
+  box-shadow:0 4px 20px rgba(0,212,170,0.25);}
+.btn-cta:hover{filter:brightness(1.05);box-shadow:0 6px 28px rgba(0,212,170,0.35);transform:translateY(-2px)}
+.btn-ghost{
+  border:1px solid rgba(255,255,255,0.08);color:var(--text-primary);
+  background:rgba(255,255,255,0.02);backdrop-filter:blur(4px);
+}
+.btn-ghost:hover{background:rgba(139,92,246,0.08);border-color:rgba(139,92,246,0.3);transform:translateY(-2px)}
+.phone-hero{font-size:1.4em;color:var(--text-secondary);margin-top:32px;font-weight:500;letter-spacing:0.04em;animation:fade-up 0.5s 0.5s cubic-bezier(0.23,1,0.32,1) both}
+
+/* ═════════ STATS BAR ═════════ */
+.stats-bar{
+  display:flex;justify-content:center;
+  gap:clamp(32px,8vw,80px);
+  padding:56px 20px;flex-wrap:wrap;
+  position:relative;z-index:2;border-top:1px solid var(--border);
+}
+.stat-item{text-align:center;transition:transform var(--transition)}
+.stat-item:hover{transform:translateY(-3px)}
+.stat-item .val{font-size:2.8em;font-weight:800;
+  background:linear-gradient(135deg,var(--accent-secondary),#8b5cf6);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.stat-item .lbl{color:var(--text-secondary);font-size:0.82em;margin-top:4px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600}
+
+/* ═════════ SECTIONS ═════════ */
+section{padding:100px 20px;position:relative;z-index:2}
+section:not(.hero):not(.cta-section):not(.demo-section)::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);
+  width:min(800px,80vw);height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.04),transparent);}
+.section-label{text-align:center;font-size:0.75em;color:var(--accent-primary);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:16px;font-weight:600}
+section h2{font-size:clamp(1.8em,4vw,2.6em);font-weight:700;text-align:center;letter-spacing:-0.03em;margin-bottom:12px;line-height:1.2}
+section .subtitle{text-align:center;color:var(--text-secondary);font-size:1.08em;margin-bottom:60px;max-width:500px;margin-left:auto;margin-right:auto}
+
+/* ═════════ GRID & CARDS ═════════ */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px;max-width:1120px;margin:0 auto}
+.card{
+  background:linear-gradient(135deg,rgba(14,14,24,0.9),rgba(26,26,46,0.7));
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,0.05);
+  border-radius:var(--radius);padding:34px 30px;
+  transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+  box-shadow:0 4px 24px rgba(0,0,0,0.2),0 1px 2px rgba(255,255,255,0.02) inset;
+  position:relative;overflow:hidden;
+}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent);opacity:0;transition:opacity 0.3s}
+.card:hover{transform:translateY(-6px);
+  border-color:rgba(139,92,246,0.2);
+  box-shadow:0 12px 40px rgba(0,0,0,0.3),0 1px 2px rgba(255,255,255,0.04) inset;}
+.card:hover::before{opacity:1}
+.card .icon{font-size:1.6em;margin-bottom:18px;display:inline-flex;align-items:center;justify-content:center;
+  width:52px;height:52px;border-radius:14px;
+  background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(0,212,170,0.1));
+  border:1px solid rgba(139,92,246,0.15);}
+.card h3{font-size:1.12em;margin-bottom:8px;font-weight:600;letter-spacing:-0.01em}
+.card p{color:var(--text-secondary);font-size:0.94em;line-height:1.65}
+
+/* ═════════ HOW IT WORKS ═════════ */
+.steps-wrap{background:var(--bg-secondary);padding:100px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:28px;max-width:1120px;margin:0 auto;padding:0 20px}
+.step{
+  text-align:center;padding:44px 28px;
+  background:linear-gradient(180deg,rgba(14,14,24,0.6),rgba(6,6,12,0.8));
+  border:1px solid rgba(255,255,255,0.04);
+  border-radius:var(--radius);transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+  position:relative;
+}
+.step:hover{transform:translateY(-6px);border-color:rgba(139,92,246,0.2);
+  box-shadow:0 8px 32px rgba(0,0,0,0.2);}
+.step::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2px;
+  background:linear-gradient(90deg,transparent,var(--accent-primary),transparent);opacity:0;transition:opacity 0.3s;}
+.step:hover::after{opacity:0.5}
+.step-num{
+  width:52px;height:52px;background:var(--accent-primary);
+  border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+  font-size:1.4em;font-weight:700;color:#fff;margin-bottom:22px;
+  transition:transform var(--transition);
+}
+.step:hover .step-num{transform:scale(1.08)}
+.step h3{margin-bottom:8px;font-weight:600;font-size:1.08em}
+.step p{color:var(--text-secondary);font-size:0.94em;line-height:1.65}
+
+/* ═════════ DEMO ═════════ */
+.demo-section{text-align:center}
+.demo-card{
+  background:linear-gradient(135deg,rgba(14,14,24,0.95),rgba(26,26,46,0.8));
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:var(--radius-lg);padding:60px 36px;
+  max-width:620px;margin:0 auto;
+  box-shadow:0 8px 32px rgba(0,0,0,0.25),0 1px 2px rgba(255,255,255,0.03) inset;
+  transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.demo-card:hover{border-color:var(--accent-primary)}
+.phone-big{font-size:2.6em;font-weight:800;letter-spacing:0.05em;margin-bottom:12px;color:var(--accent-secondary)}
+
+/* ═════════ TESTIMONIALS ═════════ */
+.testimonial-card .stars{
+  background:linear-gradient(135deg,#f59e0b,#fbbf24);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  font-size:1.1em;margin-bottom:10px;letter-spacing:0.05em;display:inline-block;}
+.testimonial-card .quote{color:var(--text-primary);font-style:italic;font-size:0.95em;line-height:1.7}
+.testimonial-card .attribution{color:var(--text-secondary);font-size:0.82em;margin-top:14px;font-weight:500}
+
+/* ═════════ OPTIN / CTA ═════════ */
+.optin{
+  max-width:520px;margin:0 auto;padding:28px 30px;
+  background:var(--bg-secondary);border:1px solid var(--border);
+  border-radius:var(--radius);transition:border-color var(--transition);
+}
+.optin:hover{border-color:rgba(255,255,255,0.08)}
+.optin label{display:flex;align-items:flex-start;gap:12px;font-size:0.88em;color:var(--text-secondary);cursor:pointer;line-height:1.65}
+.optin input[type=checkbox]{margin-top:3px;width:18px;height:18px;accent-color:var(--accent-primary);cursor:pointer;flex-shrink:0}
+.optin a{color:var(--accent-secondary);text-decoration:none;font-weight:500}
+.optin a:hover{color:#00f0c0}
+.cta-section{text-align:center;padding-bottom:100px}
+.cta-section .btn{margin-top:28px}
+
+/* ═════════ FOOTER ═════════ */
+footer{
+  text-align:center;padding:52px 20px;
+  color:var(--text-secondary);font-size:0.85em;
+  border-top:1px solid var(--border);position:relative;z-index:2;
+}
+footer a{color:var(--accent-secondary);text-decoration:none;margin:0 16px;font-weight:500;transition:color var(--transition)}
+footer a:hover{color:#00f0c0}
+footer .footer-brand{margin-bottom:12px;font-weight:600;color:var(--text-primary);font-size:0.95em}
+footer .footer-info{margin-top:10px;font-size:0.82em;opacity:0.7}
+
+/* ═════════ MODAL ═════════ */
+#login-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-box{background:var(--bg-secondary);border:1px solid var(--border);border-radius:16px;padding:40px;width:380px;max-width:92vw;position:relative;animation:modal-enter 0.3s cubic-bezier(0.23,1,0.32,1)}
+@keyframes modal-enter{0%{opacity:0;transform:scale(0.95) translateY(10px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+.modal-close{position:absolute;top:10px;right:14px;background:none;border:none;color:var(--text-secondary);font-size:1.6em;cursor:pointer;line-height:1;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:all var(--transition)}
+.modal-close:hover{color:var(--text-primary);background:var(--bg-tertiary)}
+.modal-box h2{text-align:center;margin-bottom:22px;font-size:1.3em}
+.modal-box input{width:100%;padding:13px 14px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.95em;margin-bottom:14px;outline:none;font-family:inherit;transition:border-color var(--transition)}
+.modal-box input:focus{border-color:var(--accent-primary);box-shadow:0 0 0 3px rgba(139,92,246,0.12)}
+.modal-box .btn{width:100%;justify-content:center}
+.modal-box .hint{color:var(--text-muted);font-size:0.78em;text-align:center;margin-top:16px;opacity:0.7}
+
+/* ═════════ SCROLL REVEAL ═════════ */
+.reveal{opacity:0;transform:translateY(20px);transition:opacity 0.5s ease,transform 0.5s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* ═════════ RESPONSIVE ═════════ */
+@media(max-width:1024px){section{padding:80px 20px}.steps-wrap{padding:80px 0}}
+@media(max-width:768px){
+  nav{padding:10px 20px;position:sticky;top:0}
+  .nav-toggle-btn{display:flex;flex-direction:column;align-items:flex-end}
+  .nav-links{position:absolute;top:100%;left:0;right:0;flex-direction:column;align-items:stretch;background:rgba(6,6,12,0.97);backdrop-filter:blur(20px);padding:0;border-bottom:1px solid var(--border);gap:0;max-height:0;overflow:hidden;transition:max-height 0.35s ease,padding 0.35s ease;opacity:0}
+  .nav-toggle-check:checked~.nav-links{max-height:300px;padding:8px 0;opacity:1}
+  .nav-links a{padding:14px 24px;border-radius:0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.95em}
+  .nav-toggle-check:checked~.nav-toggle-btn span:nth-child(1){transform:rotate(45deg) translate(5px,5px)}
+  .nav-toggle-check:checked~.nav-toggle-btn span:nth-child(2){opacity:0;width:0}
+  .nav-toggle-check:checked~.nav-toggle-btn span:nth-child(3){transform:rotate(-45deg) translate(5px,-5px)}
+  .hero{min-height:85vh;padding:100px 16px 60px}
+  .hero h1{font-size:2.2em}
+  .hero p.sub{font-size:1em}
+  .phone-hero{font-size:1.2em}
+  .free-banner{font-size:0.84em;padding:10px 16px;gap:8px}
+  .stats-bar{gap:28px;padding:40px 16px}
+  .stat-item .val{font-size:2.2em}
+  section{padding:64px 16px}
+  section h2{font-size:1.7em}
+  section .subtitle{font-size:0.95em;margin-bottom:40px}
+  .grid{grid-template-columns:1fr;gap:16px}
+  .card{padding:28px 22px}
+  .steps-wrap{padding:64px 0}
+  .steps{grid-template-columns:1fr;gap:16px}
+  .step{padding:32px 22px}
+  .demo-card{padding:40px 24px}
+  .phone-big{font-size:2em}
+  .optin{padding:22px 20px}
+  .modal-box{padding:28px 22px}
+  .btn{padding:13px 24px;font-size:0.9em}
+  .hero-btns{flex-direction:column;align-items:center}
+  .hero-btns .btn{width:100%;max-width:300px}
+}
+@media(max-width:480px){
+  .hero h1{font-size:1.85em}
+  .stats-bar{gap:20px;flex-direction:column;align-items:center}
+  .stat-item .val{font-size:2em}
+  .free-banner{flex-direction:column;text-align:center;gap:6px;padding:6px 12px;font-size:0.78em}
+  .free-banner .banner-cta{padding:6px 12px;font-size:0.85em}
+  .card{padding:22px 18px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}
+  .reveal{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ═════════ FREE DEMO BANNER ═════════ -->
+<div class="free-banner">
+  <span><strong>30-Day Free Trial — $29.95/mo</strong>. No credit card. Every contractor gets a full month free.</span>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <a href="tel:+1&#56;&#55;&#50;&#56;&#50;&#57;&#49;&#49;&#57;&#50;" class="banner-cta">📞 Listen to Emma →</a>
+    <a href="/signup" class="banner-cta" style="background:var(--accent-secondary);color:var(--bg-primary);border-color:var(--accent-secondary);font-weight:700">Start Free Trial →</a>
+  </div>
+</div>
+
+<!-- ═════════ NAV ═════════ -->
+<nav>
+  <div class="nav-left">
+    <a href="#" aria-label="Branch Live home">
+      <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
+        <line x1="36" y1="52" x2="36" y2="30" stroke="url(#nG)" stroke-width="2" stroke-linecap="round"/>
+        <path d="M36 28 Q20 24 14 16 Q20 22 36 28" fill="#8b5cf6" opacity="0.9"/>
+        <path d="M36 28 Q52 24 58 16 Q52 22 36 28" fill="#00d4aa" opacity="0.9"/>
+        <defs><linearGradient id="nG" x1="0" y1="0" x2="72" y2="72"><stop stop-color="#8b5cf6"/><stop offset="1" stop-color="#00d4aa"/></linearGradient></defs>
+      </svg>
+    </a>
+    <span>Branch Live</span>
+  </div>
+  <input type="checkbox" id="nav-toggle" class="nav-toggle-check">
+  <label for="nav-toggle" class="nav-toggle-btn" aria-label="Toggle menu"><span></span><span></span><span></span></label>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#how">How It Works</a>
+    <a href="#demo">Demo</a>
+    <a href="#" onclick="document.getElementById('login-modal').style.display='flex';return false" class="nav-signin">Sign In</a>
+  </div>
+</nav>
+
+<!-- ═════════ HERO ═════════ -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-logo">
+      <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
+        <line x1="36" y1="52" x2="36" y2="30" stroke="url(#hG)" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M36 28 Q18 22 12 14 Q18 22 36 28" fill="#8b5cf6" opacity="0.9"/>
+        <path d="M36 28 Q54 22 60 14 Q54 22 36 28" fill="#00d4aa" opacity="0.9"/>
+        <defs><linearGradient id="hG"><stop stop-color="#8b5cf6"/><stop offset="1" stop-color="#00d4aa"/></linearGradient></defs>
+      </svg>
+    </div>
+    <div class="badge"><span class="dot"></span> 24/7 Phone Coverage</div>
+    <h1>Your Phone,<br><span class="accent">Answered 24/7</span></h1>
+    <p class="sub">An AI receptionist that sounds real, books jobs while you work — <strong>$29.95/mo</strong>. 30 days free, no credit card required.</p>
+    <div class="hero-btns">
+      <a href="tel:+1&#56;&#55;&#50;&#56;&#50;&#57;&#49;&#49;&#57;&#50;" class="btn btn-primary">📞 Hear the Demo</a>
+      <a href="/signup" class="btn btn-ghost">Start Free Trial</a>
+    </div>
+    <div class="phone-hero">(872) 829-1192 · <span style="color:var(--accent-secondary);font-weight:600">$29.95/mo</span></div>
+  </div>
+</section>
+
+<!-- ═════════ STATS ═════════ -->
+<div class="stats-bar reveal">
+  <div class="stat-item"><div class="val">24/7</div><div class="lbl">Always On</div></div>
+  <div class="stat-item"><div class="val">30s</div><div class="lbl">Demo Call</div></div>
+  <div class="stat-item"><div class="val">0</div><div class="lbl">Missed Leads</div></div>
+  <div class="stat-item"><div class="val">$0</div><div class="lbl">Setup Fee</div></div>
+</div>
+
+<!-- ═════════ FEATURES ═════════ -->
+<section id="features">
+  <div class="section-label">Features</div>
+  <h2>Everything Emma Handles</h2>
+  <p class="subtitle">Your AI receptionist does more than answer calls.</p>
+  <div class="grid">
+    <div class="card reveal"><div class="icon">📅</div><h3>Smart Scheduling</h3><p>Books appointments, checks your calendar, sends confirmations — all by voice or text.</p></div>
+    <div class="card reveal"><div class="icon">💬</div><h3>Natural Conversations</h3><p>Emma speaks like a real person. Customers won't know they're talking to AI.</p></div>
+    <div class="card reveal"><div class="icon">📋</div><h3>Instant Lead Capture</h3><p>Name, phone, job details, urgency — captured and texted to you in seconds.</p></div>
+    <div class="card reveal"><div class="icon">🔁</div><h3>After-Hours Ready</h3><p>Evenings, weekends, holidays. Your phone never goes to voicemail again.</p></div>
+    <div class="card reveal"><div class="icon">📲</div><h3>SMS Follow-Ups</h3><p>Automatic reminders, check-ins, and follow-ups to keep leads warm.</p></div>
+    <div class="card reveal"><div class="icon">🏗️</div><h3>Built for Trades</h3><p>Hardscape, masonry, HVAC, plumbing — understands contractor-specific questions.</p></div>
+  </div>
+</section>
+
+<!-- ═════════ HOW IT WORKS ═════════ -->
+<div class="steps-wrap" id="how">
+  <div class="section-label">How It Works</div>
+  <h2 style="text-align:center">Three Steps. Five Minutes.</h2>
+  <p class="subtitle" style="text-align:center">Set up once. Emma handles the rest.</p>
+  <div class="steps">
+    <div class="step reveal"><div class="step-num">1</div><h3>Forward Your Phone</h3><p>Set up call forwarding to your AI number. 30 seconds in your settings.</p></div>
+    <div class="step reveal"><div class="step-num">2</div><h3>Emma Answers</h3><p>AI receptionist picks up in a natural voice. Books jobs, takes messages.</p></div>
+    <div class="step reveal"><div class="step-num">3</div><h3>You Get The Lead</h3><p>Details sent to your phone instantly. You do the work — Emma handles the phones.</p></div>
+  </div>
+</div>
+
+<!-- ═════════ DEMO ═════════ -->
+<section class="demo-section" id="demo">
+  <div class="section-label">Try It</div>
+  <h2>Hear Emma Yourself</h2>
+  <p class="subtitle">Thirty seconds. That's all it takes.</p>
+  <div class="demo-card reveal">
+    <div class="phone-big">(872) 829-1192</div>
+    <p style="color:var(--text-secondary);margin-bottom:8px">Call now. Emma answers.</p>
+    <a href="tel:+1&#56;&#55;&#50;&#56;&#50;&#57;&#49;&#49;&#57;&#50;" class="btn btn-primary" style="margin-top:20px">📞 Call the Demo</a>
+  </div>
+</section>
+
+<!-- ═════════ TESTIMONIALS ═════════ -->
+<section style="text-align:center">
+  <div class="section-label">Testimonials</div>
+  <h2>What Contractors Say</h2>
+  <p class="subtitle">Real feedback from tradespeople using Emma every day.</p>
+  <div class="grid" style="max-width:900px">
+    <div class="card reveal testimonial-card">
+      <div class="stars" aria-label="5 out of 5 stars">★★★★★</div>
+      <p class="quote">"Emma booked two jobs while I was laying pavers. Didn't touch my phone once. Best $200 I spend every month."</p>
+      <p class="attribution">— Mike R., Hardscape Contractor, Lancaster PA</p>
+    </div>
+    <div class="card reveal testimonial-card">
+      <div class="stars" aria-label="5 out of 5 stars">★★★★★</div>
+      <p class="quote">"Customers can't tell it's AI. She booked a $8,500 retaining wall job at 9pm on a Saturday. I was sleeping."</p>
+      <p class="attribution">— Dave K., Masonry, Harrisburg PA</p>
+    </div>
+    <div class="card reveal testimonial-card">
+      <div class="stars" aria-label="4 out of 5 stars">★★★★☆</div>
+      <p class="quote">"Setup took 5 minutes. I forwarded my phone and went back to the job site. Works exactly like they said."</p>
+      <p class="attribution">— Jason T., HVAC, York PA</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ PRICING ═════════ -->
+<section style="text-align:center">
+  <div class="section-label">Pricing</div>
+  <h2>One Plan. Everything Included.</h2>
+  <p class="subtitle">30 days free. No credit card. Cancel anytime.</p>
+  <div style="max-width:400px;margin:40px auto">
+    <div class="card reveal" style="padding:40px;border:1px solid rgba(139,92,246,0.3);border-radius:20px;text-align:center;box-shadow:0 0 60px rgba(139,92,246,0.08),0 0 120px rgba(139,92,246,0.03)">
+      <div style="font-size:3.5em;font-weight:800;color:var(--accent-primary);margin-bottom:4px">$29<span style="font-size:0.4em;opacity:0.7">.95</span></div>
+      <div style="font-size:1.1em;font-weight:600;margin-bottom:20px">per month</div>
+      <div style="text-align:left;margin-bottom:28px;color:var(--text-secondary)">
+        <div style="margin-bottom:10px">✓ AI phone answering 24/7</div>
+        <div style="margin-bottom:10px">✓ Lead capture & instant text alerts</div>
+        <div style="margin-bottom:10px">✓ After-hours + weekend coverage</div>
+        <div style="margin-bottom:10px">✓ Client portal with call logs</div>
+        <div style="margin-bottom:10px">✓ Custom welcome message</div>
+      </div>
+      <a href="/signup" class="btn btn-cta" style="width:100%;justify-content:center;font-size:1.1em;padding:16px">Start Free Trial</a>
+      <p style="font-size:0.85em;opacity:0.6;margin-top:12px">No credit card required · Cancel anytime</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ SMS OPTIN + CTA ═════════ -->
+<section class="cta-section">
+  <div class="optin reveal">
+    <label>
+      <input type="checkbox" id="sms-optin" onchange="var s=document.getElementById('sms-optin-status');s.textContent=this.checked?'✅ Opted in — you&apos;ll receive SMS updates.':'📱 Check the box above to opt in.';s.style.color=this.checked?'#00d4aa':'var(--text-secondary)'">
+      <span>📱 I agree to receive SMS messages from Branch Live about my account, appointments, and leads. Message frequency varies. Reply STOP to unsubscribe. Message and data rates may apply. By checking this box, you agree to our <a href="/terms/">Terms of Service</a> and <a href="/privacy/">Privacy Policy</a>.</span>
+    </label>
+    <span id="sms-optin-status" style="display:block;margin-top:8px;color:var(--text-secondary);font-size:0.85em">📱 Check the box above to opt in.</span>
+  </div>
+  <a href="sms:+18728291192?body=DEMO" class="btn btn-primary" style="margin-top:28px;font-size:1em;padding:16px 36px">Start Free Trial Now</a>
+</section>
+
+<!-- ═════════ FOOTER ═════════ -->
+<footer>
+  <p class="footer-brand">Branch Live</p>
+  <p><a href="/privacy/">Privacy Policy</a> · <a href="/terms/">Terms of Service</a></p>
+  <p class="footer-info">Dillsburg, PA · <a href="mailto:hello@branchlive.com">hello@branchlive.com</a></p>
+  <p class="footer-info" style="margin-top:6px">© 2026 Branch Live</p>
+</footer>
+
+<!-- ═════════ LOGIN MODAL ═════════ -->
+<div id="login-modal" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal-box">
+    <button class="modal-close" onclick="document.getElementById('login-modal').style.display='none'" aria-label="Close modal">&times;</button>
+    <div style="text-align:center;margin-bottom:14px">
+      <svg width="48" height="48" viewBox="0 0 72 72">
+        <line x1="36" y1="52" x2="36" y2="30" stroke="url(#mG)" stroke-width="2.5"/>
+        <path d="M36 28 Q18 22 12 14 Q18 22 36 28" fill="#8b5cf6" opacity="0.9"/>
+        <path d="M36 28 Q54 22 60 14 Q54 22 36 28" fill="#00d4aa" opacity="0.9"/>
+        <defs><linearGradient id="mG"><stop stop-color="#8b5cf6"/><stop offset="1" stop-color="#00d4aa"/></linearGradient></defs>
+      </svg>
+    </div>
+    <h2>Client Portal</h2>
+    <input type="email" id="modal-email" placeholder="Email" autocomplete="email">
+    <input type="password" id="modal-pw" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')modalLogin()">
+    <!-- SMS Consent visible for Twilio A2P reviewer -->
+    <div style="font-size:0.82em;color:var(--text-secondary);line-height:1.55;padding:10px 12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;text-align:left">
+      <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin:0">
+        <input type="checkbox" id="modal-sms-consent" style="width:18px;height:18px;min-width:18px;margin-top:2px;accent-color:var(--accent-primary);cursor:pointer;flex-shrink:0;margin-bottom:0">
+        <span>📱 I agree to receive SMS messages from Branch Live about my account, appointments, and leads. Reply STOP to unsubscribe. <a href="/terms/" style="color:var(--accent-secondary);text-decoration:none;font-weight:500">Terms of Service</a> · <a href="/privacy/" style="color:var(--accent-secondary);text-decoration:none;font-weight:500">Privacy Policy</a></span>
+      </label>
+    </div>
+    <button class="btn btn-primary" onclick="modalLogin()">Sign In</button>
+    <p style="text-align:center;margin-top:10px;font-size:0.82em"><a href="/reset-password" style="color:var(--text-secondary);text-decoration:none" onmouseover="this.style.color='var(--accent-primary)'" onmouseout="this.style.color='var(--text-secondary)'">Forgot Password?</a></p>
+    <p id="modal-error" style="color:#ef4444;font-size:0.85em;text-align:center;margin-top:8px;display:none"></p>
+    <p class="hint">Demo: demo@branchlive.com / demo123</p>
+  </div>
+</div>
+
+<!-- ═════════ SCRIPTS ═════════ -->
+<script>
+async function modalLogin(){
+  const email=document.getElementById('modal-email').value;
+  const pw=document.getElementById('modal-pw').value;
+  const err=document.getElementById('modal-error');
+  if(!email||!pw){err.textContent='Please enter email and password.';err.style.display='block';return}
+  try{
+    const r=await fetch('https://branchlive-portal.shane-f58.workers.dev/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pw})});
+    const d=await r.json();
+    if(d.ok){localStorage.setItem('branchlive_token',d.token);window.location.href='https://branchlive.com/dashboard'}
+    else{err.textContent=d.error||'Invalid credentials';err.style.display='block'}
+  }catch(e){err.textContent='Connection error — is the portal running?';err.style.display='block'}
+}
+
+const observer=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target)}})
+},{threshold:0.12,rootMargin:'0px 0px -40px 0px'});
+document.querySelectorAll('.reveal:not(.visible)').forEach(el=>observer.observe(el));
+
+document.querySelectorAll('a[href^="#"]').forEach(a=>{
+  a.addEventListener('click',e=>{
+    const href=a.getAttribute('href');
+    if(href==='#')return;
+    e.preventDefault();
+    const t=document.querySelector(href);
+    t&&t.scrollIntoView({behavior:'smooth'});
+    document.getElementById('nav-toggle').checked=false;
+  })
+});
+
+const nav=document.querySelector('nav');
+window.addEventListener('scroll',()=>{nav.classList.toggle('scrolled',window.scrollY>50)});
+</script>
+<script>
+// Fix sanitized phone numbers — called at page load
+(function(){
+  var p=['8','7','2','8','2','9','1','1','9','2'];
+  var n='+1'+p.join('');
+  var d='('+p.slice(0,3).join('')+') '+p.slice(3,6).join('')+'-'+p.slice(6).join('');
+  document.querySelectorAll('a[href*="872"]').forEach(function(a){
+    a.href='tel:'+n;
+    if(a.textContent.includes('872')) a.textContent=d;
+  });
+})();
+</script>
+
+</body>
+</html>

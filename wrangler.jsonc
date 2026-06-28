@@ -1,0 +1,14 @@
+// wrangler.jsonc
+
+{
+  "name": "branchlive-portal",
+  "main": "worker.js",
+  "compatibility_date": "2026-06-25",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "branchlive-portal",
+      "database_id": "cbe33e38-6532-4c58-9749-352a5a473019"
+    }
+  ]
+}

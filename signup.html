@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Branch Live — Start Free Trial</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg-primary:#06060c;--bg-secondary:#0e0e18;--bg-tertiary:#1a1a2e;--accent-primary:#8b5cf6;--accent-secondary:#00d4aa;--accent-danger:#ef4444;--text-primary:#f1f5f9;--text-secondary:#94a3b8;--text-muted:#475569;--border:#1e293b;/* Legacy aliases */--bg:var(--bg-primary);--panel:var(--bg-secondary);--brand:var(--accent-primary);--brand2:var(--accent-secondary);--text:var(--text-primary);--muted:var(--text-muted);--red:var(--accent-danger)}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.container{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:48px 40px;width:100%;max-width:440px}
+.logo{display:flex;align-items:center;gap:10px;margin-bottom:32px}
+.logo svg{width:40px;height:40px}
+h1{font-size:1.6em;margin-bottom:6px;text-align:center}
+.container{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:48px 40px;width:100%;max-width:440px;text-align:center}
+.price-badge{background:rgba(0,212,170,0.1);border:1px solid rgba(0,212,170,0.3);border-radius:10px;padding:12px 16px;margin-bottom:28px;display:flex;align-items:center;gap:10px;justify-content:center}
+.price-badge .tag{background:var(--brand2);color:#06060c;font-weight:700;padding:2px 8px;border-radius:4px;font-size:0.75em}
+.price-badge span{font-size:0.9em}
+label{display:block;font-size:0.85em;font-weight:500;margin-bottom:6px;color:var(--muted)}
+input{width:100%;padding:12px 14px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.95em;margin-bottom:16px;font-family:inherit;transition:border-color 0.2s}
+input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(139,92,246,0.15)}
+.btn{width:100%;padding:14px;background:var(--accent-primary);color:#fff;border:none;border-radius:12px;font-size:1em;font-weight:700;cursor:pointer;font-family:inherit;transition:filter 0.2s,box-shadow 0.2s}
+.btn:hover{filter:brightness(1.1);box-shadow:0 4px 16px rgba(139,92,246,0.3)}
+.btn:active{transform:scale(0.98)}
+.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.sms-consent{margin-bottom:16px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.sms-label{display:flex;align-items:flex-start;gap:10px;font-size:0.85em;color:var(--text-secondary);cursor:pointer;line-height:1.55;-webkit-user-select:none;user-select:none}
+.sms-label input[type=checkbox]{width:20px;height:20px;min-width:20px;min-height:20px;margin-top:2px;accent-color:var(--accent-primary);cursor:pointer;flex-shrink:0}
+.sms-label a{color:var(--accent-secondary);text-decoration:none;font-weight:500}
+.sms-label a:hover{color:#00f0c0}
+.error{color:var(--red);font-size:0.85em;min-height:20px;margin-bottom:12px}
+.success{color:var(--brand2);font-size:0.85em;min-height:20px;margin-bottom:12px}
+.back{display:block;text-align:center;margin-top:20px;color:var(--muted);font-size:0.85em;text-decoration:none}
+.back:hover{color:var(--text)}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">
+    <svg width="40" height="40" viewBox="0 0 72 72" fill="none">
+      <line x1="36" y1="52" x2="36" y2="30" stroke="url(#sg)" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M36 28 Q18 22 12 14 Q18 22 36 28" fill="#8b5cf6" opacity="0.9"/>
+      <path d="M36 28 Q54 22 60 14 Q54 22 36 28" fill="#00d4aa" opacity="0.9"/>
+      <defs><linearGradient id="sg" x1="0" y1="0" x2="72" y2="72"><stop stop-color="#8b5cf6"/><stop offset="1" stop-color="#00d4aa"/></linearGradient></defs>
+    </svg>
+    <span style="font-weight:700;font-size:1.1em">Branch Live</span>
+  </div>
+  
+  <h1>Start Your Free Trial</h1>
+  <p class="sub">30 days free. No credit card. Cancel anytime.</p>
+  
+  <div class="price-badge">
+    <span class="tag">FREE</span>
+    <span>30-day trial · Then $29.95/mo</span>
+  </div>
+  
+  <div class="error" id="error"></div>
+  <div class="success" id="success"></div>
+  
+  <label for="name">Your Name *</label>
+  <input type="text" id="name" placeholder="Mike Smith" required>
+  
+  <label for="company">Company Name *</label>
+  <input type="text" id="company" placeholder="Smith Contracting" required>
+  
+  <label for="email">Email *</label>
+  <input type="email" id="email" placeholder="you@company.com" required>
+  
+  <label for="phone">Phone</label>
+  <input type="tel" id="phone" placeholder="(717) 555-0123">
+  
+  <!-- SMS Consent (Twilio A2P Verification) -->
+  <div class="sms-consent">
+    <label class="sms-label">
+      <input type="checkbox" id="sms-consent">
+      <span>📱 I agree to receive SMS messages from Branch Live about my account, appointments, and leads. Message frequency varies. Reply STOP to unsubscribe. Message and data rates may apply. By checking this box, you agree to our <a href="/terms">Terms of Service</a> and <a href="/privacy">Privacy Policy</a>.</span>
+    </label>
+  </div>
+  
+  <label for="password">Password *</label>
+  <input type="password" id="password" placeholder="At least 6 characters" minlength="6" required>
+  
+  <button class="btn" onclick="signup()">Start Free Trial →</button>
+  
+  <a href="/" class="back">← Back to Branch Live</a>
+</div>
+
+<script>
+async function signup() {
+  const btn = document.querySelector('.btn');
+  const err = document.getElementById('error');
+  const ok = document.getElementById('success');
+  err.textContent = ''; ok.textContent = '';
+  
+  const name = document.getElementById('name').value.trim();
+  const company = document.getElementById('company').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  const password = document.getElementById('password').value;
+  const smsConsent = document.getElementById('sms-consent').checked;
+  
+  if (!name || !company || !email || password.length < 6) {
+    err.textContent = 'Please fill in all required fields (password 6+ chars).';
+    return;
+  }
+  if (!smsConsent) {
+    err.textContent = 'Please check the SMS consent box to continue.';
+    return;
+  }
+  
+  btn.disabled = true;
+  btn.textContent = 'Creating account...';
+  
+  try {
+    const r = await fetch('https://branchlive-portal.shane-f58.workers.dev/api/signup', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email, password, name, company, phone, sms_consent: true})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      localStorage.setItem('branchlive_token', d.token); ok.textContent = 'Account created! Redirecting to setup...';
+      setTimeout(() => { window.location.href = 'https://branchlive-portal.shane-f58.workers.dev/onboarding'; }, 1000);
+    } else {
+      err.textContent = d.error || 'Something went wrong.';
+    }
+  } catch(e) {
+    err.textContent = 'Connection error — please try again.';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Start Free Trial →';
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Branch Live — Client Portal</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+:root{--bg:#06060c;--panel:#0d0d14;--brand:#8b5cf6;--brand2:#00d4aa;--text:#e4e4e7;--muted:#71717a;--border:rgba(255,255,255,0.06);--red:#ef4444;--amber:#f59e0b}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh}
+aside{width:240px;background:var(--panel);border-right:1px solid var(--border);padding:24px 16px;display:flex;flex-direction:column;gap:24px;flex-shrink:0}
+aside .logo{display:flex;align-items:center;gap:10px}
+aside .logo span{font-weight:700;font-size:1.1em}
+aside nav a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:var(--muted);text-decoration:none;font-size:0.9em;transition:.2s}
+aside nav a:hover,aside nav a.active{background:rgba(139,92,246,0.1);color:var(--text)}
+aside nav a.active{border-left:3px solid var(--brand)}
+.user-info{margin-top:auto;padding:12px;background:var(--bg);border-radius:10px;font-size:0.85em;color:var(--muted)}
+.user-info strong{color:var(--text);display:block}
+main{flex:1;padding:32px;overflow-y:auto}
+h1{font-size:1.8em;font-weight:700;margin-bottom:8px}
+.subtitle{color:var(--muted);margin-bottom:28px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:32px}
+.stat-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px}
+.stat-card .value{font-size:2em;font-weight:700}
+.stat-card .label{color:var(--muted);font-size:0.85em;margin-top:4px}
+.table{width:100%;border-collapse:collapse;margin-top:16px}
+.table th{text-align:left;color:var(--muted);font-size:0.8em;text-transform:uppercase;letter-spacing:0.05em;padding:12px;border-bottom:1px solid var(--border)}
+.table td{padding:12px;border-bottom:1px solid var(--border);font-size:0.9em}
+.badge{display:inline-block;padding:3px 10px;border-radius:100px;font-size:0.75em;font-weight:600}
+.badge.urgent{background:rgba(239,68,68,0.15);color:var(--red)}
+.badge.high{background:rgba(245,158,11,0.15);color:var(--amber)}
+.badge.medium{background:rgba(139,92,246,0.15);color:var(--brand)}
+.badge.new{background:rgba(0,212,170,0.15);color:var(--brand2)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:8px;font-size:0.9em;font-weight:600;text-decoration:none;cursor:pointer;border:none;transition:.2s}
+.btn-primary{background:var(--brand);color:#fff}
+.btn-primary:hover{background:#7c3aed}
+.btn-ghost{background:rgba(255,255,255,0.03);border:1px solid var(--border);color:var(--text)}
+.btn-sm{padding:6px 14px;font-size:0.8em}
+input,textarea,select{width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:1em;outline:none;font-family:inherit}
+input:focus,textarea:focus{border-color:var(--brand)}
+label{display:block;color:var(--muted);font-size:0.85em;margin:12px 0 4px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.login{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%}
+.login-box{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:40px;width:380px;max-width:90vw}
+.login-box h1{text-align:center;margin-bottom:24px}
+.login-box .btn{width:100%;justify-content:center}
+.error{color:var(--red);font-size:0.85em;text-align:center;margin-top:8px}
+.hidden{display:none!important}
+.kb-row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+.kb-row input{flex:1;padding:8px;font-size:0.9em}
+.tooltip-wrap{position:relative;display:inline-flex;cursor:help}
+.tooltip-pop{display:none;position:absolute;bottom:28px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 14px;width:280px;font-size:0.8em;color:var(--text);z-index:50;white-space:normal;line-height:1.5;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,0.5)}
+.tooltip-wrap:hover .tooltip-pop,.tooltip-wrap:focus-within .tooltip-pop,.tooltip-pop.show{display:block}
+@media(max-width:768px){body{flex-direction:column}aside{width:100%;flex-direction:row;padding:12px;gap:12px;overflow-x:auto}aside nav{display:flex;gap:4px}aside nav a{border-left:none!important;white-space:nowrap}main{padding:20px}.form-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body id="app">
+<div id="login-screen" class="login">
+  <div class="login-box">
+    <div style="text-align:center;margin-bottom:20px"><svg width="48" height="48" viewBox="0 0 72 72"><line x1="36" y1="52" x2="36" y2="30" stroke="url(#lg)" stroke-width="2.5"/><path d="M36 28 Q18 22 12 14 Q18 22 36 28" fill="#8b5cf6"/><path d="M36 28 Q54 22 60 14 Q54 22 36 28" fill="#00d4aa"/><defs><linearGradient id="lg"><stop stop-color="#8b5cf6"/><stop offset="1" stop-color="#00d4aa"/></linearGradient></defs></svg></div>
+    <h1>Client Portal</h1>
+    <input type="email" id="login-email" placeholder="Email">
+    <input type="password" id="login-pw" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn btn-primary" onclick="doLogin()">Sign In</button>
+    <p class="error hidden" id="login-error"></p>
+    <p style="color:var(--muted);font-size:0.8em;text-align:center;margin-top:16px">Demo: demo@branchlive.com / demo123</p>
+  </div>
+</div>
+
+<div id="dashboard" style="display:none;width:100%">
+  <aside>
+    <div class="logo"><svg width="32" height="32" viewBox="0 0 72 72"><line x1="36" y1="52" x2="36" y2="30" stroke="url(#lg2)" stroke-width="2.5"/><path d="M36 28 Q18 22 12 14 Q18 22 36 28" fill="#8b5cf6"/><path d="M36 28 Q54 22 60 14 Q54 22 36 28" fill="#00d4aa"/><defs><linearGradient id="lg2"><stop stop-color="#8b5cf6"/><stop offset="1" stop-color="#00d4aa"/></linearGradient></defs></svg><span>Branch Live</span></div>
+    <nav>
+      <a href="#" class="active" data-page="overview">📊 Overview</a>
+      <a href="#" data-page="leads">📋 Leads</a>
+      <a href="#" data-page="calls">📞 Call Logs</a>
+      <a href="#" data-page="knowledge">🧠 Knowledge Base</a>
+      <a href="#" data-page="settings">⚙️ Settings</a>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <div style="font-size:0.7em;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;padding:0 12px">Growth Tools</div>
+        <a href="#" data-page="billing">💳 Billing</a>
+        <a href="#" data-page="website">🌐 Web Page</a>
+        <a href="#" data-page="gbp">📍 Google Profile</a>
+        <a href="#" data-page="reviews">⭐ Reviews</a>
+      </div>
+    </nav>
+    <div class="user-info" id="user-info"></div>
+  </aside>
+  <main id="main-content"></main>
+</div>
+
+<script>
+const API='/api';let currentUser=null;
+function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+const fetchOpts={credentials:'include',headers:{'Content-Type':'application/json'}};
+async function post(url,body){return fetch(url,{method:'POST',...fetchOpts,body:JSON.stringify(body)})}
+async function get(url){return fetch(url,{credentials:'include'})}
+
+async function doLogin(){
+  const e=document.getElementById('login-email').value,p=document.getElementById('login-pw').value,err=document.getElementById('login-error');
+  try{
+    const r=await post(API+'/login',{email:e,password:p});
+    const d=await r.json();
+    if(d.ok){currentUser=d;showDashboard()}else{err.textContent=d.error;err.classList.remove('hidden')}
+  }catch(x){err.textContent='Connection error';err.classList.remove('hidden')}
+}
+
+async function checkAuth(){
+  try{const r=await get(API+'/me');const d=await r.json();if(d.ok){currentUser=d;showDashboard();return}}catch(e){}
+  document.getElementById('login-screen').classList.remove('hidden');
+}
+
+function showDashboard(){
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('dashboard').style.display='flex';
+  document.getElementById('user-info').innerHTML=`<strong>${esc(currentUser.name)}</strong>${esc(currentUser.company)}`;
+  loadPage('overview');
+}
+
+function setActive(page){
+  document.querySelectorAll('aside nav a').forEach(a=>a.classList.remove('active'));
+  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+}
+
+async function loadPage(page){
+  setActive(page);const m=document.getElementById('main-content');
+  try{
+    if(page==='overview'){
+      const[l,c]=await Promise.all([fetch(API+'/leads'),fetch(API+'/calls')]);
+      const ld=await l.json(),cd=await c.json();
+      const nw=ld.filter(x=>x.status==='new').length,ur=ld.filter(x=>x.urgency==='urgent').length;
+      m.innerHTML=`<h1>Dashboard</h1><p class="subtitle">Welcome back, ${esc(currentUser.name)}</p>
+        <div class="cards">
+          <div class="stat-card"><div class="value">${ld.length}</div><div class="label">Total Leads</div><div class="trend" style="color:var(--brand2);font-size:0.8em;margin-top:6px">↑ ${nw} new</div></div>
+          <div class="stat-card"><div class="value">${cd.length}</div><div class="label">Calls Today</div></div>
+          <div class="stat-card"><div class="value">${ur}</div><div class="label">Urgent</div></div>
+          <div class="stat-card"><div class="value">${ld.length?(ld.filter(x=>x.status!=='new').length/ld.length*100).toFixed(0):0}%</div><div class="label">Contacted</div></div>
+        </div><h2 style="margin-bottom:12px">Recent Leads</h2>${renderLeads(ld.slice(0,5))}`;
+    }else if(page==='leads'){
+      const r=await get(API+'/leads');const d=await r.json();
+      m.innerHTML=`<h1>Leads</h1><p class="subtitle">All captured leads</p>${renderLeads(d)}`;
+    }else if(page==='calls'){
+      const r=await get(API+'/calls');const d=await r.json();
+      m.innerHTML=`<h1>Call Logs</h1><p class="subtitle">Recent calls handled by Emma</p>
+        <table class="table"><tr><th>Time</th><th>Caller</th><th>Duration</th><th>Summary</th></tr>
+        ${d.map(c=>`<tr><td>${(c.created_at||'').slice(11,16)}</td><td>${c.caller_phone}</td><td>${c.duration_sec}s</td><td>${c.summary}</td></tr>`).join('')}</table>`;
+    }else if(page==='knowledge'){
+      const r=await get(API+'/knowledge');const d=await r.json();
+      m.innerHTML=`<h1>Knowledge Base</h1><p class="subtitle">What Emma knows about your business — pricing, services, products. She pulls from this to answer customer questions.</p>
+        <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-primary btn-sm" onclick="addKnowledgeRow()">+ Add Item</button>
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer">📎 Upload CSV<input type="file" accept=".csv" style="display:none" onchange="uploadCSV(this)"></label>
+          <span class="tooltip-wrap" tabindex="0" onclick="this.querySelector('.tooltip-pop').classList.toggle('show')">
+            ⓘ
+            <span class="tooltip-pop">
+              Upload a spreadsheet (.csv) with columns:<br><code style="color:var(--brand2)">Category, Item, Price, Notes</code><br>Emma uses this to answer pricing questions from callers.
+            </span>
+          </span>
+        </div>
+        <table class="table"><tr><th>Category</th><th>Item</th><th>Price</th><th>Notes</th><th></th></tr>
+        ${d.map(k=>`<tr><td>${k.category}</td><td><strong>${k.item}</strong></td><td>$${(k.price||0).toFixed(2)}</td><td>${k.notes}</td><td><button class="btn btn-ghost btn-sm" onclick="deleteKnowledge(${k.id})">🗑</button></td></tr>`).join('')}
+        ${d.length===0?'<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:40px">No items yet. Add services, products, and pricing for Emma to reference.</td></tr>':''}
+        </table>
+        <div id="kb-add" style="margin-top:20px;display:none">
+          <h3 style="margin-bottom:8px">Add Item</h3>
+          <div class="kb-row"><input id="kb-cat" placeholder="Category (e.g. Pavers)"><input id="kb-item" placeholder="Item name"><input id="kb-price" placeholder="Price" type="number" step="0.01"><input id="kb-notes" placeholder="Notes (e.g. per sq ft)"></div>
+          <button class="btn btn-primary btn-sm" onclick="saveKnowledge()">Save</button>
+        </div>`;
+    }else if(page==='settings'){
+      const r=await get(API+'/settings');const d=await r.json();
+      m.innerHTML=`<h1>Settings</h1><p class="subtitle">Configure your AI receptionist</p>
+        <div style="max-width:600px">
+          <div class="form-row">
+            <div><label>Business Name</label><input id="set-name" value="${d.business_name||''}"></div>
+            <div><label>Forwarding Number</label><input id="set-phone" value="${d.forwarding_number||''}"></div>
+          </div>
+          <label>Industry / Trade</label><input id="set-industry" value="${d.industry||''}" placeholder="e.g. Hardscape, Plumbing, HVAC">
+          <div class="form-row">
+            <div><label>Service Area</label><input id="set-area" value="${d.service_area||''}" placeholder="e.g. Central PA"></div>
+            <div><label>Working Hours</label><input id="set-hours" value="${d.working_hours||''}" placeholder="Mon-Fri 7am-5pm"></div>
+          </div>
+          <label>Welcome Message</label><textarea id="set-welcome" rows="3" style="resize:vertical">${d.welcome_message||''}</textarea>
+          <label>Service Description</label><textarea id="set-desc" rows="3" style="resize:vertical" placeholder="Brief description of services for Emma to reference">${d.service_description||''}</textarea>
+          <button class="btn btn-primary" style="margin-top:20px" onclick="saveSettings()">Save Changes</button>
+          <span id="save-msg" style="margin-left:12px;color:var(--brand2);font-size:0.9em"></span>
+          <button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="fetch(API+'/logout').then(()=>location.reload())">Log Out</button>
+        </div>`;
+    }else if(page==='billing'){
+      m.innerHTML=`<h1>Billing</h1><p class="subtitle">Your plan, invoices, and payment methods.</p>
+        <div class="cards">
+          <div class="stat-card"><div style="font-size:0.8em;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Current Plan</div><div class="value" style="font-size:1.5em">$19/mo</div><div class="label">Branch Live Pro</div></div>
+          <div class="stat-card"><div style="font-size:0.8em;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Next Invoice</div><div class="value" style="font-size:1.5em">Jul 1</div><div class="label">$19.00</div></div>
+          <div class="stat-card"><div style="font-size:0.8em;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Payment Method</div><div class="value" style="font-size:1.5em">💳</div><div class="label">Visa • 4242</div></div>
+        </div>
+        <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:24px;margin-top:20px">
+          <h3 style="margin-bottom:16px">Upgrade to unlock</h3>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
+            <div style="padding:16px;background:var(--bg);border-radius:8px;text-align:center">
+              <div style="font-size:2em;margin-bottom:8px">📧</div><strong>Email Autoresponder</strong><p style="color:var(--muted);font-size:0.85em">AI drafts emails to leads. Edit & send from your dashboard.</p><span class="badge new">+$20/mo</span>
+            </div>
+            <div style="padding:16px;background:var(--bg);border-radius:8px;text-align:center">
+              <div style="font-size:2em;margin-bottom:8px">🌐</div><strong>Custom Web Page</strong><p style="color:var(--muted);font-size:0.85em">Your own branchlive.com/your-business page.</p><span class="badge new">+$10/mo</span>
+            </div>
+            <div style="padding:16px;background:var(--bg);border-radius:8px;text-align:center">
+              <div style="font-size:2em;margin-bottom:8px">📍</div><strong>Google Profile Monitor</strong><p style="color:var(--muted);font-size:0.85em">Review alerts, competitor tracking, ranking reports.</p><span class="badge new">+$15/mo</span>
+            </div>
+          </div>
+        </div>`;
+    }else if(page==='website'){
+      m.innerHTML=`<h1>Your Web Page</h1><p class="subtitle">A custom landing page at branchlive.com/your-name</p>
+        <div style="text-align:center;padding:60px 20px;background:var(--panel);border:1px solid var(--border);border-radius:12px">
+          <div style="font-size:3em;margin-bottom:16px">🌐</div>
+          <h3>Coming Soon</h3>
+          <p style="color:var(--muted);margin-bottom:20px">We'll build you a custom landing page that showcases your services, collects leads, and ranks on Google.</p>
+          <button class="btn btn-primary" onclick="alert('Feature coming soon!')">Request Your Page</button>
+        </div>`;
+    }else if(page==='gbp'){
+      m.innerHTML=`<h1>Google Business Profile</h1><p class="subtitle">Monitor reviews, rankings, and competitor activity.</p>
+        <div class="cards">
+          <div class="stat-card"><div class="value">4.8</div><div class="label">⭐ Rating</div><div class="trend" style="color:var(--brand2);font-size:0.8em">↑ from 4.6</div></div>
+          <div class="stat-card"><div class="value">127</div><div class="label">Profile Views/mo</div></div>
+          <div class="stat-card"><div class="value">3</div><div class="label">New Reviews</div><div class="trend" style="color:var(--amber);font-size:0.8em">This week</div></div>
+        </div>
+        <div style="text-align:center;padding:40px;background:var(--panel);border:1px solid var(--border);border-radius:12px;margin-top:20px">
+          <h3 style="margin-bottom:8px">Connect Your Profile</h3>
+          <p style="color:var(--muted);margin-bottom:16px">Link your Google Business Profile to see real data here.</p>
+          <button class="btn btn-primary" onclick="alert('Integration coming soon!')">Connect Google</button>
+        </div>`;
+    }else if(page==='reviews'){
+      m.innerHTML=`<h1>Review Management</h1><p class="subtitle">Collect more reviews, respond faster, track your reputation.</p>
+        <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px">
+          <h3 style="margin-bottom:8px">⭐ Recent Reviews</h3>
+          <div style="display:flex;flex-direction:column;gap:12px;margin-top:16px">
+            <div style="padding:12px;background:var(--bg);border-radius:8px">
+              <div style="color:#f59e0b">★★★★★</div>
+              <p style="font-size:0.9em;margin:4px 0">"Best contractor I've ever hired. Emma booked me the same day."</p>
+              <span style="color:var(--muted);font-size:0.8em">— 2 days ago</span>
+            </div>
+            <div style="padding:12px;background:var(--bg);border-radius:8px">
+              <div style="color:#f59e0b">★★★★☆</div>
+              <p style="font-size:0.9em;margin:4px 0">"Great work, scheduling was easy through the AI."</p>
+              <span style="color:var(--muted);font-size:0.8em">— 5 days ago</span>
+            </div>
+          </div>
+        </div>
+        <div style="text-align:center;padding:40px;background:var(--panel);border:1px solid var(--border);border-radius:12px">
+          <h3 style="margin-bottom:8px">Get More Reviews</h3>
+          <p style="color:var(--muted);margin-bottom:16px">We'll text your recent customers asking for a review. Automatic, compliant, effective.</p>
+          <button class="btn btn-primary" onclick="alert('Coming soon!')">Start Campaign</button>
+        </div>`;
+    }
+  }catch(e){m.innerHTML='<p style="color:var(--red)">Error loading data</p>';}
+}
+
+function renderLeads(lds){
+  return `<table class="table"><tr><th>Name</th><th>Phone</th><th>Job</th><th>Urgency</th><th>Status</th></tr>
+    ${lds.map(l=>`<tr onclick="showLeadDetail(${l.id})" style="cursor:pointer">
+      <td><strong>${esc(l.caller_name)||'Unknown'}</strong></td><td>${esc(l.caller_phone)||''}</td>
+      <td>${esc(l.job_details||'').slice(0,60)}</td>
+      <td><span class="badge ${l.urgency}">${l.urgency||'new'}</span></td>
+      <td><span class="badge ${l.status}">${l.status||'new'}</span></td>
+    </tr>`).join('')}</table>`;
+}
+
+async function showLeadDetail(lid){
+  const r=await get(API+'/leads/'+lid);const l=await r.json();
+  if(!l.id) return alert('Lead not found');
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:1000;display:flex;align-items:center;justify-content:center';
+  modal.onclick=function(e){if(e.target===modal)modal.remove()};
+  const calls=(l.calls||[]).map(c=>`
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px">
+      <div style="font-size:0.8em;color:var(--muted);margin-bottom:4px">📞 ${c.duration_sec}s call · ${(c.created_at||'').slice(0,16)}</div>
+      <div style="font-size:0.9em">${c.summary||'(no summary)'}</div>
+      ${c.transcript?`<div style="margin-top:8px;padding:8px;background:rgba(0,0,0,0.3);border-radius:6px;font-size:0.85em;max-height:200px;overflow-y:auto;white-space:pre-wrap;color:var(--muted)">${c.transcript}</div>`:''}
+    </div>`).join('');
+  const emailHtml = l.caller_email ? `
+    <div style="margin-top:16px">
+      <h4 style="margin-bottom:8px">📧 Email Follow-up</h4>
+      <p style="color:var(--muted);font-size:0.85em;margin-bottom:8px">AI-generated draft — edit before sending.</p>
+      <textarea id="email-body" rows="12" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:14px;font-size:1em;resize:vertical;font-family:inherit;line-height:1.6;min-height:220px">Hi ${l.caller_name},\n\nThanks for reaching out about ${l.job_details||'your project'}. We'd love to help.\n\nWhen's a good time to chat? Reply or call us at (717) 341-5677.\n\nBest,\n${currentUser.name}</textarea>
+      <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="sendEmail('${l.caller_email}')">📤 Send Email</button>
+      <span id="email-status" style="margin-left:8px;font-size:0.85em;color:var(--brand2)"></span>
+    </div>` : '';
+  modal.innerHTML=`<div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:40px;width:780px;max-width:95vw;max-height:90vh;overflow-y:auto;position:relative">
+    <button onclick="this.closest('div').parentElement.remove()" style="position:absolute;top:12px;right:16px;background:none;border:none;color:var(--muted);font-size:1.5em;cursor:pointer">&times;</button>
+    <h2 style="margin-bottom:4px">${l.caller_name||'Unknown'}</h2>
+    <p style="color:var(--muted);margin-bottom:16px">${l.created_at?.slice(0,16)} · <span class="badge ${l.urgency}">${l.urgency||'new'}</span> <span class="badge ${l.status}">${l.status||'new'}</span></p>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+      ${l.caller_phone?`<a href="tel:${l.caller_phone}" class="btn btn-ghost btn-sm">📞 ${l.caller_phone}</a>`:''}
+      ${l.caller_email?`<a href="mailto:${l.caller_email}" class="btn btn-ghost btn-sm">✉️ ${l.caller_email}</a>`:''}
+      <button class="btn btn-ghost btn-sm" onclick="updateLeadStatus(${l.id},'contacted',event)">✓ Mark Contacted</button>
+    </div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">
+      <h4 style="margin-bottom:4px">Job Details</h4>
+      <p style="color:var(--muted);font-size:0.95em">${l.job_details||'No details provided'}</p>
+    </div>
+    ${l.transcript?`<div style="margin-bottom:16px"><h4 style="margin-bottom:8px">📝 Call Transcript</h4><div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;max-height:250px;overflow-y:auto;white-space:pre-wrap;font-size:0.9em;color:var(--muted)">${l.transcript}</div></div>`:''}
+    <h4 style="margin-bottom:8px">Call History</h4>
+    ${calls||'<p style="color:var(--muted);font-size:0.9em">No calls recorded yet.</p>'}
+    ${emailHtml}
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+async function updateLeadStatus(lid,status,event){
+  event.stopPropagation();
+  await fetch(API+'/leads/'+lid,{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});
+  loadPage('leads');
+}
+
+async function sendEmail(to){
+  const body=document.getElementById('email-body').value;
+  const statusEl=document.getElementById('email-status');
+  statusEl.style.color='var(--muted)';statusEl.textContent='Sending...';
+  try{
+    const r=await fetch(API+'/email/send',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({to,subject:'Re: Your inquiry with Branch Live',body})});
+    const d=await r.json();
+    if(d.ok){statusEl.style.color='var(--brand2)';statusEl.textContent='✓ Sent!';}
+    else{statusEl.style.color='var(--red)';statusEl.textContent='✗ '+d.error;}
+  }catch(e){statusEl.style.color='var(--red)';statusEl.textContent='✗ Connection error';}
+}
+
+async function saveSettings(){
+  const d={};['name','phone','hours','industry','area','welcome','desc'].forEach((k,i)=>{
+    d[['business_name','forwarding_number','working_hours','industry','service_area','welcome_message','service_description'][i]]=document.getElementById('set-'+k).value});
+  await fetch(API+'/settings',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+  document.getElementById('save-msg').textContent='✓ Saved';
+}
+
+function addKnowledgeRow(){document.getElementById('kb-add').style.display='block'}
+async function saveKnowledge(){
+  const d={category:document.getElementById('kb-cat').value,item:document.getElementById('kb-item').value,
+           price:parseFloat(document.getElementById('kb-price').value)||0,notes:document.getElementById('kb-notes').value};
+  await fetch(API+'/knowledge/add',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+  loadPage('knowledge');
+}
+async function deleteKnowledge(id){await fetch(API+'/knowledge/'+id,{method:'DELETE',credentials:'include'});loadPage('knowledge');}
+async function uploadCSV(input){
+  const form=new FormData();form.append('file',input.files[0]);
+  const r=await fetch(API+'/knowledge/upload',{method:'POST',credentials:'include',body:form});const d=await r.json();
+  alert(d.ok?`Imported ${d.count} items!`:d.error);loadPage('knowledge');
+}
+
+document.querySelectorAll('aside nav a').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();loadPage(a.dataset.page)}));
+checkAuth();
+</script>
+</body>
+</html>

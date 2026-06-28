@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Branch Live — Setup Your AI Receptionist</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg-primary:#06060c;--bg-secondary:#0e0e18;--bg-tertiary:#1a1a2e;--accent-primary:#8b5cf6;--accent-secondary:#00d4aa;--accent-danger:#ef4444;--text-primary:#f1f5f9;--text-secondary:#94a3b8;--text-muted:#475569;--border:#1e293b;--bg:var(--bg-primary);--panel:var(--bg-secondary);--brand:var(--accent-primary);--brand2:var(--accent-secondary);--text:var(--text-primary);--muted:var(--text-muted);--red:var(--accent-danger)}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;overflow-x:hidden}
+header{flex-shrink:0;padding:20px 20px 0;display:flex;align-items:center;gap:10px}
+header svg{flex-shrink:0;width:36px;height:36px}
+header span{font-weight:700;font-size:1.05em}
+.progress-wrap{flex-shrink:0;padding:16px 20px 8px}
+.progress-bar{display:flex;gap:4px;height:6px}
+.progress-step{flex:1;background:var(--bg-tertiary);border-radius:6px;transition:background .35s ease}
+.progress-step.done{background:var(--brand)}
+.progress-step.active{background:var(--brand2);box-shadow:0 0 10px rgba(0,212,170,0.3)}
+.step-counter{display:flex;justify-content:space-between;padding:2px 20px 0;font-size:0.7em;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em}
+.step-counter span{transition:color .3s}
+.step-counter span.done{color:var(--brand)}
+.step-counter span.active{color:var(--brand2);font-weight:600}
+main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px 20px 20px}
+.step-panel{display:none;animation:fadeSlideIn .35s ease}
+.step-panel.active{display:block}
+@keyframes fadeSlideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+h1{font-size:1.4em;font-weight:700;margin-bottom:4px;line-height:1.3}
+h2{font-size:1.05em;font-weight:600;margin-bottom:8px;color:var(--text-secondary)}
+.step-sub{color:var(--muted);font-size:0.9em;margin-bottom:24px;line-height:1.5}
+label{display:block;font-size:0.85em;font-weight:500;margin-bottom:6px;color:var(--text-secondary)}
+input,select,textarea{width:100%;padding:14px 14px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;outline:none;font-family:inherit;transition:border-color .2s;min-height:52px}
+input:focus,select:focus,textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(139,92,246,0.15)}
+select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' stroke='%2394a3b8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;padding-right:40px;cursor:pointer}
+.checkbox-group{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+.checkbox-item{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:.2s;min-height:52px}
+.checkbox-item:active{background:rgba(139,92,246,0.08)}
+.checkbox-item input[type="checkbox"]{width:22px;height:22px;min-height:22px;accent-color:var(--brand);cursor:pointer;flex-shrink:0;margin:0}
+.checkbox-item .chk-label{flex:1;font-size:0.95em}
+.checkbox-item .chk-hint{color:var(--muted);font-size:0.75em}
+.custom-input{margin-top:8px;display:none}
+.custom-input.show{display:block}
+.hour-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:8px 0}
+.hour-row .day-label{width:60px;font-size:0.9em;font-weight:500;flex-shrink:0}
+.hour-row .day-label.off{color:var(--muted)}
+.hour-row input[type="time"]{width:auto;flex:1;min-height:48px;padding:12px 14px}
+.hour-row .sep{color:var(--muted);flex-shrink:0}
+.hour-toggle{display:flex;align-items:center;gap:8px;margin-left:auto}
+.toggle-sm{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0}
+.toggle-sm input{opacity:0;width:0;height:0;min-height:0;padding:0}
+.toggle-sm .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--bg);border:1px solid var(--border);border-radius:24px;transition:.3s}
+.toggle-sm .slider:before{content:'';position:absolute;height:18px;width:18px;left:2px;bottom:2px;background:var(--muted);border-radius:50%;transition:.3s}
+.toggle-sm input:checked+.slider{background:var(--brand);border-color:var(--brand)}
+.toggle-sm input:checked+.slider:before{transform:translateX(20px);background:#fff}
+.voice-selector{display:flex;gap:10px;margin-bottom:20px}
+.voice-card{flex:1;padding:16px 12px;background:var(--bg-tertiary);border:2px solid var(--border);border-radius:14px;cursor:pointer;text-align:center;transition:.2s;min-height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.voice-card .voice-icon{font-size:2em}
+.voice-card .voice-label{font-weight:600;font-size:0.9em}
+.voice-card .voice-desc{font-size:0.7em;color:var(--muted)}
+.voice-card.selected{border-color:var(--brand);background:rgba(139,92,246,0.08)}
+.tone-buttons{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.tone-btn{flex:1;min-width:90px;padding:14px 12px;background:var(--bg-tertiary);border:2px solid var(--border);border-radius:14px;cursor:pointer;text-align:center;transition:.2s;font-size:0.85em;font-weight:500;min-height:52px}
+.tone-btn.selected{border-color:var(--brand);background:rgba(139,92,246,0.08)}
+.preview-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9em;cursor:pointer;transition:.2s;min-height:48px;margin-bottom:16px}
+.preview-btn:hover{border-color:var(--brand)}
+.upload-zone{border:2px dashed var(--border);border-radius:14px;padding:40px 20px;text-align:center;cursor:pointer;transition:.2s;margin-bottom:12px;background:rgba(30,41,59,0.15)}
+.upload-zone:hover,.upload-zone.dragover{border-color:var(--brand);background:rgba(139,92,246,0.06)}
+.upload-zone .upload-icon{font-size:2.5em;margin-bottom:8px}
+.upload-zone .upload-text{font-size:0.9em;color:var(--muted)}
+.upload-zone .upload-hint{font-size:0.75em;color:var(--muted);margin-top:4px}
+.file-list{margin-top:12px}
+.file-item{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-tertiary);border-radius:10px;margin-bottom:6px;font-size:0.85em}
+.file-item .file-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-item .file-size{color:var(--muted);font-size:0.8em}
+.file-item .file-remove{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1em;padding:4px 8px;min-height:44px;min-width:44px;border-radius:6px;transition:.15s}
+.file-item .file-remove:hover{color:var(--red);background:rgba(239,68,68,0.1)}
+.review-section{margin-bottom:16px}
+.review-section h3{font-size:0.75em;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:4px}
+.review-item{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--bg-tertiary);border-radius:10px;margin-bottom:6px;font-size:0.9em}
+.review-item .rev-label{color:var(--muted);font-size:0.8em}
+.review-item .rev-value{font-weight:500;text-align:right;max-width:60%}
+.services-list{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}
+.services-list .svc-tag{background:rgba(139,92,246,0.15);color:var(--brand);padding:2px 8px;border-radius:6px;font-size:0.75em;font-weight:500}
+.dispatch-field{margin-bottom:14px}
+.dispatch-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.add-feature-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(0,212,170,0.1);border:1px solid rgba(0,212,170,0.25);border-radius:8px;padding:8px 14px;margin-bottom:16px;font-size:0.85em;color:var(--brand2)}
+nav.footer-nav{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:12px 20px max(12px,env(safe-area-inset-bottom));border-top:1px solid var(--border);background:var(--bg-secondary)}
+nav.footer-nav button{padding:14px 24px;border-radius:12px;font-size:1em;font-weight:600;cursor:pointer;font-family:inherit;transition:.2s;min-height:52px;min-width:44px;border:none;white-space:nowrap}
+.btn-back{background:transparent;border:1px solid var(--border)!important;color:var(--text-secondary);flex-shrink:0}
+.btn-back:active{background:rgba(255,255,255,0.03)}
+.btn-next{background:var(--brand);color:#fff;flex:1;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-next:active{background:#7c3aed;transform:scale(0.98)}
+.btn-skip{background:transparent;border:none;color:var(--muted);font-size:0.85em;padding:12px 16px;cursor:pointer;min-height:52px;text-decoration:underline;text-underline-offset:3px;flex-shrink:0}
+.btn-skip:hover{color:var(--text-secondary)}
+.btn-cta{background:var(--accent-secondary)!important;color:#06060c!important;font-weight:700!important}
+.btn-cta:active{background:#00b892!important;transform:scale(0.98)}
+.status-msg{text-align:center;font-size:0.8em;color:var(--brand2);padding:4px 0;min-height:22px;transition:opacity .3s}
+.status-msg.error{color:var(--red)}
+@media(min-width:768px){
+  body{max-width:600px;margin:0 auto;border-left:1px solid var(--border);border-right:1px solid var(--border)}
+  main{padding:16px 32px 24px}
+  header{padding:28px 32px 0}
+  .progress-wrap{padding:20px 32px 8px}
+  .step-counter{padding:2px 32px 0}
+  nav.footer-nav{padding:16px 32px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="36" height="36" viewBox="0 0 72 72"><line x1="36" y1="52" x2="36" y2="30" stroke="url(#og)" stroke-width="2.5"/><path d="M36 28 Q18 22 12 14 Q18 22 36 28" fill="#8b5cf6"/><path d="M36 28 Q54 22 60 14 Q54 22 36 28" fill="#00d4aa"/><defs><linearGradient id="og"><stop stop-color="#8b5cf6"/><stop offset="1" stop-color="#00d4aa"/></linearGradient></defs></svg>
+  <span>Branch Live Setup</span>
+</header>
+
+<div class="progress-wrap">
+  <div class="progress-bar" id="progress-bar"></div>
+</div>
+<div class="step-counter" id="step-counter"></div>
+
+<main>
+  <!-- STEP 1: Business Name + Industry -->
+  <div class="step-panel active" data-step="1">
+    <h1>Welcome to Branch Live 👋</h1>
+    <p class="step-sub">Let's get Emma set up for your business. This takes about 3 minutes and you can skip anything to fill in later.</p>
+    <label for="biz-name">Business Name *</label>
+    <input type="text" id="biz-name" placeholder="Smith Contracting LLC" required>
+
+    <label for="biz-industry" style="margin-top:16px">Industry / Trade *</label>
+    <select id="biz-industry">
+      <option value="">Select your trade...</option>
+      <optgroup label="── Trades &amp; Construction ──">
+        <option value="landscaping">Landscaping</option>
+        <option value="masonry">Masonry / Hardscape</option>
+        <option value="general-contracting">General Contracting</option>
+        <option value="roofing">Roofing</option>
+        <option value="concrete">Concrete</option>
+        <option value="fencing_deck">Fencing / Decking</option>
+        <option value="painting">Painting</option>
+        <option value="flooring">Flooring</option>
+        <option value="drywall_insulation">Drywall / Insulation</option>
+        <option value="welding">Welding / Fabrication</option>
+        <option value="excavation">Excavation</option>
+        <option value="surveying">Land Surveying</option>
+        <option value="handyman">Handyman</option>
+        <option value="solar_install">Solar Installation</option>
+      </optgroup>
+      <optgroup label="── Emergency Trades ──">
+        <option value="hvac">HVAC</option>
+        <option value="plumbing">Plumbing</option>
+        <option value="electrical">Electrical</option>
+        <option value="locksmith">Locksmith</option>
+        <option value="tree_service">Tree Service</option>
+        <option value="septic_waste">Septic / Waste</option>
+        <option value="water_damage">Water Damage Restoration</option>
+        <option value="garage_door">Garage Door</option>
+      </optgroup>
+      <optgroup label="── Home &amp; Property Services ──">
+        <option value="lawn_care">Lawn Care</option>
+        <option value="pest_control">Pest Control</option>
+        <option value="pool_service">Pool Service</option>
+        <option value="pressure_washing">Pressure Washing</option>
+        <option value="window_cleaning">Window Cleaning</option>
+        <option value="carpet_cleaning">Carpet Cleaning</option>
+        <option value="cleaning_residential">Residential Cleaning</option>
+        <option value="cleaning_commercial">Commercial Cleaning</option>
+        <option value="gutter_cleaning">Gutter Cleaning</option>
+        <option value="chimney_sweep">Chimney Sweep</option>
+        <option value="junk_removal">Junk Removal</option>
+        <option value="mold_remediation">Mold Remediation</option>
+        <option value="appliance_repair">Appliance Repair</option>
+        <option value="moving">Moving</option>
+      </optgroup>
+      <optgroup label="── Auto / Fleet ──">
+        <option value="auto_repair">Auto Repair</option>
+        <option value="auto_body">Auto Body</option>
+        <option value="tire_shop">Tire Shop</option>
+        <option value="diesel_mechanic">Diesel Mechanic</option>
+        <option value="tow_truck">Tow Truck</option>
+      </optgroup>
+      <optgroup label="── Personal Services ──">
+        <option value="salon_barber">Salon / Barbershop</option>
+        <option value="nail_salon">Nail Salon</option>
+        <option value="massage_therapy">Massage Therapy</option>
+        <option value="tattoo_shop">Tattoo / Piercing</option>
+        <option value="dog_grooming">Dog Grooming</option>
+        <option value="pet_care">Pet Care</option>
+        <option value="photography">Photography</option>
+        <option value="event_planning">Event Planning</option>
+        <option value="catering">Catering</option>
+        <option value="personal_training">Personal Training</option>
+        <option value="yoga_studio">Yoga Studio</option>
+        <option value="tutoring">Tutoring</option>
+      </optgroup>
+      <optgroup label="── Professional Services ──">
+        <option value="lawyer">Law Firm</option>
+        <option value="accountant">Accounting</option>
+        <option value="insurance_agent">Insurance Agency</option>
+        <option value="real_estate">Real Estate</option>
+        <option value="real_estate_appraiser">Real Estate Appraiser</option>
+        <option value="architect">Architecture</option>
+        <option value="notary">Notary Public</option>
+      </optgroup>
+      <optgroup label="── Medical &amp; Health ──">
+        <option value="medical_clinic">Medical Clinic</option>
+        <option value="urgent_care">Urgent Care</option>
+        <option value="veterinary">Veterinary</option>
+        <option value="chiropractor">Chiropractor</option>
+        <option value="physical_therapy">Physical Therapy</option>
+        <option value="dentist">Dentist</option>
+        <option value="optometrist">Optometrist</option>
+      </optgroup>
+      <optgroup label="── Retail / Other ──">
+        <option value="retail-supply">Retail / Supply</option>
+        <option value="other">Other / Not Listed</option>
+      </optgroup>
+    </select>
+    <label for="biz-phone" style="margin-top:16px">Business Phone (your main line)</label>
+    <input type="tel" id="biz-phone" placeholder="(717) 555-0123">
+    <div id="industry-wait" style="display:none;text-align:center;padding:16px;color:var(--brand2);font-size:0.9em">Loading your industry setup…</div>
+  </div>
+
+  <!-- STEP 2: Services -->
+  <div class="step-panel" data-step="2">
+    <h1 id="s2-title">Your Services</h1>
+    <p class="step-sub" id="s2-sub">What does your business do? Select all that apply so Emma can describe your work to callers.</p>
+
+    <h2>Services Offered</h2>
+    <div class="checkbox-group" id="services-group"></div>
+    <div id="custom-svc-wrap">
+      <input type="text" id="custom-svc" placeholder="Add another service..." style="margin-top:8px">
+    </div>
+    <button class="preview-btn" onclick="addCustomService()" style="margin-top:4px">+ Add Custom Service</button>
+
+    <div id="appointments-section">
+      <h2 style="margin-top:24px">Appointment Types</h2>
+      <p class="step-sub" style="margin-bottom:12px">Do you book appointments? Check what Emma should offer callers.</p>
+      <div class="checkbox-group" id="appt-types-group"></div>
+      <div id="custom-appt-wrap">
+        <input type="text" id="custom-appt" placeholder="Add appointment type..." style="margin-top:8px">
+      </div>
+      <button class="preview-btn" onclick="addCustomAppt()" style="margin-top:4px">+ Add Appointment Type</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: Working Hours -->
+  <div class="step-panel" data-step="3">
+    <h1>Working Hours</h1>
+    <p class="step-sub">When is your business open? Emma uses this to schedule callbacks and appointments.</p>
+
+    <div id="hours-container">
+      <div class="hour-row"><span class="day-label">Monday</span><input type="time" id="mon-start" value="07:00"><span class="sep">to</span><input type="time" id="mon-end" value="17:00"></div>
+      <div class="hour-row"><span class="day-label">Tuesday</span><input type="time" id="tue-start" value="07:00"><span class="sep">to</span><input type="time" id="tue-end" value="17:00"></div>
+      <div class="hour-row"><span class="day-label">Wednesday</span><input type="time" id="wed-start" value="07:00"><span class="sep">to</span><input type="time" id="wed-end" value="17:00"></div>
+      <div class="hour-row"><span class="day-label">Thursday</span><input type="time" id="thu-start" value="07:00"><span class="sep">to</span><input type="time" id="thu-end" value="17:00"></div>
+      <div class="hour-row"><span class="day-label">Friday</span><input type="time" id="fri-start" value="07:00"><span class="sep">to</span><input type="time" id="fri-end" value="17:00"></div>
+      <div class="hour-row"><span class="day-label" id="sat-label">Saturday</span><input type="time" id="sat-start" value="08:00"><span class="sep">to</span><input type="time" id="sat-end" value="12:00"><label class="toggle-sm"><input type="checkbox" id="sat-toggle" checked onchange="toggleDay('sat')"><span class="slider"></span></label></div>
+      <div class="hour-row"><span class="day-label off" id="sun-label">Sunday</span><input type="time" id="sun-start" value="08:00"><span class="sep">to</span><input type="time" id="sun-end" value="12:00"><label class="toggle-sm"><input type="checkbox" id="sun-toggle" onchange="toggleDay('sun')"><span class="slider"></span></label></div>
+    </div>
+  </div>
+
+  <!-- STEP 4: Voice & Tone -->
+  <div class="step-panel" data-step="4">
+    <h1>Emma's Voice &amp; Tone</h1>
+    <p class="step-sub">Choose how Emma sounds and speaks to your customers.</p>
+
+    <h2>Voice</h2>
+    <div class="voice-selector">
+      <div class="voice-card selected" data-voice="female" onclick="selectVoice(this)">
+        <span class="voice-icon">👩</span>
+        <span class="voice-label">Female</span>
+        <span class="voice-desc">Warm &amp; clear</span>
+      </div>
+      <div class="voice-card" data-voice="male" onclick="selectVoice(this)">
+        <span class="voice-icon">👨</span>
+        <span class="voice-label">Male</span>
+        <span class="voice-desc">Professional</span>
+      </div>
+    </div>
+
+    <h2 style="margin-top:8px">Business Tone</h2>
+    <div class="tone-buttons" id="tone-buttons">
+      <button class="tone-btn selected" data-tone="professional" onclick="selectTone(this)">💼 Professional</button>
+      <button class="tone-btn" data-tone="friendly" onclick="selectTone(this)">😊 Friendly</button>
+      <button class="tone-btn" data-tone="casual" onclick="selectTone(this)">✌️ Casual</button>
+      <button class="tone-btn" data-tone="urgent" onclick="selectTone(this)">⚡ Urgent / Trades</button>
+    </div>
+
+    <button class="preview-btn" onclick="previewVoice()">▶️ Preview Voice Sample</button>
+    <p id="preview-status" style="font-size:0.8em;color:var(--brand2)"></p>
+  </div>
+
+  <!-- STEP 5: Files / Inventory -->
+  <div class="step-panel" data-step="5">
+    <h1 id="s5-title">Upload Business Info</h1>
+    <p class="step-sub" id="s5-sub">Help Emma give accurate pricing and service information. Upload menus, price lists, or service catalogs. <strong>All optional — skip if you'd rather add this later.</strong></p>
+
+    <div id="inventory-hint" class="add-feature-badge" style="display:none">📦 Upload a CSV of your products &amp; pricing for Emma to reference</div>
+
+    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+      <div class="upload-icon">📄</div>
+      <div class="upload-text">Tap to upload or drag &amp; drop files</div>
+      <div class="upload-hint">PDF, CSV, images, or text files</div>
+    </div>
+    <input type="file" id="file-input" multiple accept=".pdf,.csv,.txt,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" style="display:none" onchange="handleFiles(this.files)">
+    <div class="file-list" id="file-list"></div>
+  </div>
+
+  <!-- STEP 7: Dispatch Form (Tow Truck) -->
+  <div class="step-panel" data-step="7">
+    <h1>🚚 Dispatch Setup</h1>
+    <p class="step-sub">Configure how Emma handles emergency dispatch calls. She'll collect location, vehicle details, and route calls to your drivers.</p>
+    <div class="add-feature-badge">⚡ Emma will ask: "Where are you? What's wrong? We're dispatching now."</div>
+    <div class="dispatch-field">
+      <label for="dispatch-area">Service Area (cities / zip codes)</label>
+      <input type="text" id="dispatch-area" placeholder="e.g. Harrisburg, York, Carlisle">
+    </div>
+    <div class="dispatch-field">
+      <label for="dispatch-services">Tow Services Offered</label>
+      <div class="checkbox-group" id="dispatch-services-group"></div>
+    </div>
+    <div class="dispatch-field">
+      <label for="dispatch-rate">Base Rate / Hook Fee ($)</label>
+      <input type="number" id="dispatch-rate" placeholder="e.g. 75" min="0" step="0.01">
+    </div>
+    <div class="dispatch-field">
+      <label for="dispatch-notes">Special Instructions for Callers</label>
+      <textarea id="dispatch-notes" placeholder="e.g. Stay with your vehicle. We'll be there in 30-45 min. Cash or card accepted." rows="3"></textarea>
+    </div>
+  </div>
+
+  <!-- STEP 8: Listing Integration (Real Estate) -->
+  <div class="step-panel" data-step="8">
+    <h1>🏠 Listing Setup</h1>
+    <p class="step-sub">Configure Emma to handle listing inquiries and schedule showings.</p>
+    <div class="add-feature-badge">📋 Emma will ask: "Which listing? Would you like a showing?"</div>
+    <div class="dispatch-field">
+      <label for="listing-brokerage">Brokerage Name</label>
+      <input type="text" id="listing-brokerage" placeholder="e.g. Keystone Realty Group">
+    </div>
+    <div class="dispatch-field">
+      <label for="listing-areas">Service Areas</label>
+      <input type="text" id="listing-areas" placeholder="e.g. Central PA, Harrisburg, Mechanicsburg">
+    </div>
+    <div class="dispatch-field">
+      <label for="listing-types">Property Types You Handle</label>
+      <div class="checkbox-group" id="listing-types-group"></div>
+    </div>
+    <div class="dispatch-field">
+      <label for="listing-commission">Typical Commission Rate (%)</label>
+      <input type="text" id="listing-commission" placeholder="e.g. 2.5-3% per side">
+    </div>
+  </div>
+
+  <!-- STEP 6: Review & Finish -->
+  <div class="step-panel" data-step="6">
+    <h1>Ready to Launch? 🚀</h1>
+    <p class="step-sub">Here's everything Emma knows about your business. Review and confirm — you can always change this later in Settings.</p>
+
+    <div class="review-section">
+      <h3>📋 Business</h3>
+      <div class="review-item"><span class="rev-label">Name</span><span class="rev-value" id="rv-name">—</span></div>
+      <div class="review-item"><span class="rev-label">Industry</span><span class="rev-value" id="rv-industry">—</span></div>
+      <div class="review-item"><span class="rev-label">Phone</span><span class="rev-value" id="rv-phone">—</span></div>
+    </div>
+
+    <div class="review-section">
+      <h3>🔧 Services</h3>
+      <div class="review-item"><span class="rev-label">Services</span><span class="rev-value"><div class="services-list" id="rv-services"></div></span></div>
+      <div class="review-item" id="rv-appts-item"><span class="rev-label">Appointments</span><span class="rev-value"><div class="services-list" id="rv-appts"></div></span></div>
+    </div>
+
+    <div class="review-section" id="rv-hours-section">
+      <h3>🕐 Hours</h3>
+      <div class="review-item"><span class="rev-label">Schedule</span><span class="rev-value" id="rv-hours">—</span></div>
+    </div>
+
+    <div class="review-section" id="rv-dispatch-section" style="display:none">
+      <h3>🚚 Dispatch</h3>
+      <div class="review-item"><span class="rev-label">Area</span><span class="rev-value" id="rv-dispatch-area">—</span></div>
+      <div class="review-item"><span class="rev-label">Base Rate</span><span class="rev-value" id="rv-dispatch-rate">—</span></div>
+    </div>
+
+    <div class="review-section" id="rv-listings-section" style="display:none">
+      <h3>🏠 Listings</h3>
+      <div class="review-item"><span class="rev-label">Brokerage</span><span class="rev-value" id="rv-listing-brokerage">—</span></div>
+      <div class="review-item"><span class="rev-label">Areas</span><span class="rev-value" id="rv-listing-areas">—</span></div>
+    </div>
+
+    <div class="review-section">
+      <h3>🎙️ Voice &amp; Tone</h3>
+      <div class="review-item"><span class="rev-label">Voice</span><span class="rev-value" id="rv-voice">Female</span></div>
+      <div class="review-item"><span class="rev-label">Tone</span><span class="rev-value" id="rv-tone">Professional</span></div>
+    </div>
+  </div>
+
+  <div class="status-msg" id="status-msg"></div>
+</main>
+
+<nav class="footer-nav">
+  <button class="btn-back hidden" id="btn-back" onclick="prevStep()">← Back</button>
+  <button class="btn-next" id="btn-next" onclick="nextStep()">Get Started →</button>
+  <button class="btn-skip" id="btn-skip" onclick="skipStep()">Skip</button>
+</nav>
+
+<script>
+const API = '/api';
+let currentPos = 1;
+let TOTAL_STEPS = 6;
+let stepFlow = [1, 2, 3, 4, 5, 6];
+let stepLabels = ['Business', 'Services', 'Hours', 'Voice', 'Files', 'Review'];
+let currentTemplate = null;
+let selectedVoice = 'female', selectedTone = 'professional', uploadedFiles = [], savedData = {};
+let currentStep = 1;
+
+const DISPATCH_SERVICES = ['Accident Towing', 'Breakdown Towing', 'Flat Tire', 'Jump Start', 'Lockout', 'Fuel Delivery', 'Winch / Recovery', 'Motorcycle Towing'];
+const LISTING_TYPES = ['Single Family', 'Condo / Townhouse', 'Multi-Family', 'Commercial', 'Land / Lots', 'Luxury', 'Rentals'];
+
+// ── Industry Template Loading ──
+async function loadIndustryTemplate(industry) {
+  if (!industry) return;
+  document.getElementById('industry-wait').style.display = 'block';
+  try {
+    const r = await fetch(API + '/onboarding/template?industry=' + encodeURIComponent(industry), { credentials: 'include' });
+    const d = await r.json();
+    if (d.ok && d.template) {
+      currentTemplate = d.template;
+      rebuildWizard(d.template);
+    }
+  } catch (e) { console.error(e); }
+  document.getElementById('industry-wait').style.display = 'none';
+}
+
+function rebuildWizard(t) {
+  stepFlow = t.steps;
+  stepLabels = t.labels;
+  TOTAL_STEPS = stepFlow.length;
+
+  // Rebuild progress bar
+  const pb = document.getElementById('progress-bar');
+  pb.innerHTML = stepFlow.map((_, i) => '<span class="progress-step' + (i === 0 ? ' active' : '') + '"></span>').join('');
+
+  // Rebuild step counter
+  const sc = document.getElementById('step-counter');
+  sc.innerHTML = stepLabels.map((l, i) => '<span' + (i === 0 ? ' class="active"' : '') + '>' + l + '</span>').join('');
+
+  // Show/hide appointment types section
+  const apptSec = document.getElementById('appointments-section');
+  if (apptSec) apptSec.style.display = t.skipAppointments ? 'none' : 'block';
+
+  // Update step 5 for inventory
+  const s5t = document.getElementById('s5-title');
+  const s5s = document.getElementById('s5-sub');
+  const invHint = document.getElementById('inventory-hint');
+  if (t.features && t.features.includes('inventory')) {
+    if (s5t) s5t.textContent = 'Inventory & Pricing';
+    if (s5s) s5s.innerHTML = 'Upload your product catalog, pricing sheet, or inventory list. Emma will use this to answer "Do you have X in stock?" and pricing questions.';
+    if (invHint) invHint.style.display = 'inline-flex';
+  } else {
+    if (s5t) s5t.textContent = 'Upload Business Info';
+    if (s5s) s5s.innerHTML = 'Help Emma give accurate pricing and service information. Upload menus, price lists, or service catalogs. <strong>All optional — skip if you\'d rather add this later.</strong>';
+    if (invHint) invHint.style.display = 'none';
+  }
+
+  // Populate dispatch checkboxes
+  if (t.showDispatch) {
+    const dg = document.getElementById('dispatch-services-group');
+    if (dg) dg.innerHTML = DISPATCH_SERVICES.map(s => '<label class="checkbox-item"><input type="checkbox" value="' + s + '"><span class="chk-label">' + s + '</span></label>').join('');
+  }
+
+  // Populate listing checkboxes
+  if (t.showListings) {
+    const lg = document.getElementById('listing-types-group');
+    if (lg) lg.innerHTML = LISTING_TYPES.map(s => '<label class="checkbox-item"><input type="checkbox" value="' + s + '"><span class="chk-label">' + s + '</span></label>').join('');
+  }
+
+  // Update step 2 title for specialized industries
+  if (t.showDispatch) {
+    document.getElementById('s2-title').textContent = 'Dispatch & Services';
+    document.getElementById('s2-sub').textContent = 'What towing services do you provide? Emma will use these when dispatching calls.';
+  } else if (t.showListings) {
+    document.getElementById('s2-title').textContent = 'Your Services & Listings';
+    document.getElementById('s2-sub').textContent = 'What real estate services do you provide? Emma will reference these with callers.';
+  }
+}
+
+// ── Load Saved Data ──
+async function loadSavedData() {
+  try {
+    const r = await fetch(API + '/onboarding/status', { credentials: 'include' });
+    const d = await r.json();
+    if (d.ok && d.data) {
+      savedData = d.data;
+      if (d.completed_steps) {
+        d.completed_steps.forEach(s => {
+          const el = document.querySelector('.progress-step:nth-child(' + s + ')');
+          if (el) el.classList.add('done');
+        });
+      }
+      populateFromData();
+    }
+  } catch (e) { /* first time user */ }
+}
+
+function populateFromData() {
+  const d = savedData;
+  if (d.business_name) document.getElementById('biz-name').value = d.business_name;
+  if (d.industry) {
+    document.getElementById('biz-industry').value = d.industry;
+    loadIndustryTemplate(d.industry);
+  }
+  if (d.phone) document.getElementById('biz-phone').value = d.phone;
+  if (d.services) {
+    document.querySelectorAll('#services-group input[type="checkbox"]').forEach(cb => { cb.checked = d.services.includes(cb.value); });
+    (d.custom_services || []).forEach(s => addCustomServiceCheckbox(s, true));
+  }
+  if (d.appointment_types) {
+    document.querySelectorAll('#appt-types-group input[type="checkbox"]').forEach(cb => { cb.checked = d.appointment_types.includes(cb.value); });
+    (d.custom_appt_types || []).forEach(s => addCustomApptCheckbox(s, true));
+  }
+  if (d.working_hours) {
+    ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(day => {
+      const wh = d.working_hours[day];
+      if (wh) {
+        if (wh.start) { const sEl = document.getElementById(day + '-start'); if (sEl) sEl.value = wh.start; }
+        if (wh.end) { const eEl = document.getElementById(day + '-end'); if (eEl) eEl.value = wh.end; }
+        if (wh.enabled !== undefined && !wh.enabled) {
+          const toggle = document.getElementById(day + '-toggle');
+          if (toggle) { toggle.checked = false; toggleDay(day); }
+        }
+      }
+    });
+  }
+  if (d.voice) { selectedVoice = d.voice; updateVoiceUI(); }
+  if (d.tone) { selectedTone = d.tone; updateToneUI(); }
+  if (d.dispatch_area) document.getElementById('dispatch-area').value = d.dispatch_area;
+  if (d.dispatch_rate) document.getElementById('dispatch-rate').value = d.dispatch_rate;
+  if (d.dispatch_notes) document.getElementById('dispatch-notes').value = d.dispatch_notes;
+  if (d.dispatch_services) {
+    document.querySelectorAll('#dispatch-services-group input[type="checkbox"]').forEach(cb => { cb.checked = d.dispatch_services.includes(cb.value); });
+  }
+  if (d.listing_brokerage) document.getElementById('listing-brokerage').value = d.listing_brokerage;
+  if (d.listing_areas) document.getElementById('listing-areas').value = d.listing_areas;
+  if (d.listing_commission) document.getElementById('listing-commission').value = d.listing_commission;
+  if (d.listing_types) {
+    document.querySelectorAll('#listing-types-group input[type="checkbox"]').forEach(cb => { cb.checked = d.listing_types.includes(cb.value); });
+  }
+}
+
+// ── Navigation ──
+function showStep(pos) {
+  if (pos < 1 || pos > stepFlow.length) return;
+  const panelStep = stepFlow[pos - 1];
+
+  document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+  const panel = document.querySelector('.step-panel[data-step="' + panelStep + '"]');
+  if (panel) panel.classList.add('active');
+
+  // Update progress bar
+  document.querySelectorAll('#progress-bar .progress-step').forEach((el, i) => {
+    el.classList.remove('active', 'done');
+    if (i + 1 < pos) el.classList.add('done');
+    else if (i + 1 === pos) el.classList.add('active');
+  });
+
+  // Update step counter
+  document.querySelectorAll('#step-counter span').forEach((el, i) => {
+    el.classList.remove('active', 'done');
+    if (i + 1 < pos) el.classList.add('done');
+    else if (i + 1 === pos) el.classList.add('active');
+  });
+
+  // Nav buttons
+  const bb = document.getElementById('btn-back'), bn = document.getElementById('btn-next'), bs = document.getElementById('btn-skip');
+  bb.classList.toggle('hidden', pos === 1);
+  bs.classList.toggle('hidden', pos === TOTAL_STEPS);
+
+  if (pos === TOTAL_STEPS) {
+    bn.className = 'btn-next btn-cta';
+    bn.innerHTML = '🚀 Launch My AI Receptionist';
+  } else {
+    bn.className = 'btn-next';
+    bn.innerHTML = 'Continue →';
+  }
+
+  // Review step is always panel 6
+  if (panelStep === 6) populateReview();
+  currentPos = pos;
+  currentStep = panelStep;
+}
+
+async function nextStep() {
+  if (currentPos === TOTAL_STEPS) { await completeOnboarding(); return; }
+  await saveCurrentStep();
+  showStep(currentPos + 1);
+}
+
+async function prevStep() {
+  await saveCurrentStep();
+  if (currentPos > 1) showStep(currentPos - 1);
+}
+
+async function skipStep() {
+  if (currentPos < TOTAL_STEPS) showStep(currentPos + 1);
+}
+
+// ── Data Collection ──
+function collectStepData() {
+  const data = {};
+  switch (currentStep) {
+    case 1:
+      data.business_name = document.getElementById('biz-name').value.trim();
+      data.industry = document.getElementById('biz-industry').value;
+      data.phone = document.getElementById('biz-phone').value.trim();
+      break;
+    case 2:
+      data.services = []; data.custom_services = [];
+      document.querySelectorAll('#services-group input[type="checkbox"]:checked').forEach(cb => {
+        if (cb.dataset.custom) data.custom_services.push(cb.value);
+        else data.services.push(cb.value);
+      });
+      data.appointment_types = []; data.custom_appt_types = [];
+      document.querySelectorAll('#appt-types-group input[type="checkbox"]:checked').forEach(cb => {
+        if (cb.dataset.custom) data.custom_appt_types.push(cb.value);
+        else data.appointment_types.push(cb.value);
+      });
+      break;
+    case 3:
+      data.working_hours = {};
+      ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(day => {
+        const toggle = document.getElementById(day + '-toggle');
+        const enabled = toggle ? toggle.checked : (day !== 'sun');
+        data.working_hours[day] = {
+          enabled,
+          start: document.getElementById(day + '-start').value,
+          end: document.getElementById(day + '-end').value
+        };
+      });
+      break;
+    case 4:
+      data.voice = selectedVoice; data.tone = selectedTone;
+      break;
+    case 5:
+      data.files_count = uploadedFiles.length;
+      break;
+    case 7:
+      data.dispatch_area = document.getElementById('dispatch-area').value.trim();
+      data.dispatch_rate = document.getElementById('dispatch-rate').value;
+      data.dispatch_notes = document.getElementById('dispatch-notes').value.trim();
+      data.dispatch_services = [];
+      document.querySelectorAll('#dispatch-services-group input[type="checkbox"]:checked').forEach(cb => data.dispatch_services.push(cb.value));
+      break;
+    case 8:
+      data.listing_brokerage = document.getElementById('listing-brokerage').value.trim();
+      data.listing_areas = document.getElementById('listing-areas').value.trim();
+      data.listing_commission = document.getElementById('listing-commission').value.trim();
+      data.listing_types = [];
+      document.querySelectorAll('#listing-types-group input[type="checkbox"]:checked').forEach(cb => data.listing_types.push(cb.value));
+      break;
+  }
+  return data;
+}
+
+// ── Save ──
+async function saveCurrentStep() {
+  const data = collectStepData();
+  if (!data || Object.keys(data).length === 0) return;
+
+  const status = document.getElementById('status-msg');
+  try {
+    const r = await fetch(API + '/onboarding/step', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ step: currentStep, data })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      status.textContent = '✓ Saved'; status.className = 'status-msg';
+      setTimeout(() => { if (status.textContent === '✓ Saved') status.textContent = ''; }, 2000);
+      const posInFlow = stepFlow.indexOf(currentStep) + 1;
+      const el = document.querySelector('#progress-bar .progress-step:nth-child(' + posInFlow + ')');
+      if (el) el.classList.add('done');
+      const ce = document.querySelector('#step-counter span:nth-child(' + posInFlow + ')');
+      if (ce) ce.classList.add('done');
+      Object.assign(savedData, data);
+    } else {
+      status.textContent = '⚠ ' + (d.error || 'Save failed'); status.className = 'status-msg error';
+    }
+  } catch (e) {
+    status.textContent = '⚠ Connection error'; status.className = 'status-msg error';
+  }
+}
+
+async function completeOnboarding() {
+  await saveCurrentStep();
+  const btn = document.getElementById('btn-next');
+  btn.disabled = true; btn.innerHTML = 'Setting up Emma...';
+  const status = document.getElementById('status-msg');
+  try {
+    const r = await fetch(API + '/onboarding/complete', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ onboarding_data: savedData })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      status.textContent = '✓ Emma is ready! Redirecting to dashboard...'; status.className = 'status-msg';
+      setTimeout(() => { window.location.href = '/dashboard'; }, 1500);
+    } else {
+      status.textContent = '⚠ ' + (d.error || 'Failed to complete setup'); status.className = 'status-msg error';
+      btn.disabled = false; btn.innerHTML = '🚀 Launch My AI Receptionist';
+    }
+  } catch (e) {
+    status.textContent = '⚠ Connection error — try again'; status.className = 'status-msg error';
+    btn.disabled = false; btn.innerHTML = '🚀 Launch My AI Receptionist';
+  }
+}
+
+// ── Review Population ──
+function populateReview() {
+  const d = savedData;
+  const name = document.getElementById('biz-name').value.trim();
+  const industry = document.getElementById('biz-industry').value;
+  const phone = document.getElementById('biz-phone').value.trim();
+
+  document.getElementById('rv-name').textContent = name || d.business_name || '—';
+  const im = {
+    landscaping: 'Landscaping', masonry: 'Masonry / Hardscape', 'general-contracting': 'General Contracting',
+    hvac: 'HVAC', plumbing: 'Plumbing', electrical: 'Electrical',
+    roofing: 'Roofing', pest_control: 'Pest Control',
+    cleaning_residential: 'Residential Cleaning', cleaning_commercial: 'Commercial Cleaning',
+    painting: 'Painting', concrete: 'Concrete', fencing_deck: 'Fencing / Decking',
+    handyman: 'Handyman', locksmith: 'Locksmith', appliance_repair: 'Appliance Repair',
+    moving: 'Moving', tree_service: 'Tree Service', pool_service: 'Pool Service',
+    septic_waste: 'Septic / Waste', pressure_washing: 'Pressure Washing',
+    window_cleaning: 'Window Cleaning', carpet_cleaning: 'Carpet Cleaning',
+    flooring: 'Flooring', drywall_insulation: 'Drywall / Insulation',
+    welding: 'Welding / Fabrication', excavation: 'Excavation', surveying: 'Land Surveying',
+    'retail-supply': 'Retail / Supply',
+    auto_repair: 'Auto Repair', auto_body: 'Auto Body', tire_shop: 'Tire Shop',
+    diesel_mechanic: 'Diesel Mechanic', tow_truck: 'Tow Truck',
+    real_estate: 'Real Estate',
+    salon_barber: 'Salon / Barbershop', dog_grooming: 'Dog Grooming', pet_care: 'Pet Care',
+    massage_therapy: 'Massage Therapy', nail_salon: 'Nail Salon', tattoo_shop: 'Tattoo / Piercing',
+    photography: 'Photography', event_planning: 'Event Planning', catering: 'Catering',
+    personal_training: 'Personal Training', yoga_studio: 'Yoga Studio', tutoring: 'Tutoring',
+    chiropractor: 'Chiropractor', physical_therapy: 'Physical Therapy',
+    dentist: 'Dentist', optometrist: 'Optometrist',
+    lawyer: 'Law Firm', accountant: 'Accounting', insurance_agent: 'Insurance Agency',
+    real_estate_appraiser: 'Real Estate Appraiser', architect: 'Architecture', notary: 'Notary Public',
+    lawn_care: 'Lawn Care', junk_removal: 'Junk Removal', garage_door: 'Garage Door',
+    gutter_cleaning: 'Gutter Cleaning', chimney_sweep: 'Chimney Sweep',
+    water_damage: 'Water Damage Restoration', mold_remediation: 'Mold Remediation',
+    solar_install: 'Solar Installation',
+    medical_clinic: 'Medical Clinic', urgent_care: 'Urgent Care', veterinary: 'Veterinary',
+    other: 'Other'
+  };
+  document.getElementById('rv-industry').textContent = im[industry] || d.industry || '—';
+  document.getElementById('rv-phone').textContent = phone || d.phone || '—';
+
+  // Services
+  const svcs = [];
+  document.querySelectorAll('#services-group input[type="checkbox"]:checked').forEach(cb => svcs.push(cb.value));
+  if (svcs.length === 0 && d.services) svcs.push(...d.services);
+  if (d.custom_services) svcs.push(...d.custom_services);
+  document.getElementById('rv-services').innerHTML = svcs.length > 0
+    ? svcs.map(s => '<span class="svc-tag">' + s + '</span>').join('')
+    : '<span style="color:var(--muted);font-size:0.9em">None selected</span>';
+
+  // Appointments
+  const appts = [];
+  document.querySelectorAll('#appt-types-group input[type="checkbox"]:checked').forEach(cb => appts.push(cb.value));
+  if (appts.length === 0 && d.appointment_types) appts.push(...d.appointment_types);
+  if (d.custom_appt_types) appts.push(...d.custom_appt_types);
+  document.getElementById('rv-appts').innerHTML = appts.length > 0
+    ? appts.map(s => '<span class="svc-tag">' + s + '</span>').join('')
+    : '<span style="color:var(--muted);font-size:0.9em">None</span>';
+
+  const apptItem = document.getElementById('rv-appts-item');
+  if (currentTemplate && currentTemplate.skipAppointments) {
+    if (apptItem) apptItem.style.display = 'none';
+  } else {
+    if (apptItem) apptItem.style.display = '';
+  }
+
+  // Hours
+  if (currentTemplate && currentTemplate.skipHours) {
+    document.getElementById('rv-hours-section').style.display = 'none';
+  } else {
+    document.getElementById('rv-hours-section').style.display = '';
+    const parts = [];
+    const dn = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
+    ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(day => {
+      const toggle = document.getElementById(day + '-toggle');
+      const enabled = toggle ? toggle.checked : (day !== 'sun');
+      if (enabled) {
+        parts.push(dn[day] + ' ' + document.getElementById(day + '-start').value + '–' + document.getElementById(day + '-end').value);
+      }
+    });
+    document.getElementById('rv-hours').textContent = parts.length > 0 ? parts.join(', ') : '—';
+  }
+
+  // Dispatch
+  if (currentTemplate && currentTemplate.showDispatch) {
+    document.getElementById('rv-dispatch-section').style.display = '';
+    document.getElementById('rv-dispatch-area').textContent = document.getElementById('dispatch-area').value || d.dispatch_area || '—';
+    document.getElementById('rv-dispatch-rate').textContent = document.getElementById('dispatch-rate').value
+      ? '$' + document.getElementById('dispatch-rate').value
+      : (d.dispatch_rate ? '$' + d.dispatch_rate : '—');
+  } else {
+    document.getElementById('rv-dispatch-section').style.display = 'none';
+  }
+
+  // Listings
+  if (currentTemplate && currentTemplate.showListings) {
+    document.getElementById('rv-listings-section').style.display = '';
+    document.getElementById('rv-listing-brokerage').textContent = document.getElementById('listing-brokerage').value || d.listing_brokerage || '—';
+    document.getElementById('rv-listing-areas').textContent = document.getElementById('listing-areas').value || d.listing_areas || '—';
+  } else {
+    document.getElementById('rv-listings-section').style.display = 'none';
+  }
+
+  // Voice & Tone
+  document.getElementById('rv-voice').textContent = selectedVoice === 'female' ? 'Female' : 'Male';
+  const tm = { professional: 'Professional', friendly: 'Friendly', casual: 'Casual', urgent: 'Urgent / Trades' };
+  document.getElementById('rv-tone').textContent = tm[selectedTone] || selectedTone;
+}
+
+// ── Services Data ──
+const SERVICES = {
+  landscaping: ['Lawn Care / Mowing', 'Landscape Design', 'Mulching / Bed Maintenance', 'Tree / Shrub Care', 'Hardscape Installation', 'Irrigation / Sprinklers', 'Seasonal Cleanup', 'Snow Removal'],
+  masonry: ['Paver Patios', 'Retaining Walls', 'Walkways / Sidewalks', 'Driveways', 'Stone Veneer', 'Fire Pits / BBQs', 'Steps / Stairs', 'Concrete Work'],
+  hvac: ['AC Installation', 'Furnace Repair', 'Heat Pump Service', 'Duct Cleaning', 'Boiler Service', 'Mini-Split Install', 'Emergency Repair', 'Maintenance Plans'],
+  plumbing: ['Drain Cleaning', 'Water Heater Repair', 'Pipe Repair / Replace', 'Fixture Install', 'Sewer Line Service', 'Sump Pump', 'Leak Detection', 'Emergency Plumbing'],
+  electrical: ['Panel Upgrades', 'Wiring / Rewiring', 'Lighting Install', 'Generator Install', 'EV Charger Install', 'Troubleshooting', 'Code Corrections', 'Emergency Service'],
+  'general-contracting': ['Kitchen Remodel', 'Bathroom Remodel', 'Addition / Extension', 'Roofing', 'Siding', 'Windows / Doors', 'Deck / Porch', 'Basement Finish'],
+  roofing: ['Roof Repair', 'Full Replacement', 'Storm Damage', 'Emergency Tarping', 'Gutter Replacement', 'Skylight Install', 'Roof Inspection', 'Commercial Roofing'],
+  pest_control: ['General Pest', 'Termite Treatment', 'Bed Bug Heat', 'Rodent Exclusion', 'Mosquito Control', 'Wildlife Removal', 'Commercial Service', 'Recurring Plans'],
+  cleaning_residential: ['Standard Cleaning', 'Deep Cleaning', 'Move-In / Move-Out', 'Airbnb Turnover', 'Organizing', 'Recurring Weekly', 'Recurring Biweekly', 'Post-Construction'],
+  cleaning_commercial: ['Janitorial Service', 'Floor Care', 'Window Cleaning', 'Disinfection', 'Trash Removal', 'Supply Restocking', 'Carpet Cleaning', 'After-Hours Service'],
+  painting: ['Interior Painting', 'Exterior Painting', 'Cabinet Refinishing', 'Deck Staining', 'Drywall Repair', 'Wallpaper Removal', 'Commercial Painting', 'Color Consultation'],
+  concrete: ['Driveways', 'Patios', 'Foundations', 'Slabs', 'Walkways', 'Stamped Concrete', 'Retaining Walls', 'Concrete Repair'],
+  fencing_deck: ['Privacy Fence', 'Deck Construction', 'Railing Install', 'Pergola', 'Gate Installation', 'Fence Repair', 'Composite Decking', 'Chain-Link Fence'],
+  handyman: ['Drywall Repair', 'Fixture Replacement', 'Furniture Assembly', 'Painting Touch-Ups', 'Minor Plumbing', 'Minor Electrical', 'Caulking', 'Home Maintenance'],
+  locksmith: ['Lockout Assistance', 'Re-Keying', 'Lock Installation', 'Lock Repair', 'Safe Opening', 'Access Control', 'Key Duplication', 'Automotive Locksmith'],
+  appliance_repair: ['Refrigerator Repair', 'Washer Repair', 'Dryer Repair', 'Dishwasher Repair', 'Oven / Range Repair', 'Microwave Repair', 'Ice Maker Repair', 'Garbage Disposal'],
+  moving: ['Local Moving', 'Long-Distance', 'Packing / Unpacking', 'Storage', 'Piano Moving', 'Commercial Relocation', 'Loading Help', 'Furniture Assembly'],
+  tree_service: ['Tree Removal', 'Emergency Storm Cleanup', 'Trimming / Pruning', 'Stump Grinding', 'Cabling / Bracing', 'Land Clearing', 'Arborist Consultation', 'Lot Clearing'],
+  pool_service: ['Weekly Cleaning', 'Chemical Balancing', 'Equipment Repair', 'Pool Opening', 'Pool Closing', 'Leak Detection', 'Acid Wash', 'New Installation'],
+  septic_waste: ['Septic Pumping', 'Inspection', 'Drain Field Repair', 'Grease Trap Cleaning', 'Portable Toilet Rental', 'Emergency Service', 'Line Jetting', 'Camera Inspection'],
+  pressure_washing: ['House Washing', 'Driveway Cleaning', 'Deck Restoration', 'Roof Cleaning', 'Graffiti Removal', 'Commercial Flatwork', 'Fence Cleaning', 'Gutter Brightening'],
+  window_cleaning: ['Interior / Exterior', 'Screen Cleaning', 'Track Cleaning', 'Skylight Cleaning', 'Solar Panel Cleaning', 'Commercial High-Rise', 'Post-Construction', 'Recurring Service'],
+  carpet_cleaning: ['Steam Cleaning', 'Stain Removal', 'Upholstery Cleaning', 'Area Rug Cleaning', 'Pet Odor Treatment', 'Tile & Grout', 'Commercial Carpet', 'Water Extraction'],
+  flooring: ['Hardwood Install', 'Hardwood Refinish', 'LVP / Laminate', 'Tile Installation', 'Carpet Install', 'Subfloor Repair', 'Removal of Old Flooring', 'In-Floor Heating'],
+  drywall_insulation: ['Drywall Hanging', 'Drywall Finishing', 'Texture Matching', 'Insulation Install', 'Soundproofing', 'Spray Foam', 'Blown-In Insulation', 'Repair / Patch'],
+  welding: ['Custom Fabrication', 'Mobile Welding', 'Structural Welding', 'Gate / Railing Repair', 'Trailer Repair', 'Pipe Welding', 'Aluminum Welding', 'Equipment Repair'],
+  excavation: ['Site Prep', 'Grading', 'Trenching', 'Land Clearing', 'Demolition', 'Drainage', 'Septic Installation', 'Foundation Excavation'],
+  surveying: ['Boundary Survey', 'Topographic Survey', 'Construction Staking', 'ALTA Survey', 'Subdivision Plat', 'Elevation Certificate', 'Floodplain Determination', 'FEMA Elevation'],
+  'retail-supply': ['Material Delivery', 'Bulk Orders', 'Tool Rental', 'Custom Orders', 'Estimates / Quotes', 'Will-Call Pickup'],
+  auto_repair: ['Diagnostics', 'Brake Repair', 'Engine Work', 'Transmission', 'AC Service', 'Oil Change', 'State Inspection', 'Towing / Tow-In'],
+  auto_body: ['Collision Repair', 'Dent Removal', 'Paint Matching', 'Frame Straightening', 'Bumper Repair', 'Glass Replacement', 'Scratch Repair', 'Insurance Estimates'],
+  tire_shop: ['Tire Sales', 'Mounting / Balancing', 'Rotation', 'Alignment', 'Flat Repair', 'Seasonal Changeover', 'Tire Storage', 'TPMS Service'],
+  diesel_mechanic: ['Engine Repair / Rebuild', 'DPF Cleaning', 'PM Service', 'Mobile Repair', 'DOT Inspection', 'Fleet Maintenance', 'Transmission Service', 'Aftertreatment'],
+  tow_truck: ['Accident Towing', 'Breakdown Towing', 'Flat Tire', 'Jump Start', 'Lockout', 'Fuel Delivery', 'Winch / Recovery', 'Motorcycle Towing'],
+  real_estate: ['Buyer Representation', 'Seller Representation', 'Market Analysis', 'Property Showings', 'Open Houses', 'Commercial Sales', 'Rental Placement'],
+  salon_barber: ['Women\'s Cut', 'Men\'s Cut', 'Color / Highlights', 'Balayage', 'Blowout', 'Beard Trim', 'Waxing', 'Treatments'],
+  dog_grooming: ['Bath & Dry', 'Haircut / Style', 'Nail Trim', 'Ear Cleaning', 'Teeth Brushing', 'De-Shedding', 'Flea Treatment', 'Express Groom'],
+  pet_care: ['Dog Walking', 'Overnight Sitting', 'Boarding', 'Daycare', 'Drop-In Visits', 'Training', 'Pet Taxi', 'Cat Sitting'],
+  massage_therapy: ['Therapeutic Massage', 'Deep Tissue', 'Sports Massage', 'Prenatal', 'Couples Massage', 'Chair Massage', 'Hot Stone', 'Lymphatic Drainage'],
+  nail_salon: ['Classic Manicure', 'Gel Manicure', 'Spa Pedicure', 'Acrylic Full Set', 'Dip Powder', 'Nail Art', 'Paraffin Treatment', 'Polish Change'],
+  tattoo_shop: ['Custom Tattoos', 'Flash Tattoos', 'Piercing', 'Consultation', 'Touch-Ups', 'Cover-Ups', 'Permanent Makeup', 'Tattoo Removal Referral'],
+  photography: ['Wedding Photography', 'Portrait Sessions', 'Event Coverage', 'Commercial / Product', 'Real Estate Photos', 'Drone / Aerial', 'Headshots', 'Newborn'],
+  event_planning: ['Full-Service Planning', 'Day-Of Coordination', 'Vendor Sourcing', 'Design / Styling', 'Budget Management', 'Wedding Planning', 'Corporate Events', 'Private Parties'],
+  catering: ['Wedding Catering', 'Corporate Events', 'Private Parties', 'Drop-Off Meals', 'Bartending Service', 'Rental Coordination', 'Station / Buffet', 'Plated Dinner'],
+  personal_training: ['1-on-1 Training', 'Group Sessions', 'Online Coaching', 'Nutrition Guidance', 'Fitness Assessment', 'Sports Performance', 'Weight Loss Program', 'Senior Fitness'],
+  yoga_studio: ['Group Classes', 'Private Sessions', 'Workshops', 'Teacher Training', 'Meditation', 'Retreats', 'Kids Yoga', 'Prenatal Yoga'],
+  tutoring: ['Math', 'Science', 'English / Writing', 'SAT / ACT Prep', 'Foreign Language', 'Special Education', 'Study Skills', 'College Prep'],
+  chiropractor: ['Spinal Adjustment', 'Decompression', 'Sports Chiropractic', 'Injury Rehab', 'Posture Correction', 'X-Ray', 'Massage Therapy', 'Nutrition Counseling'],
+  physical_therapy: ['Orthopedic PT', 'Sports Rehab', 'Post-Surgical Rehab', 'Manual Therapy', 'Dry Needling', 'Vestibular Therapy', 'Balance Training', 'Work Injury Rehab'],
+  dentist: ['Cleaning / Exam', 'Fillings', 'Crowns', 'Root Canals', 'Whitening', 'Invisalign', 'Extractions', 'Implants'],
+  optometrist: ['Comprehensive Eye Exam', 'Contact Lens Exam', 'Glaucoma Screening', 'Diabetic Eye Exam', 'Glasses Dispensing', 'Contact Fitting', 'Emergency Visit', 'Pediatric Exam'],
+  lawyer: ['Family Law', 'Criminal Defense', 'Personal Injury', 'Estate Planning', 'Business Law', 'Real Estate Law', 'Immigration', 'Contract Review'],
+  accountant: ['Tax Preparation', 'Bookkeeping', 'Payroll', 'CFO Advisory', 'Audit Support', 'Entity Formation', 'Financial Planning', 'Sales Tax Filing'],
+  insurance_agent: ['Auto Insurance', 'Homeowners', 'Life Insurance', 'Commercial', 'Umbrella', 'Bonds', 'Flood Insurance', 'Renters Insurance'],
+  real_estate_appraiser: ['Residential Appraisal', 'Commercial Appraisal', 'FHA / VA Appraisal', 'Desk Review', 'Tax Assessment Appeal', 'Estate Appraisal', 'Divorce Appraisal', 'PMI Removal'],
+  architect: ['Architectural Design', 'Permit Drawings', '3D Rendering', 'Master Planning', 'Interior Design Coord.', 'Feasibility Study', 'Addition / Remodel', 'New Construction'],
+  notary: ['General Notary', 'Mobile Notary', 'Loan Signing', 'Apostille', 'I-9 Verification', 'Remote Online Notary', 'Wills / POA', 'Real Estate Docs'],
+  lawn_care: ['Mowing', 'Fertilization', 'Weed Control', 'Aeration', 'Mulching', 'Leaf Cleanup', 'Seasonal Cleanup', 'Overseeding'],
+  junk_removal: ['Furniture Removal', 'Appliance Haul-Away', 'Estate Cleanouts', 'Construction Debris', 'Foreclosure Cleanout', 'Yard Waste', 'Hoarding Cleanup', 'Donation Drop-Off'],
+  garage_door: ['Spring Replacement', 'Opener Repair', 'Cable Replacement', 'New Door Install', 'Track Repair', 'Remote Programming', 'Panel Replacement', 'Emergency Service'],
+  gutter_cleaning: ['Gutter Cleaning', 'Downspout Clearing', 'Gutter Guard Install', 'Minor Repair', 'Window Add-On', 'Recurring Plans', 'Roof Debris Removal', 'Ice Dam Prevention'],
+  chimney_sweep: ['Chimney Sweeping', 'Level 1 Inspection', 'Level 2 Inspection', 'Cap / Damper Install', 'Masonry Repair', 'Liner Installation', 'Dryer Vent Cleaning', 'Animal Removal'],
+  water_damage: ['Water Extraction', 'Structural Drying', 'Mold Remediation', 'Sewage Cleanup', 'Fire / Smoke Restoration', 'Insurance Claim Help', 'Leak Detection', 'Contents Restoration'],
+  mold_remediation: ['Mold Inspection', 'Air Quality Testing', 'Containment', 'Removal', 'Sanitization', 'Moisture Correction', 'Clearance Testing', 'Prevention'],
+  solar_install: ['Panel Installation', 'Battery Backup', 'System Monitoring', 'Maintenance', 'Roof Evaluation', 'Ground Mount', 'Off-Grid System', 'EV Charger Integration'],
+  medical_clinic: ['Primary Care', 'Annual Physical', 'Sick Visit', 'Vaccinations', 'Lab Work', 'Chronic Disease Mgmt', 'Wellness Exam', 'Telehealth'],
+  urgent_care: ['Walk-In Visit', 'Flu / Cold', 'Sprains / Fractures', 'Cuts / Lacerations', 'Infections', 'X-Ray', 'Lab Tests', 'COVID / Flu / Strep Test'],
+  veterinary: ['Wellness Exam', 'Vaccinations', 'Dental Care', 'Surgery', 'Diagnostics', 'Boarding', 'Grooming', 'Emergency Care'],
+  other: ['Consulting', 'Installation', 'Repair / Service', 'Emergency Service', 'Estimate / Quote', 'Maintenance']
+};
+
+const APPT_TYPES = ['Estimate / Quote', 'Site Visit', 'Installation', 'Repair / Service', 'Consultation', 'Follow-up', 'Emergency Call'];
+
+function populateServiceCheckboxes() {
+  const g = document.getElementById('services-group');
+  const ind = document.getElementById('biz-industry').value || 'other';
+  const svcs = SERVICES[ind] || SERVICES.other;
+  g.innerHTML = svcs.map(s => '<label class="checkbox-item"><input type="checkbox" value="' + s + '"><span class="chk-label">' + s + '</span></label>').join('');
+}
+
+function populateApptCheckboxes() {
+  const g = document.getElementById('appt-types-group');
+  g.innerHTML = APPT_TYPES.map(s => '<label class="checkbox-item"><input type="checkbox" value="' + s + '"><span class="chk-label">' + s + '</span></label>').join('');
+}
+
+function addCustomServiceCheckbox(name, checked) {
+  const g = document.getElementById('services-group');
+  const cb = document.createElement('label');
+  cb.className = 'checkbox-item';
+  cb.innerHTML = '<input type="checkbox" value="' + name + '" data-custom="true"' + (checked ? ' checked' : '') + '><span class="chk-label">' + name + '</span><span style="color:var(--muted);cursor:pointer;min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center" onclick="event.preventDefault();this.parentElement.remove()">✕</span>';
+  g.appendChild(cb);
+}
+
+function addCustomService() {
+  const i = document.getElementById('custom-svc');
+  const v = i.value.trim(); if (!v) return;
+  addCustomServiceCheckbox(v, true); i.value = '';
+}
+
+function addCustomApptCheckbox(name, checked) {
+  const g = document.getElementById('appt-types-group');
+  const cb = document.createElement('label');
+  cb.className = 'checkbox-item';
+  cb.innerHTML = '<input type="checkbox" value="' + name + '" data-custom="true"' + (checked ? ' checked' : '') + '><span class="chk-label">' + name + '</span><span style="color:var(--muted);cursor:pointer;min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center" onclick="event.preventDefault();this.parentElement.remove()">✕</span>';
+  g.appendChild(cb);
+}
+
+function addCustomAppt() {
+  const i = document.getElementById('custom-appt');
+  const v = i.value.trim(); if (!v) return;
+  addCustomApptCheckbox(v, true); i.value = '';
+}
+
+// ── Hours Toggle ──
+function toggleDay(day) {
+  const toggle = document.getElementById(day + '-toggle'), enabled = toggle.checked,
+    label = document.getElementById(day + '-label'), start = document.getElementById(day + '-start'),
+    end = document.getElementById(day + '-end');
+  if (!enabled) {
+    label.classList.add('off'); start.disabled = true; end.disabled = true;
+    start.style.opacity = '0.4'; end.style.opacity = '0.4';
+  } else {
+    label.classList.remove('off'); start.disabled = false; end.disabled = false;
+    start.style.opacity = '1'; end.style.opacity = '1';
+  }
+}
+
+// ── Voice & Tone ──
+function selectVoice(card) { document.querySelectorAll('.voice-card').forEach(c => c.classList.remove('selected')); card.classList.add('selected'); selectedVoice = card.dataset.voice; }
+function selectTone(btn) { document.querySelectorAll('.tone-btn').forEach(b => b.classList.remove('selected')); btn.classList.add('selected'); selectedTone = btn.dataset.tone; }
+function updateVoiceUI() { document.querySelectorAll('.voice-card').forEach(c => c.classList.toggle('selected', c.dataset.voice === selectedVoice)); }
+function updateToneUI() { document.querySelectorAll('.tone-btn').forEach(b => b.classList.toggle('selected', b.dataset.tone === selectedTone)); }
+function previewVoice() { const s = document.getElementById('preview-status'); s.textContent = '🔊 Playing sample... (Emma voice preview coming soon)'; setTimeout(() => { s.textContent = ''; }, 3000); }
+
+// ── File Upload ──
+const uploadZone = document.getElementById('upload-zone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+
+function handleFiles(files) { for (const f of files) { uploadedFiles.push(f); renderFileList(); } }
+function removeFile(idx) { uploadedFiles.splice(idx, 1); renderFileList(); }
+function renderFileList() {
+  const l = document.getElementById('file-list');
+  if (uploadedFiles.length === 0) { l.innerHTML = ''; return; }
+  l.innerHTML = uploadedFiles.map((f, i) => '<div class="file-item"><span>📄</span><span class="file-name">' + f.name + '</span><span class="file-size">' + (f.size < 1024 ? f.size + ' B' : f.size < 1048576 ? (f.size / 1024).toFixed(1) + ' KB' : (f.size / 1048576).toFixed(1) + ' MB') + '</span><button class="file-remove" onclick="removeFile(' + i + ')">✕</button></div>').join('');
+}
+
+// ── Industry change → fetch template + update services ──
+document.getElementById('biz-industry').addEventListener('change', function () {
+  if (this.value) {
+    populateServiceCheckboxes();
+    if (savedData.custom_services) savedData.custom_services.forEach(s => addCustomServiceCheckbox(s, true));
+    loadIndustryTemplate(this.value);
+  }
+});
+
+// ── Init ──
+async function init() {
+  try {
+    const r = await fetch(API + '/me', { credentials: 'include' });
+    const d = await r.json();
+    if (!d.ok) {
+      document.querySelector('main').innerHTML = '<div style="text-align:center;padding:60px 20px"><h2 style="margin-bottom:16px">Not Logged In</h2><p style="color:var(--muted);margin-bottom:20px">You need an account to set up your AI receptionist.</p><a href="/signup" class="btn-next" style="display:inline-flex;text-decoration:none;padding:14px 32px">Create Account →</a></div>';
+      document.querySelector('nav.footer-nav').style.display = 'none';
+      return;
+    }
+  } catch (e) {
+    document.querySelector('main').innerHTML = '<div style="text-align:center;padding:60px 20px"><p style="color:var(--muted)">Connection error. Please try again.</p></div>';
+    return;
+  }
+
+  populateServiceCheckboxes();
+  populateApptCheckboxes();
+  await loadSavedData();
+  ['sat', 'sun'].forEach(day => { const toggle = document.getElementById(day + '-toggle'); if (toggle && !toggle.checked) toggleDay(day); });
+
+  // If industry already saved, load template
+  const savedInd = document.getElementById('biz-industry').value;
+  if (savedInd) loadIndustryTemplate(savedInd);
+
+  showStep(1);
+}
+
+init();
+</script>
+</body>
+</html>
