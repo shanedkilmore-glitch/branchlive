@@ -873,7 +873,7 @@ function formatTime12h(time) {
 // ═══════════════════════════════════════════════════════════════════════
 
 async function sendEmail(env, { to, subject, html }) {
-  const RESEND_KEY = env.RESEND_API_KEY || 'REDACTED_RESEND_KEY';
+  const RESEND_KEY = env.RESEND_API_KEY;
   if (!RESEND_KEY) return false;
   try {
     const resp = await fetch('https://api.resend.com/emails', {
