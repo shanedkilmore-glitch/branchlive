@@ -1713,6 +1713,15 @@ async function initDB(env) {
     try { await env.DB.prepare("ALTER TABLE sites ADD COLUMN accent TEXT DEFAULT '#d4a574'").run(); } catch(e) {}
     try { await env.DB.prepare('ALTER TABLE sites ADD COLUMN sections TEXT').run(); } catch(e) {}
 
+    // Migration: 'Design My Site' AI Website Designer. project_html holds the
+    // approved, fully-rendered AI landing page (served at /s/{slug}); draft_html
+    // holds the un-approved preview (?preview_draft=1). When both are null the
+    // public route falls back to the legacy template renderer, so existing
+    // businesses are untouched. Idempotent — ALTER errors are swallowed once the
+    // column exists.
+    try { await env.DB.prepare('ALTER TABLE sites ADD COLUMN draft_html TEXT').run(); } catch(e) {}
+    try { await env.DB.prepare('ALTER TABLE sites ADD COLUMN project_html TEXT').run(); } catch(e) {}
+
     // Migration: social profile links on settings, surfaced on the public site's
     // social section. Optional + idempotent (ALTER errors are swallowed once the
     // column exists). Empty string = link hidden; no social section renders.
@@ -2546,6 +2555,7 @@ const NAV_ITEMS = {
   blog:     { key:'blog',     href: '/p/blog',        label: 'Blog',      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>' },
   social:   { key:'social',   href: '/p/social',      label: 'Social',    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-8-8 18-2-7-8-3z"/></svg>' },
   billing:  { key:'billing',  href: '/p/billing',     label: 'Billing',   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>' },
+  help:     { key:'help',     href: '/p/help',        label: 'Help',      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' },
   team:     { key:'team',     href: '/p/team',        label: 'Team',       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' },
   settings: { key:'settings', href: '/settings-htmx', label: 'Settings',  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>' },
 };
@@ -2557,7 +2567,7 @@ const NAV_GROUPS = [
   { name: 'Main',     keys: ['overview','calendar','knowledge','gallery'] },
   { name: 'Business', keys: ['leads','calls','analytics'] },
   { name: 'Growth',   keys: ['website','blog','social'] },
-  { name: 'Account',  keys: ['billing','team','settings'] },
+  { name: 'Account',  keys: ['billing','team','settings','help'] },
 ];
 
 // Urgency badge — used across Leads list + detail. Monotone amber palette:
@@ -2760,6 +2770,7 @@ const VALID_ROLES = ['admin', 'manager', 'employee'];
 const ROUTE_MIN_ROLE = {
   '/p/settings':  'admin',
   '/p/billing':   'admin',
+  '/p/help':      'employee',
   '/p/leads':     'manager',
   '/p/calls':     'manager',
   '/p/website':   'manager',
@@ -5363,7 +5374,286 @@ async function handleSitesConfig(request, env, uid) {
   }
 }
 
-// ── Website Builder: template engine ──────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+// 'DESIGN MY SITE' — AI website generator (DeepSeek).
+// POST /api/site/design/generate  → builds a draft landing page from the
+//   business's settings/services/photos/reviews and stores it in sites.draft_html.
+// POST /api/site/design/approve   → promotes draft_html to project_html + publishes.
+// Both are cookie-authed (the builder has no Bearer token), manager+, and
+// scoped to ctx.bid (so team members act on the owner's business). The public
+// route serves draft_html under ?preview_draft=1 and project_html once live.
+// ═══════════════════════════════════════════════════════════════════════
+
+// DeepSeek system prompt — verbatim from the Design My Site spec. Hardcodes the
+// design rules, the "no contractor word" rule, and the output constraints.
+const DESIGN_MY_SITE_SYSTEM_PROMPT = `You are an expert web designer and front-end developer specializing in creating high-converting, premium landing pages for local service businesses.
+
+Your task is to write a single, completely self-contained, responsive HTML5 landing page.
+
+OUTPUT CONSTRAINTS:
+1. Return ONLY valid HTML5 code starting with <!DOCTYPE html> and ending with </html>.
+2. Do NOT wrap your output in markdown codeblocks (e.g. \`\`\`html). Return only raw text.
+3. No conversational preambles or post-scripts. Output only the code.
+4. All styles must be written in a single <style> block in the <head>. Do not use external CSS frameworks.
+5. All interactive elements (e.g., mobile navigation toggle, modal overlays) must use simple, inline vanilla JavaScript. No external libraries like jQuery.
+
+DESIGN & AESTHETIC DIRECTIVES:
+1. Do not use generic browser colors. Create a highly customized color scheme tailored to the business's industry (e.g., rich forest greens and earth tones for landscaping; deep charcoal, slate, and amber accents for trades).
+2. Utilize premium typography. Import modern Google Fonts (such as Inter, Outfit, Fraunces, or Playfair Display) via <link> tags in the head.
+3. Layout structure must include:
+   - Sticky navigation bar with responsive mobile menu.
+   - High-impact hero section with a clear headline, sub-headline, a primary CTA (Booking button), and a secondary CTA (Call button).
+   - Features / Services & Pricing grid matching the provided catalog.
+   - "Our Work" Gallery section placing the photo placeholders contextually.
+   - Testimonial carousel or grid displaying reviews.
+   - Footer containing contact info, working hours, and social media links.
+4. Implement subtle animations (hover states, fading transitions).
+
+STRICT COPY RULES:
+- HARD RULE: NEVER use the word "contractor" in any copy, headers, text, class names, or comments. Instead, use "business", "service business", "local professional", or industry-specific terms (e.g., "plumber", "electrician", "stylist").`;
+
+// Strip markdown code fences (if the model ignored the constraint) and any
+// conversational pre/post-amble, returning only the HTML document.
+function cleanGeneratedHtml(raw) {
+  let s = String(raw == null ? '' : raw).trim();
+  // Remove ```html / ``` fences anywhere (the model sometimes wraps output).
+  s = s.replace(/```html\s*/gi, '').replace(/```\s*/g, '');
+  // Keep only from the first <!DOCTYPE (case-insensitive) to the last </html>.
+  const startMatch = s.match(/<!DOCTYPE/i);
+  const endIdx = s.toLowerCase().lastIndexOf('</html>');
+  if (startMatch && endIdx !== -1 && endIdx > startMatch.index) {
+    s = s.slice(startMatch.index, endIdx + '</html>'.length);
+  }
+  return s.trim();
+}
+
+// POST /api/site/design/generate — collect business data, call DeepSeek, store
+// the result (with photo data URIs substituted) in sites.draft_html, return a
+// preview URL. `uid` here is the resolved ctx.bid (owner-scoped).
+async function handleSiteDesignGenerate(request, env, uid) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const styleNotes = (body && typeof body.style_notes === 'string')
+      ? body.style_notes.slice(0, 1000) : '';
+
+    const apiKey = env.DEEPSEEK_API_KEY;
+    if (!apiKey) {
+      return json({ ok: false, error: 'AI design is not configured (missing API key). Contact support.' }, 503);
+    }
+
+    // ── 1-4. Gather business data in parallel. Photos are fetched WITHOUT the
+    // large base64 `data` column — only metadata + id for token mapping. The
+    // base64 is pulled later, lazily, only for photos the LLM actually used.
+    const [settings, servicesRow, photosRow, reviewsRow] = await Promise.all([
+      env.DB.prepare(
+        'SELECT business_name, industry, service_area, service_description, forwarding_number, working_hours, instagram_url, facebook_url FROM settings WHERE user_id = ?'
+      ).bind(uid).first(),
+      env.DB.prepare(
+        'SELECT category, item, price, notes FROM knowledge WHERE user_id = ? ORDER BY category, id'
+      ).bind(uid).all(),
+      env.DB.prepare(
+        'SELECT id, caption, type FROM photos WHERE user_id = ? ORDER BY created_at DESC LIMIT 12'
+      ).bind(uid).all(),
+      env.DB.prepare(
+        'SELECT author_name, rating, text FROM reviews WHERE user_id = ? ORDER BY reviewed_at DESC LIMIT 5'
+      ).bind(uid).all(),
+    ]);
+
+    const biz = settings || {};
+    const businessName = (biz.business_name || '').trim() || 'Your Business';
+    const industry = (biz.industry || '').trim() || 'Local Service';
+    const serviceArea = (biz.service_area || '').trim() || 'Our service area';
+    const description = (biz.service_description || '').trim() || '';
+    const phone = (biz.forwarding_number || '').trim();
+    const hours = (biz.working_hours || '').trim();
+    const instagram = (biz.instagram_url || '').trim();
+    const facebook = (biz.facebook_url || '').trim();
+
+    // ── 2. Group services by category for the prompt.
+    const byCategory = {};
+    for (const s of (servicesRow.results || [])) {
+      const cat = (s.category || 'Services').trim() || 'Services';
+      (byCategory[cat] = byCategory[cat] || []).push(s);
+    }
+    let servicesBlock = '';
+    const catNames = Object.keys(byCategory);
+    if (catNames.length) {
+      servicesBlock = catNames.map(cat => {
+        const items = byCategory[cat].map(s => {
+          const price = (s.price != null && s.price !== '') ? `$${s.price}` : '';
+          const notes = (s.notes || '').trim();
+          return `  • ${s.item || 'Service'}${price ? ' — ' + price : ''}${notes ? ' (' + notes + ')' : ''}`;
+        }).join('\n');
+        return `${cat}:\n${items}`;
+      }).join('\n');
+    } else {
+      servicesBlock = '(No services cataloged yet — generate a tasteful generic services section.)';
+    }
+
+    // ── 3. Map photos → [PHOTO_N] tokens with captions (NO base64 sent to LLM).
+    const photos = (photosRow.results || []);
+    const tokenById = {};      // photo id → "[PHOTO_N]"
+    const tokenMeta = [];      // prompt lines: "[PHOTO_1] - Type: after, Caption: ..."
+    photos.forEach((p, i) => {
+      const token = `[PHOTO_${i + 1}]`;
+      tokenById[p.id] = token;
+      const cap = (p.caption || '').trim();
+      const type = (p.type || '').trim();
+      tokenMeta.push(`${token} - ${type ? 'Type: ' + type + ', ' : ''}Caption: ${cap || 'business photo'}`);
+    });
+    const photoBlock = photos.length
+      ? tokenMeta.join('\n')
+      : '(No photos available — omit the gallery section or use tasteful placeholders. Do not invent photo tokens.)';
+
+    // ── 4. Reviews → testimonials block.
+    const reviews = (reviewsRow.results || []);
+    const reviewsBlock = reviews.length
+      ? reviews.map(r => `• "${(r.text || '').trim()}" — ${r.author_name || 'Customer'}${r.rating ? ', ' + r.rating + '/5' : ''}`).join('\n')
+      : '(No reviews yet — omit the testimonials section.)';
+
+    // Phone links: digits-only for tel: (per spec §3.3).
+    const phoneRaw = phone.replace(/[^\d+]/g, '');
+
+    // ── 5. Build prompts. Business-provided fields are htmxEsc'd before being
+    // interpolated into the prompt to prevent prompt injection / broken layouts
+    // (spec §7.1). htmxEsc also neutralizes stray backticks and braces.
+    const escP = htmxEsc;
+    const userPrompt =
+`Generate a premium landing page for the following business:
+
+--- BUSINESS PROFILE ---
+Name: ${escP(businessName)}
+Industry: ${escP(industry)}
+Service Area: ${escP(serviceArea)}
+Description: ${escP(description)}
+Phone Number: ${escP(phone)}
+Working Hours: ${escP(hours)}
+Instagram: ${escP(instagram)}
+Facebook: ${escP(facebook)}
+
+--- SERVICE CATALOG ---
+${servicesBlock}
+
+--- TESTIMONIALS ---
+${reviewsBlock}
+
+--- AVAILABLE PHOTOS ---
+Use these tokens verbatim in the src attribute of your img tags where relevant. Do not invent other tokens:
+${photoBlock}
+
+--- USER PREFERENCES / STYLE NOTES ---
+${escP(styleNotes) || '(no specific preferences — use your best design judgment for this industry)'}
+
+--- DEPLOYMENT DATA LINKS ---
+- Make the primary CTA ("Book Online" / "Book Appointment") link to: /dashboard
+- Make phone links use: tel:${escP(phoneRaw)}`;
+
+    // ── 6. Call DeepSeek (OpenAI-compatible chat completions).
+    const llmRes = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: DESIGN_MY_SITE_SYSTEM_PROMPT },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.3,
+        max_tokens: 8000,
+      }),
+    });
+
+    if (!llmRes.ok) {
+      const errText = await llmRes.text().catch(() => '');
+      console.error('Design My Site DeepSeek error:', llmRes.status, errText);
+      return json({ ok: false, error: 'The AI generator failed to respond. Please try again.' }, 502);
+    }
+    const llmJson = await llmRes.json();
+    const rawHtml = llmJson.choices && llmJson.choices[0] && llmJson.choices[0].message
+      ? llmJson.choices[0].message.content : '';
+    if (!rawHtml || !/<!doctype/i.test(rawHtml)) {
+      console.error('Design My Site: empty or non-HTML LLM output');
+      return json({ ok: false, error: 'The AI did not return a valid page. Please try again.' }, 502);
+    }
+
+    // ── 7. Clean fences, then replace [PHOTO_N] tokens with base64 data URIs.
+    let html = cleanGeneratedHtml(rawHtml);
+    if (photos.length) {
+      // Pull only the photos actually referenced by a token. One round-trip
+      // via a parameterized IN(...) would be ideal but D1's bind limits vary,
+      // so a single batch is safer for ≤12 rows.
+      const ids = photos.map(p => p.id);
+      const placeholders = ids.map(() => '?').join(',');
+      const dataRows = await env.DB.prepare(
+        `SELECT id, data FROM photos WHERE id IN (${placeholders})`
+      ).bind(...ids).all();
+      for (const r of (dataRows.results || [])) {
+        const token = tokenById[r.id];
+        if (token && r.data) {
+          // Escape for use in a replacement-string pattern ($ in data URIs is rare
+          // but possible in base64 padding — use a function replacer to be safe).
+          html = html.split(token).join(r.data);
+        }
+      }
+    }
+
+    // ── 8. Persist to draft_html (ensure a sites row + slug exist first).
+    const nameRow = await env.DB.prepare('SELECT business_name FROM settings WHERE user_id = ?').bind(uid).first();
+    const bmName = (nameRow && nameRow.business_name) || '';
+    let site = await env.DB.prepare('SELECT id, slug FROM sites WHERE user_id = ?').bind(uid).first();
+    if (!site) {
+      const slug = await siteUniqueSlug(env, bmName);
+      await env.DB.prepare(
+        'INSERT INTO sites (user_id, slug, published, theme) VALUES (?, ?, 0, ?)'
+      ).bind(uid, slug, 'modern').run();
+      site = await env.DB.prepare('SELECT id, slug FROM sites WHERE user_id = ?').bind(uid).first();
+    } else if (!site.slug) {
+      const slug = await siteUniqueSlug(env, bmName);
+      await env.DB.prepare('UPDATE sites SET slug = ? WHERE id = ?').bind(slug, site.id).run();
+      site = await env.DB.prepare('SELECT id, slug FROM sites WHERE user_id = ?').bind(uid).first();
+    }
+    await env.DB.prepare('UPDATE sites SET draft_html = ? WHERE user_id = ?').bind(html, uid).run();
+
+    return json({ ok: true, previewUrl: `/s/${site.slug}?preview_draft=1` });
+  } catch (e) {
+    console.error('Design My Site generate error:', e);
+    return apiError('Could not generate site design', 500);
+  }
+}
+
+// POST /api/site/design/approve — promote the current draft to the live page.
+// Copies draft_html → project_html, clears the draft, and marks the site
+// published. `uid` is ctx.bid (owner-scoped).
+async function handleSiteDesignApprove(request, env, uid) {
+  try {
+    // Publishing is gated behind the Website Builder add-on — the same rule as
+    // the legacy handleSitesPublish. Generating/previewing a draft is free;
+    // going live requires the $9.95/mo add-on. Join settings on the same uid.
+    const row = await env.DB.prepare(
+      `SELECT s.id AS id, s.draft_html AS draft_html, st.addon_website AS addon_website
+       FROM sites s LEFT JOIN settings st ON st.user_id = s.user_id
+       WHERE s.user_id = ?`
+    ).bind(uid).first();
+    if (!row || !row.draft_html) {
+      return json({ ok: false, error: 'No draft to publish. Generate a design first.' }, 400);
+    }
+    if (!row.addon_website) {
+      return json({ ok: false, error: 'Website Builder add-on required to publish. Enable it under Billing.' }, 403);
+    }
+    await env.DB.prepare(
+      'UPDATE sites SET project_html = draft_html, draft_html = NULL, published = 1 WHERE id = ?'
+    ).bind(row.id).run();
+    return json({ ok: true });
+  } catch (e) {
+    console.error('Design My Site approve error:', e);
+    return apiError('Could not publish the draft', 500);
+  }
+}
+
+
 // The five published templates. Each is a render function (data, cfg) =>
 // full HTML document. `cfg` is already normalized by normalizeSiteConfig().
 // `data` is the normalized payload from buildSiteData(). Every template
@@ -6013,16 +6303,41 @@ async function handlePublicSite(request, env, slug) {
   try {
     const url = new URL(request.url);
     const isPreview = url.searchParams.get('preview') === '1';
+    const isDraftPreview = url.searchParams.get('preview_draft') === '1';
     // Preview mode: the owner (resolved via session cookie) can view an
     // unpublished site. Anonymous visitors only ever see published rows.
     let ownerUid = null;
-    if (isPreview) ownerUid = await getUidFromSessionCookie(request, env);
-    const site = isPreview
+    if (isPreview || isDraftPreview) ownerUid = await getUidFromSessionCookie(request, env);
+    const site = (isPreview || isDraftPreview)
       ? await env.DB.prepare('SELECT * FROM sites WHERE slug = ?').bind(slug).first()
       : await env.DB.prepare('SELECT * FROM sites WHERE slug = ? AND published = 1').bind(slug).first();
-    if (!site || (isPreview && ownerUid && site.user_id !== ownerUid)) {
+    if (!site || ((isPreview || isDraftPreview) && ownerUid && site.user_id !== ownerUid)) {
       return new Response(siteNotFoundShell(), { status: 404, headers: { 'Content-Type': 'text/html' } });
     }
+
+    // 'Design My Site' draft preview (?preview_draft=1) — owner-only. Serves
+    // the AI-generated draft_html exactly as the LLM produced it. Returns 404
+    // to anyone who isn't the owner (matched above) or if no draft exists, so
+    // the link simply stops working once approved/discarded.
+    if (isDraftPreview) {
+      if (site.draft_html) {
+        return new Response(site.draft_html, {
+          headers: { 'Content-Type': 'text/html', 'Cache-Control': 'no-store' },
+        });
+      }
+      return new Response(siteNotFoundShell(), { status: 404, headers: { 'Content-Type': 'text/html' } });
+    }
+
+    // Published AI-generated site — serve the stored project_html directly with
+    // revalidation headers (spec §7.2). Falls through to the legacy template
+    // renderer below when project_html is null (sites that never used 'Design
+    // My Site'), so every existing business keeps rendering unchanged.
+    if (site.published && site.project_html) {
+      return new Response(site.project_html, {
+        headers: { 'Content-Type': 'text/html', 'Cache-Control': 'public, max-age=0, must-revalidate' },
+      });
+    }
+
     const uid = site.user_id;
     // Live-preview query overrides: ?template=&accent=&headline=&sections=.
     const query = {
@@ -6070,7 +6385,6 @@ async function handleWebsiteBuilderHtmx(request, env, uid, ctx) {
       env.DB.prepare('SELECT business_name, addon_website, addon_reviews, addon_blog, addon_social FROM settings WHERE user_id = ?').bind(uid).first(),
       env.DB.prepare('SELECT id, data, caption, type FROM photos WHERE user_id = ? ORDER BY created_at DESC LIMIT 24').bind(uid).all(),
     ]);
-    const cfg = normalizeSiteConfig(site || {}, {});
     const businessName = (settings && settings.business_name) || 'your business';
     const hasAddon = !!(settings && settings.addon_website);
     const slug = (site && site.slug) || '';
@@ -6079,106 +6393,104 @@ async function handleWebsiteBuilderHtmx(request, env, uid, ctx) {
     const previewUrl = slug ? `${origin}/s/${slug}?preview=1` : '';
     const photos = (photosRow.results || []).filter(p => p && p.data);
     // Add-on ownership drives which sections get sample previews in the iframe.
-    // A section toggled ON whose add-on isn't purchased → preview param sent so
-    // the iframe shows sample data + a lock overlay.
     const ownedAddons = {
       reviews: !!(settings && settings.addon_reviews),
       blog: !!(settings && settings.addon_blog),
       social: !!(settings && settings.addon_social),
     };
+    const hasDraft = !!(site && site.draft_html);
 
-    // Template picker cards.
-    const tplCards = SITE_TEMPLATES.map(t => {
-      const meta = SITE_TEMPLATE_META[t];
-      const sel = t === cfg.template;
-      return `<button type="button" class="wb-tpl ${sel ? 'sel' : ''}" data-tpl="${htmxEsc(t)}" onclick="wbPickTpl('${htmxEsc(t)}')">
-        <span class="wb-tpl-swatch wb-swatch-${htmxEsc(t)}"></span>
-        <span class="wb-tpl-name">${htmxEsc(meta.label)}</span>
-        <span class="wb-tpl-best">${htmxEsc(meta.best)}</span>
-      </button>`;
-    }).join('');
-
-    // Accent swatches.
-    const accentSwatches = SITE_ACCENTS.map(c =>
-      `<button type="button" class="wb-accent ${c === cfg.accent ? 'sel' : ''}" style="background:${htmxEsc(c)}" data-accent="${htmxEsc(c)}" onclick="wbPickAccent('${htmxEsc(c)}')" aria-label="${htmxEsc(c)}"></button>`
-    ).join('');
-
-    // Section toggles.
-    const sectionLabels = {
-      services: 'Services & pricing', about: 'About / story', gallery: 'Before & after gallery',
-      reviews: 'Customer reviews', blog: 'Latest blog posts', booking: 'Booking CTA',
-      contact: 'Contact', serviceArea: 'Service area', social: 'Social links',
-    };
-    const sectionToggles = SITE_SECTIONS.map(k =>
-      `<label class="wb-toggle"><input type="checkbox" data-sec="${htmxEsc(k)}" ${cfg.sections[k] ? 'checked' : ''} onchange="wbRefresh()"> <span>${htmxEsc(sectionLabels[k] || k)}</span></label>`
-    ).join('');
-
-    // Photos — existing thumbnails (with remove + tag) + an upload control.
-    // These populate the gallery section on the live site. Stored as base64
-    // data URIs in the photos table (no external storage for Phase 3).
-    const photoThumbs = photos.map(p => `<div class="wb-photo" data-id="${p.id}">
-      <img src="${htmxEsc(p.data)}" alt="${htmxEsc(p.caption || p.type || 'photo')}">
-      <select class="wb-photo-tag" onchange="wbPhotoTag(${p.id}, this.value)">${['after', 'before', 'during'].map(t => `<option value="${t}" ${p.type === t ? 'selected' : ''}>${t[0].toUpperCase() + t.slice(1)}</option>`).join('')}</select>
-      <button type="button" class="wb-photo-rm" onclick="wbPhotoRm(${p.id}, this)" title="Remove">✕</button>
+    // Photos — these feed the AI generator's [PHOTO_N] gallery tokens, so they
+    // stay editable here. Stored as base64 data URIs in the photos table.
+    const photoThumbs = photos.map(p => `<div class=”wb-photo” data-id=”${p.id}”>
+      <img src=”${htmxEsc(p.data)}” alt=”${htmxEsc(p.caption || p.type || 'photo')}”>
+      <select class=”wb-photo-tag” onchange=”wbPhotoTag(${p.id}, this.value)”>${['after', 'before', 'during'].map(t => `<option value=”${t}” ${p.type === t ? 'selected' : ''}>${t[0].toUpperCase() + t.slice(1)}</option>`).join('')}</select>
+      <button type=”button” class=”wb-photo-rm” onclick=”wbPhotoRm(${p.id}, this)” title=”Remove”>✕</button>
     </div>`).join('');
-    const photosBlock = `<h3 style="margin-top:24px">Photos <span style="text-transform:none;font-weight:400;color:var(--text-faint)">(${photos.length})</span></h3>
-    <div class="wb-photos" id="wb-photos">${photoThumbs}</div>
-    <div class="wb-upload">
-      <label class="wb-upload-btn">＋ Add photo<input type="file" accept="image/*" id="wb-file" onchange="wbPhotoAdd()" hidden></label>
-      <select id="wb-newtag">${['after', 'before', 'during'].map(t => `<option value="${t}">${t[0].toUpperCase() + t.slice(1)}</option>`).join('')}</select>
-      <span id="wb-up-status" class="wb-up-status"></span>
+    const photosBlock = `<h3 style=”margin-top:24px”>Photos <span style=”text-transform:none;font-weight:400;color:var(--text-faint)”>(${photos.length})</span></h3>
+    <p style=”font-size:.8em;color:var(--text-muted);margin:0 0 10px”>These feed the AI gallery. Up to 12 most-recent photos are used as design tokens.</p>
+    <div class=”wb-photos” id=”wb-photos”>${photoThumbs}</div>
+    <div class=”wb-upload”>
+      <label class=”wb-upload-btn”>＋ Add photo<input type=”file” accept=”image/*” id=”wb-file” onchange=”wbPhotoAdd()” hidden></label>
+      <select id=”wb-newtag”>${['after', 'before', 'during'].map(t => `<option value=”${t}”>${t[0].toUpperCase() + t.slice(1)}</option>`).join('')}</select>
+      <span id=”wb-up-status” class=”wb-up-status”></span>
     </div>
-    <p style="color:var(--text-faint);font-size:.76em;margin:8px 0 0">Photos show in the Gallery section. Max ~300KB each.</p>`;
+    <p style=”color:var(--text-faint);font-size:.76em;margin:8px 0 0”>Max ~300KB each.</p>`;
 
     // Reviews sync control — only shown when the Review Monitoring add-on is
-    // active. Pulls fresh Google reviews (needs a Place ID in Settings) and
-    // caches them in the reviews table for the public site to render.
+    // active. Pulls fresh Google reviews used as AI testimonials.
     const reviewsBlock = ownedAddons.reviews ? `
-    <h3 style="margin-top:24px">Reviews <span style="text-transform:none;font-weight:400;color:var(--text-faint)">(Google)</span></h3>
-    <p style="font-size:.85em;color:var(--text-muted);margin-bottom:8px">
-      Pulls your latest Google reviews automatically.
-      <a href="/settings-htmx" style="color:var(--accent)">Set your Google Place ID in Settings →</a>
+    <h3 style=”margin-top:24px”>Reviews <span style=”text-transform:none;font-weight:400;color:var(--text-faint)”>(Google)</span></h3>
+    <p style=”font-size:.85em;color:var(--text-muted);margin-bottom:8px”>
+      Synced reviews become AI testimonials.
+      <a href=”/settings-htmx” style=”color:var(--accent)”>Set your Google Place ID in Settings →</a>
     </p>
-    <button class="btn btn-ghost btn-sm" onclick="wbSyncReviews(event)">🔄 Sync reviews now</button>
-    <span id="wb-rev-status" style="font-size:.82em;margin-left:10px;color:var(--text-muted)"></span>` : '';
+    <button class=”btn btn-ghost btn-sm” onclick=”wbSyncReviews(event)”>🔄 Sync reviews now</button>
+    <span id=”wb-rev-status” style=”font-size:.82em;margin-left:10px;color:var(--text-muted)”></span>` : '';
 
     const addonBanner = hasAddon ? '' :
-      `<div class="wb-banner"><strong>Website Builder add-on ($9.95/mo)</strong> — preview is free. <a href="/p/billing">Enable it to publish →</a></div>`;
+      `<div class=”wb-banner”><strong>Website Builder add-on ($9.95/mo)</strong> — preview is free. <a href=”/p/billing”>Enable it to publish →</a></div>`;
 
-    const publishBtn = hasAddon
-      ? `<button class="btn btn-amber" id="wb-publish" onclick="wbPublish(${published ? 'false' : 'true'})">${published ? '⏸ Unpublish' : '🚀 Publish site'}</button>`
-      : `<button class="btn btn-ghost" disabled title="Enable the Website Builder add-on to publish">🚀 Publish site</button>`;
+    const liveStatus = published
+      ? `<p class=”wb-live”><span class=”badge badge-new”>Live</span> <a href=”/s/${htmxEsc(slug)}” target=”_blank”>${htmxEsc(origin)}/s/${htmxEsc(slug)}</a></p>`
+      : (slug ? `<p class=”wb-live”><span class=”badge”>Preview only</span></p>` : '');
 
-    const body = `<div class="app">${sidebarNav('website', undefined, ctx)}<div class="content wb-content">
-<span class="eyebrow">Website</span>
-<h1>Your live site</h1>
-<p class="sub">Pick a template, customize in real-time, publish in minutes. Everything pulls from your settings automatically${slug ? '' : ' — save a business name in Settings first'}.</p>
+    const body = `<div class=”app”>${sidebarNav('website', undefined, ctx)}<div class=”content wb-content”>
+<span class=”eyebrow”>Website</span>
+<h1>AI Website Designer</h1>
+<p class=”sub”>Harness artificial intelligence to write custom CSS and HTML tailored specifically to your business, services, and photos.${slug ? '' : ' Save a business name in Settings first.'}</p>
 ${addonBanner}
-<div class="wb-grid">
-  <div class="wb-controls card">
-    <h3>Template</h3>
-    <div class="wb-tpls">${tplCards}</div>
-    <h3 style="margin-top:24px">Accent color</h3>
-    <div class="wb-accents">${accentSwatches}</div>
-    <h3 style="margin-top:24px">Headline</h3>
-    <input type="text" id="wb-headline" class="wb-input" placeholder="(defaults to “${htmxEsc(businessName)}”)" value="${cfg.headline ? htmxEsc(cfg.headline) : ''}" oninput="wbRefreshDebounced()">
-    <h3 style="margin-top:24px">Sections</h3>
-    <div class="wb-toggles">${sectionToggles}</div>
+<div class=”wb-grid”>
+  <div class=”wb-controls card”>
+    <div id=”ai-trigger-panel”>
+      <h3>Design Options</h3>
+      <p style=”font-size:.85em;color:var(--text-muted);margin-bottom:12px”>
+        Provide design guidance or styling notes to steer the AI generator:
+      </p>
+      <textarea id=”wb-ai-notes” class=”wb-input” style=”height:100px;margin-bottom:16px;resize:vertical” placeholder=”e.g., Modern dark mode, elegant warm colors, clean typography...”></textarea>
+      <button class=”btn btn-amber” style=”width:100%” id=”wb-btn-generate” onclick=”wbGenerateAiSite()”>
+        🚀 Design My Site (AI)
+      </button>
+      ${hasDraft ? '<p style=”font-size:.78em;color:var(--text-muted);margin:10px 0 0;text-align:center”>A draft is waiting for your review below.</p>' : ''}
+    </div>
+
+    <!-- Shown during generation -->
+    <div id=”ai-loading-panel” style=”display:none;padding:16px 0;text-align:center;”>
+      <div class=”wb-spinner”></div>
+      <p id=”ai-status-msg” style=”font-size:.9em;color:var(--cream-dim);margin-top:12px”>Preparing prompts...</p>
+      <p style=”font-size:.76em;color:var(--text-faint);margin-top:8px”>This can take 20-40 seconds.</p>
+    </div>
+
+    <!-- Shown after a draft is generated -->
+    <div id=”ai-approval-panel” style=”display:none;”>
+      <div class=”ax-note” style=”margin-bottom:18px;”>
+        <strong>✨ Draft Generated!</strong><br>
+        Preview your custom site in the panel on the right.
+      </div>
+      <button class=”btn btn-success” style=”width:100%;margin-bottom:10px” onclick=”wbApproveAiSite()”>
+        🚀 Publish & Go Live
+      </button>
+      <button class=”btn btn-ghost” style=”width:100%;margin-bottom:10px” onclick=”wbGenerateAiSite()”>
+        🔄 Regenerate Design
+      </button>
+      <button class=”btn btn-ghost” style=”width:100%” onclick=”wbResetUI()”>
+        ✕ Discard Draft
+      </button>
+    </div>
+
     ${photosBlock}
     ${reviewsBlock}
-    <div class="wb-actions">
-      <button class="btn btn-ghost btn-sm" onclick="wbSave()">💾 Save</button>
-      ${publishBtn}
-    </div>
-    ${published ? `<p class="wb-live"><span class="badge badge-new">Live</span> <a href="/s/${htmxEsc(slug)}" target="_blank">${htmxEsc(origin)}/s/${htmxEsc(slug)}</a></p>` : (slug ? `<p class="wb-live"><span class="badge">Preview only</span></p>` : '')}
+    ${liveStatus}
   </div>
-  <div class="wb-preview card">
-    <div class="wb-preview-bar">
-      <button class="wb-dev ${''}" onclick="wbDevice('desktop')" data-d="desktop">🖥 Desktop</button>
-      <button class="wb-dev" onclick="wbDevice('mobile')" data-d="mobile">📱 Mobile</button>
+
+  <!-- Right: Live Iframe Preview -->
+  <div class=”wb-preview card”>
+    <div class=”wb-preview-bar”>
+      <button class=”wb-dev” onclick=”wbDevice('desktop')” data-d=”desktop”>🖥 Desktop</button>
+      <button class=”wb-dev” onclick=”wbDevice('mobile')” data-d=”mobile”>📱 Mobile</button>
     </div>
-    <div class="wb-frame-wrap" id="wb-frame-wrap">
-      ${previewUrl ? `<iframe id="wb-frame" src="${htmxEsc(previewUrl)}" loading="lazy"></iframe>` : '<div class="empty-state"><div class="empty-icon">🌐</div><div class="empty-title">No site yet</div><div class="empty-msg">Add your business name in Settings, then it builds itself.</div></div>'}
+    <div class=”wb-frame-wrap” id=”wb-frame-wrap”>
+      ${previewUrl ? `<iframe id=”wb-frame” src=”${htmxEsc(previewUrl)}” loading=”lazy”></iframe>` : '<div class=”empty-state”><div class=”empty-icon”>🌐</div><div class=”empty-title”>No site yet</div><div class=”empty-msg”>Add your business name in Settings, then design it with AI.</div></div>'}
     </div>
   </div>
 </div>
@@ -6191,30 +6503,12 @@ ${addonBanner}
 @media(max-width:980px){.wb-grid{grid-template-columns:1fr}}
 .wb-controls{padding:22px}
 .wb-controls h3{font-size:.82em;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:12px}
-.wb-tpls{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.wb-tpl{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;background:var(--bg-elev);border:1px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;transition:border-color .2s,transform .1s}
-.wb-tpl:hover{transform:translateY(-1px)}
-.wb-tpl.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
-.wb-tpl-swatch{width:100%;height:34px;border-radius:6px;margin-bottom:2px}
-.wb-swatch-modern{background:linear-gradient(135deg,#8b5cf6,#6366f1)}
-.wb-swatch-warmcraft{background:linear-gradient(135deg,#2e2620,#d4a574)}
-.wb-swatch-boldimpact{background:linear-gradient(135deg,#0d0d0d,#ef4444)}
-.wb-swatch-softelegance{background:linear-gradient(135deg,#fdfaf7,#e8b4c8)}
-.wb-swatch-minimalgrid{background:linear-gradient(135deg,#fafafa,#111)}
-.wb-tpl-name{font-weight:600;font-size:.9em;color:var(--cream)}
-.wb-tpl-best{font-size:.72em;color:var(--text-faint);line-height:1.3}
-.wb-accents{display:flex;gap:8px;flex-wrap:wrap}
-.wb-accent{width:30px;height:30px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:transform .1s}
-.wb-accent.sel{border-color:var(--cream);box-shadow:0 0 0 2px var(--accent)}
-.wb-accent:hover{transform:scale(1.1)}
 .wb-input{width:100%;background:var(--bg-elev);border:1px solid var(--border);color:var(--cream);padding:10px 12px;border-radius:8px;font-family:inherit;font-size:.92em}
 .wb-input:focus{outline:none;border-color:var(--accent)}
-.wb-toggles{display:flex;flex-direction:column;gap:6px}
-.wb-toggle{display:flex;align-items:center;gap:8px;font-size:.9em;color:var(--cream-dim);cursor:pointer;padding:3px 0}
-.wb-toggle input{accent-color:var(--accent)}
-.wb-actions{display:flex;gap:10px;margin-top:24px;flex-wrap:wrap}
-.wb-live{margin-top:14px;font-size:.85em;color:var(--text-muted);display:flex;align-items:center;gap:8px;word-break:break-all}
+.wb-live{margin-top:18px;font-size:.85em;color:var(--text-muted);display:flex;align-items:center;gap:8px;word-break:break-all}
 .wb-live a{color:var(--accent)}
+.wb-spinner{width:30px;height:30px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;margin:0 auto;animation:wb-spin .8s linear infinite}
+@keyframes wb-spin{to{transform:rotate(360deg)}}
 .wb-preview{padding:0;overflow:hidden;min-height:520px;display:flex;flex-direction:column}
 .wb-preview-bar{display:flex;gap:4px;padding:8px;border-bottom:1px solid var(--border);background:var(--bg-elev)}
 .wb-dev{background:transparent;border:1px solid transparent;color:var(--text-muted);padding:6px 12px;border-radius:6px;font-size:.82em;cursor:pointer}
@@ -6241,52 +6535,102 @@ ${addonBanner}
   var ORIGIN=${JSON.stringify(origin)};
   var PUBLISHED=${JSON.stringify(published)};
   var HASADDON=${JSON.stringify(hasAddon)};
-  // Add-on ownership: when a section is toggled ON but its add-on isn't
-  // purchased, we send a preview* param so the iframe shows sample data + a
-  // lock overlay instead of hiding the section.
-  var OWNED=${JSON.stringify(ownedAddons)};
+  var HASDRAFT=${JSON.stringify(hasDraft)};
   var frame=document.getElementById('wb-frame');
   var frameWrap=document.getElementById('wb-frame-wrap');
-  var debounceT;
-  function sectionOn(key){ var cb=document.querySelector('.wb-toggle input[data-sec="'+key+'"]'); return cb&&cb.checked; }
-  function buildPreviewQs(){
-    if(!SLUG)return '';
-    var p=new URLSearchParams();
-    p.set('preview','1');
-    var sel=document.querySelector('.wb-tpl.sel'); if(sel)p.set('template',sel.dataset.tpl);
-    var ac=document.querySelector('.wb-accent.sel'); if(ac)p.set('accent',ac.dataset.accent);
-    var hl=document.getElementById('wb-headline'); if(hl&&hl.value)p.set('headline',hl.value);
-    var on=[],off=[];
-    document.querySelectorAll('.wb-toggle input').forEach(function(cb){ (cb.checked?on:off).push(cb.dataset.sec); });
-    if(on.length)p.set('sections',on.join(','));
-    // Preview sample data for add-ons the business doesn't own yet.
-    if(sectionOn('reviews')&&!OWNED.reviews)p.set('previewReviews','1');
-    if(sectionOn('blog')&&!OWNED.blog)p.set('previewBlog','1');
-    if(sectionOn('social')&&!OWNED.social)p.set('previewSocial','1');
-    return '?'+p.toString();
+  var triggerPanel=document.getElementById('ai-trigger-panel');
+  var loadingPanel=document.getElementById('ai-loading-panel');
+  var approvalPanel=document.getElementById('ai-approval-panel');
+  var statusMsg=document.getElementById('ai-status-msg');
+  var generateBtn=document.getElementById('wb-btn-generate');
+  var stepInterval=null;
+
+  // If a draft already exists on load, jump straight to the approval view so
+  // the owner can review/publish without regenerating.
+  if (HASDRAFT) {
+    triggerPanel.style.display='none';
+    approvalPanel.style.display='block';
+    if (frame && SLUG) frame.src=ORIGIN+'/s/'+SLUG+'?preview_draft=1';
   }
-  function refresh(){ if(frame) frame.src=ORIGIN+'/s/'+SLUG+buildPreviewQs(); }
-  window.wbRefresh=refresh;
-  window.wbRefreshDebounced=function(){ clearTimeout(debounceT); debounceT=setTimeout(refresh,350); };
-  window.wbPickTpl=function(t){ document.querySelectorAll('.wb-tpl').forEach(function(b){b.classList.toggle('sel',b.dataset.tpl===t);}); refresh(); };
-  window.wbPickAccent=function(c){ document.querySelectorAll('.wb-accent').forEach(function(b){b.classList.toggle('sel',b.dataset.accent===c);}); refresh(); };
-  window.wbDevice=function(d){ document.querySelectorAll('.wb-dev').forEach(function(b){b.classList.toggle('active',b.dataset.d===d);}); if(frameWrap)frameWrap.classList.toggle('mobile',d==='mobile'); };
-  // default device active
-  document.querySelector('.wb-dev[data-d="desktop"]').classList.add('active');
-  window.wbSave=function(){
-    var payload={template:(document.querySelector('.wb-tpl.sel')||{}).dataset.tpl||'modern', accent:(document.querySelector('.wb-accent.sel')||{}).dataset.accent||'#d4a574', headline:(document.getElementById('wb-headline')||{}).value||null, sections:{}};
-    document.querySelectorAll('.wb-toggle input').forEach(function(cb){ payload.sections[cb.dataset.sec]=cb.checked; });
-    fetch('/api/sites/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(function(r){return r.json()}).then(function(d){ wbToast(d.ok?'Saved ✓':('Error: '+(d.error||''))); }).catch(function(){ wbToast('Save failed'); });
+
+  window.wbDevice=function(d){
+    document.querySelectorAll('.wb-dev').forEach(function(b){b.classList.toggle('active',b.dataset.d===d);});
+    if(frameWrap)frameWrap.classList.toggle('mobile',d==='mobile');
   };
-  window.wbPublish=function(makeLive){
-    if(!HASADDON){ wbToast('Enable the Website Builder add-on first.'); return; }
-    fetch('/api/sites/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({published:makeLive})}).then(function(r){return r.json()}).then(function(d){ if(d.ok){ wbToast(makeLive?'Published 🚀':'Unpublished'); setTimeout(function(){location.reload();},800);} else wbToast('Error: '+(d.error||'')); }).catch(function(){ wbToast('Publish failed'); });
+  document.querySelector('.wb-dev[data-d=”desktop”]').classList.add('active');
+
+  // ── Design My Site: generate a draft via the DeepSeek-backed endpoint.
+  window.wbGenerateAiSite=function(){
+    var notes=document.getElementById('wb-ai-notes')?document.getElementById('wb-ai-notes').value:'';
+    triggerPanel.style.display='none';
+    approvalPanel.style.display='none';
+    loadingPanel.style.display='block';
+    if (generateBtn) generateBtn.disabled=true;
+
+    // Simulated progress messages — the request itself can take 20-40s.
+    var steps=[
+      “Reading business settings...”,
+      “Gathering service categories...”,
+      “Injecting gallery photo placeholders...”,
+      “Drafting testimonials from reviews...”,
+      “Invoking LLM website layout writer...”,
+      “Compiling responsive styling layers...”,
+      “Rendering custom draft page...”
+    ];
+    var currentStep=0;
+    statusMsg.textContent=steps[0];
+    stepInterval=setInterval(function(){
+      if(currentStep<steps.length-1){ currentStep++; statusMsg.textContent=steps[currentStep]; }
+    },3500);
+
+    fetch('/api/site/design/generate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({style_notes:notes})
+    }).then(function(r){return r.json()}).then(function(data){
+      clearInterval(stepInterval);
+      loadingPanel.style.display='none';
+      if (generateBtn) generateBtn.disabled=false;
+      if(data.ok){
+        if(frame)frame.src=data.previewUrl;
+        approvalPanel.style.display='block';
+        wbToast('AI Draft Ready! ✓');
+      } else {
+        triggerPanel.style.display='block';
+        wbToast('Error: '+(data.error||'Generation failed'));
+      }
+    }).catch(function(){
+      clearInterval(stepInterval);
+      loadingPanel.style.display='none';
+      if (generateBtn) generateBtn.disabled=false;
+      triggerPanel.style.display='block';
+      wbToast('Server connection failed');
+    });
   };
-  function wbToast(msg){ var t=document.createElement('div'); t.textContent=msg; t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--accent);color:#1a1a2e;padding:10px 20px;border-radius:8px;font-weight:600;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.4)'; document.body.appendChild(t); setTimeout(function(){t.remove();},1800); }
+
+  // ── Promote the current draft to the live site.
+  window.wbApproveAiSite=function(){
+    if(!HASADDON){ wbToast('Enable the Website Builder add-on to publish.'); return; }
+    fetch('/api/site/design/approve',{method:'POST'}).then(function(r){return r.json()}).then(function(data){
+      if(data.ok){ wbToast('Published live! 🚀'); setTimeout(function(){location.reload();},1000); }
+      else wbToast('Approval failed: '+(data.error||''));
+    }).catch(function(){ wbToast('Network error on approval'); });
+  };
+
+  window.wbResetUI=function(){
+    if(confirm('Are you sure you want to discard this draft?')){
+      location.reload();
+    }
+  };
+
+  function wbToast(msg){
+    var t=document.createElement('div'); t.textContent=msg;
+    t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--accent);color:#1a1a2e;padding:10px 20px;border-radius:8px;font-weight:600;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.4)';
+    document.body.appendChild(t); setTimeout(function(){t.remove();},1800);
+  }
   window.wbToast=wbToast;
-  // Photos — upload / retag / remove. The builder is cookie-authed (no Bearer
-  // token available client-side), so these hit the -htmx wrappers which resolve
-  // the user from the session cookie.
+
+  // Photos — upload / retag / remove. Cookie-authed (-htmx wrappers).
   window.wbPhotoAdd=function(){
     var f=document.getElementById('wb-file'); if(!f||!f.files||!f.files[0])return;
     var fd=new FormData(); fd.append('file',f.files[0]); fd.append('type',(document.getElementById('wb-newtag')||{}).value||'after');
@@ -6299,27 +6643,25 @@ ${addonBanner}
     }).catch(function(){ if(st)st.textContent=''; wbToast('Upload failed'); f.value=''; });
   };
   window.wbPhotoTag=function(id,tag){
-    fetch('/api/photos/tag-htmx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id,type:tag})}).then(function(r){return r.json()}).then(function(d){ if(!d.ok)wbToast('Could not update tag'); else refresh(); });
+    fetch('/api/photos/tag-htmx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id,type:tag})}).then(function(r){return r.json()}).then(function(d){ if(!d.ok)wbToast('Could not update tag'); });
   };
   window.wbPhotoRm=function(id,btn){
     if(!confirm('Remove this photo from your gallery?'))return;
     fetch('/api/photos/delete-htmx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})}).then(function(r){return r.json()}).then(function(d){
-      if(d.ok){ var ph=btn.closest('.wb-photo'); if(ph)ph.remove(); wbToast('Removed'); refresh(); }
+      if(d.ok){ var ph=btn.closest('.wb-photo'); if(ph)ph.remove(); wbToast('Removed'); }
       else wbToast('Could not remove: '+(d.error||''));
     }).catch(function(){ wbToast('Remove failed'); });
   };
-  // Review sync — pulls fresh Google reviews (cookie-authed, no Bearer). The
-  // button's onclick passes the event so we can grab the clicked element.
+
+  // Review sync — pulls fresh Google reviews (cookie-authed, no Bearer).
   window.wbSyncReviews=function(ev){
-    var btn=ev&&ev.target?ev.target:document.querySelector('[onclick^="wbSyncReviews"]');
+    var btn=ev&&ev.target?ev.target:document.querySelector('[onclick^=”wbSyncReviews”]');
     var st=document.getElementById('wb-rev-status');
     if(btn){btn.disabled=true;btn.textContent='Syncing…';}
     if(st)st.textContent='';
     fetch('/api/reviews/sync',{method:'POST'}).then(function(r){return r.json()}).then(function(d){
       if(btn){btn.disabled=false;btn.textContent='🔄 Sync reviews now';}
       if(st)st.textContent=d.message||(d.ok?'Done':'Failed');
-      // Refresh the iframe so newly-synced reviews render in the preview.
-      if(d.ok)refresh();
     }).catch(function(){
       if(btn){btn.disabled=false;btn.textContent='🔄 Sync reviews now';}
       if(st)st.textContent='Sync failed';
@@ -6331,7 +6673,7 @@ ${addonBanner}
     return new Response(simpleShell('Website Builder', body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Website builder htmx error:', e);
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load the website builder.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style=”color:#f85149”>Could not load the website builder.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
@@ -14215,6 +14557,594 @@ async function blogUniqueSlug(env, base, exceptId) {
 
 
 // ═══════════════════════════════════════════════════════════════════════
+// HELP CENTER
+// ═══════════════════════════════════════════════════════════════════════
+
+// HELP CENTER ΓÇö /p/help (+ /p/help/{slug})
+// In-app documentation. Every Branch Live feature documented as a static
+// HTML article (hardcoded here, not external markdown ΓÇö matches the rest of
+// worker.js and adds no new deps). Two-column layout inside simpleShell():
+// a sticky left topic nav (collapsible sections) + a right article pane.
+// Each article ends with a "Still have questions?" box whose ≡ƒªÇ Ask Scout
+// button opens the Scout panel (rendered by sidebarNav's script) with the
+// question pre-filled.
+// ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+
+// Collapsible nav sections ΓåÆ ordered list of articles. Each article tuple is
+// [slug, title]; slugs index HELP_ARTICLES below. The default landing slug
+// (welcome) is what /p/help shows when no slug is given.
+const HELP_SECTIONS = [
+  { name: 'Getting Started', articles: [
+    ['welcome',          'Welcome to Branch Live'],
+    ['setup-checklist',  'Setup Checklist'],
+    ['how-emma-answers', 'How Emma Answers Calls'],
+  ]},
+  { name: 'Features', articles: [
+    ['knowledge-base',  'Knowledge Base'],
+    ['calendar-booking','Calendar & Booking'],
+    ['leads',           'Leads'],
+    ['calls-transcripts','Calls & Transcripts'],
+    ['website-builder', 'Website Builder'],
+    ['gallery',         'Gallery'],
+    ['social-posts',    'Social Posts'],
+    ['blog',            'Blog'],
+    ['analytics',       'Analytics'],
+  ]},
+  { name: 'Account', articles: [
+    ['billing-plans',   'Billing & Plans'],
+    ['team-members',    'Team Members'],
+    ['settings',        'Settings'],
+  ]},
+  { name: 'FAQ', articles: [
+    ['faq-languages',  "Can Emma handle multiple languages?"],
+    ['faq-closed',     "What happens when I'm closed?"],
+    ['faq-greeting',   'How do I change my greeting?'],
+    ['faq-plan',       'What plan do I need?'],
+  ]},
+];
+
+// Flat slug ΓåÆ article lookup, built once from HELP_SECTIONS so the two never
+// drift apart. Each value: { title, group } (body is rendered by the slug's
+// dedicated render function in helpArticleBody()).
+const HELP_ARTICLES = (() => {
+  const m = {};
+  for (const sec of HELP_SECTIONS) for (const [slug, title] of sec.articles) m[slug] = { title, group: sec.name };
+  return m;
+})();
+
+const HELP_DEFAULT_SLUG = 'welcome';
+
+// Styles for the help center. Scoped under .hc-* so they never collide with
+// the global dashboard CSS. Amber-monotone only ΓÇö no purple/green/red/blue.
+function helpCenterStyles() {
+  return `<style>
+.hc-layout{display:grid;grid-template-columns:230px 1fr;gap:34px;align-items:start;margin-top:6px}
+.hc-nav{position:sticky;top:20px;max-height:calc(100vh - 40px);overflow-y:auto;padding-right:4px}
+.hc-nav::-webkit-scrollbar{width:6px}
+.hc-nav::-webkit-scrollbar-thumb{background:var(--border-soft);border-radius:3px}
+.hc-nav-head{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--text-faint);padding:0 0 8px 12px}
+.hc-sec{margin-bottom:6px}
+.hc-sec-h{display:flex;align-items:center;justify-content:space-between;width:100%;background:transparent;border:none;color:var(--cream-dim);font-family:var(--font-sans);font-size:.82rem;font-weight:600;letter-spacing:-.005em;padding:9px 12px;cursor:pointer;border-radius:8px;text-align:left;transition:color .2s ease,background-color .2s ease}
+.hc-sec-h:hover{color:var(--cream);background:rgba(255,255,255,.04)}
+.hc-sec-h .hc-caret{font-family:var(--font-mono);font-size:.7rem;color:var(--text-faint);transition:transform .2s ease}
+.hc-sec.open .hc-caret{transform:rotate(90deg)}
+.hc-sec-list{list-style:none;margin:0;padding:2px 0 8px;display:none}
+.hc-sec.open .hc-sec-list{display:block}
+.hc-a{display:block;padding:7px 12px 7px 16px;border-left:3px solid transparent;color:var(--text-muted);font-size:.84rem;font-weight:500;border-radius:0 8px 8px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .2s ease,background-color .2s ease,border-color .2s ease}
+.hc-a:hover{color:var(--cream);background:rgba(255,255,255,.04)}
+.hc-a.active{color:var(--accent);background:rgba(212,165,116,.10);border-left-color:var(--accent)}
+/* Mobile: topic nav collapses to a select at the top of the article. */
+.hc-mobile-nav{display:none;margin-bottom:18px}
+.hc-mobile-nav select{width:100%}
+@media(max-width:860px){
+  .hc-layout{grid-template-columns:1fr;gap:0}
+  .hc-nav{display:none}
+  .hc-mobile-nav{display:block}
+}
+/* Article typography ΓÇö long-form reading, clean and airy. */
+.hc-article{min-width:0}
+.hc-crumb{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.hc-crumb a{color:var(--accent)}
+.hc-article h1{font-size:2.2rem;margin-bottom:8px}
+.hc-lead{font-family:var(--font-serif);font-style:italic;color:var(--cream-dim);font-size:1.15rem;line-height:1.5;margin-bottom:26px;font-weight:400}
+.hc-article h2{font-family:var(--font-serif);font-weight:500;font-size:1.45rem;letter-spacing:-.015em;color:var(--cream);margin:34px 0 12px;line-height:1.2}
+.hc-article h3{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:600;margin:26px 0 10px;display:block}
+.hc-article h3::after{display:none}
+.hc-article p{color:var(--text-primary);line-height:1.72;margin:0 0 16px;font-size:1rem}
+.hc-article ul,.hc-article ol{margin:0 0 16px;padding-left:22px}
+.hc-article li{color:var(--text-primary);line-height:1.72;margin-bottom:7px}
+.hc-article li::marker{color:var(--accent)}
+.hc-article strong{color:var(--cream);font-weight:600}
+.hc-article a{color:var(--accent);text-decoration:underline;text-underline-offset:2px}
+.hc-article a:hover{color:var(--accent-bright)}
+.hc-article code{font-family:var(--font-mono);font-size:.86em;background:var(--bg-elev);border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:var(--accent-bright)}
+.hc-pre{background:var(--bg-elev);border:1px solid var(--border);border-radius:12px;padding:16px 18px;overflow-x:auto;margin:0 0 18px}
+.hc-pre code{background:none;border:none;padding:0;color:var(--cream-dim);font-size:.84rem;line-height:1.6;white-space:pre}
+.hc-figure{margin:0 0 18px}
+.hc-callout{background:var(--bg-card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:10px;padding:14px 16px;margin:0 0 18px}
+.hc-callout .hc-co-h{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:5px;display:block}
+.hc-callout p:last-child{margin-bottom:0}
+.hc-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:0 0 18px}
+.hc-card{background:var(--bg-card);border:1px solid var(--border);border-left:3px solid transparent;border-radius:12px;padding:16px 18px;transition:border-color .25s ease,transform .2s ease;text-decoration:none;color:inherit}
+.hc-card:hover{border-left-color:var(--accent);transform:translateY(-2px);text-decoration:none}
+.hc-card .hc-card-t{font-family:var(--font-serif);font-weight:500;font-size:1.05rem;color:var(--cream);margin-bottom:4px;letter-spacing:-.01em}
+.hc-card .hc-card-d{color:var(--text-muted);font-size:.84rem;line-height:1.5}
+/* "Still have questions?" Scout box at the foot of every article. */
+.hc-ask{margin-top:36px;padding:22px 24px;background:linear-gradient(135deg,rgba(212,165,116,.08),var(--bg-card));border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.hc-ask .hc-ask-t{font-family:var(--font-serif);font-size:1.1rem;font-weight:500;color:var(--cream);letter-spacing:-.01em}
+.hc-ask .hc-ask-d{color:var(--text-muted);font-size:.86rem;margin-top:2px}
+.hc-ask button{flex-shrink:0}
+</style>`;
+}
+
+// Left topic nav. Renders all sections (the active one open + expanded, the
+// rest collapsed by default). activeSlug highlights the current article.
+function helpTopicNav(activeSlug) {
+  const sections = HELP_SECTIONS.map(sec => {
+    const hasActive = sec.articles.some(([s]) => s === activeSlug);
+    const open = hasActive ? ' open' : '';
+    const links = sec.articles.map(([slug, title]) => {
+      const cls = slug === activeSlug ? 'hc-a active' : 'hc-a';
+      return `<li><a class="${cls}" href="/p/help/${htmxEsc(slug)}">${htmxEsc(title)}</a></li>`;
+    }).join('');
+    return `<div class="hc-sec${open}">
+      <button type="button" class="hc-sec-h" onclick="this.parentElement.classList.toggle('open')"><span>${htmxEsc(sec.name)}</span><span class="hc-caret">ΓÇ║</span></button>
+      <ul class="hc-sec-list">${links}</ul>
+    </div>`;
+  }).join('');
+  return `<nav class="hc-nav" aria-label="Help topics">
+    <div class="hc-nav-head">Documentation</div>
+    ${sections}
+  </nav>`;
+}
+
+// Mobile dropdown mirroring the topic nav (shown only <861px via CSS).
+function helpMobileNav(activeSlug) {
+  const opts = HELP_SECTIONS.map(sec => {
+    const groupOpts = sec.articles.map(([slug, title]) =>
+      `<option value="${htmxEsc(slug)}"${slug === activeSlug ? ' selected' : ''}>${htmxEsc(title)}</option>`).join('');
+    return `<optgroup label="${htmxEsc(sec.name)}">${groupOpts}</optgroup>`;
+  }).join('');
+  return `<div class="hc-mobile-nav"><select onchange="if(this.value)location.href='/p/help/'+this.value">
+    <option value="" disabled${!activeSlug ? ' selected' : ''}>Jump to an articleΓÇª</option>
+    ${opts}
+  </select></div>`;
+}
+
+// "Still have questions?" box. question is pre-filled into Scout's input when
+// the ≡ƒªÇ button is clicked. Scout's tab/panel/input are created by the inline
+// script in sidebarNav(); openScoutQuestion() drives them if present.
+function helpScoutBox(question) {
+  const q = htmxEsc(question);
+  return `<div class="hc-ask">
+    <div>
+      <div class="hc-ask-t">Still have questions?</div>
+      <div class="hc-ask-d">Scout can walk you through it ΓÇö it knows this page.</div>
+    </div>
+    <button type="button" class="btn btn-amber" data-scout-q="${q}" onclick="openScoutQuestion(this.getAttribute('data-scout-q'))">
+      <span aria-hidden="true">≡ƒªÇ</span> Ask Scout
+    </button>
+  </div>`;
+}
+
+// Global helper used by helpScoutBox buttons. Opens the Scout panel (created
+// by sidebarNav's script on signed-in pages), fills the input, and focuses it.
+// Falls back gracefully when Scout isn't on the page.
+function helpScoutScript() {
+  return `<script>
+function openScoutQuestion(q){
+  var tab=document.getElementById('scout-tab');
+  var panel=document.getElementById('scout-panel');
+  if(!tab){window.location.href='/p/help';return;}
+  // Scout wires its clickΓåÆopen listener on #scout-tab, so a real click opens
+  // the panel exactly as a user tap would (adds .open, focuses the input).
+  tab.click();
+  // The panel/input exist immediately after append; populate + focus.
+  setTimeout(function(){
+    var input=document.getElementById('scout-input');
+    if(input&&q){input.value=q;input.focus();}
+  },60);
+}
+</script>`;
+}
+
+// Article bodies keyed by slug. Each returns HTML for the right-hand pane.
+// Kept deliberately concise ΓÇö one render fn per article keeps the file
+// navigable and lets each topic match the feature's actual behavior.
+function helpArticleBody(slug) {
+  const esc = htmxEsc;
+  switch (slug) {
+    case 'welcome': return `
+<p class="hc-lead">Branch Live gives your service business a 24/7 AI receptionist named Emma ΓÇö she answers every call, captures leads, and books appointments straight into your calendar.</p>
+<p>When a customer calls and you can't pick up, Emma steps in. She greets the caller in your business's voice, answers questions using the knowledge you've added (services, pricing, hours), and either books an appointment or takes a detailed message. You see everything in your dashboard the moment it happens.</p>
+
+<h2>What Emma does</h2>
+<ul>
+  <li><strong>Answers every call</strong> ΓÇö no more missed leads going to voicemail.</li>
+  <li><strong>Handles FAQs</strong> ΓÇö pricing, services, hours, service area, all from your Knowledge Base.</li>
+  <li><strong>Books appointments</strong> ΓÇö checks your live calendar and confirms a slot.</li>
+  <li><strong>Captures leads</strong> ΓÇö name, phone, and job details land in your Leads list.</li>
+  <li><strong>Transcribes every call</strong> ΓÇö read the full conversation and listen to the recording.</li>
+</ul>
+
+<h2>How the pieces fit together</h2>
+<div class="hc-cards">
+  <a class="hc-card" href="/p/help/knowledge-base"><div class="hc-card-t">Knowledge Base</div><div class="hc-card-d">The brain ΓÇö services, pricing, and FAQs Emma answers from.</div></a>
+  <a class="hc-card" href="/p/help/calendar-booking"><div class="hc-card-t">Calendar</div><div class="hc-card-d">Your availability. Emma books against it in real time.</div></a>
+  <a class="hc-card" href="/p/help/leads"><div class="hc-card-t">Leads</div><div class="hc-card-d">Every caller, tracked from first contact to closed.</div></a>
+  <a class="hc-card" href="/p/help/calls-transcripts"><div class="hc-card-t">Calls</div><div class="hc-card-d">Transcripts, recordings, and call-backs in one place.</div></a>
+</div>
+
+<div class="hc-callout"><span class="hc-co-h">First time here?</span><p>Run through the <a href="/p/help/setup-checklist">Setup Checklist</a> ΓÇö it takes about 15 minutes and gets Emma answering calls the same day.</p></div>`;
+
+    case 'setup-checklist': return `
+<p class="hc-lead">Get Emma answering calls on your first day. Five steps, roughly 15 minutes.</p>
+
+<h2>The checklist</h2>
+<h3>1 ┬╖ Add your business info</h3>
+<p>Go to <a href="/settings-htmx">Settings</a> and set your business name, forwarding number (where Emma transfers urgent calls), and working hours. Emma uses these on every call.</p>
+
+<h3>2 ┬╖ Build your Knowledge Base</h3>
+<p>Open <a href="/p/knowledge">Knowledge</a> and add the services you offer, with prices. Each item can be a service, a price point, or an FAQ. This is what Emma answers <em>from</em> ΓÇö the richer it is, the smarter she sounds. See <a href="/p/help/knowledge-base">Knowledge Base</a>.</p>
+<blockquote class="hc-callout"><span class="hc-co-h">Tip</span><p>Add at least 5ΓÇô8 items to start. You can always add more.</p></blockquote>
+
+<h3>3 ┬╖ Set your calendar availability</h3>
+<p>In <a href="/p/calendar">Calendar</a>, define appointment types and working hours. Emma checks this live when a caller wants to book. See <a href="/p/help/calendar-booking">Calendar & Booking</a>.</p>
+
+<h3>4 ┬╖ Connect your phone number</h3>
+<p>Forward your existing business line to your Branch Live number (shown in Settings), or request a new one. Emma picks up forwarded calls automatically.</p>
+
+<h3>5 ┬╖ Make a test call</h3>
+<p>Call your Branch Live number from a different phone. Listen to how Emma greets, answers, and books. Read the transcript in <a href="/p/calls">Calls</a> to confirm everything landed correctly.</p>
+
+<div class="hc-callout"><span class="hc-co-h">Done?</span><p>You're live. Leads will start appearing in your <a href="/p/leads">Leads</a> list as calls come in.</p></div>`;
+
+    case 'how-emma-answers': return `
+<p class="hc-lead">A look inside a single call ΓÇö how Emma greets, understands, decides, and hands off.</p>
+
+<h2>The conversation flow</h2>
+<ol>
+  <li><strong>Caller dials your number.</strong> The call forwards to Branch Live.</li>
+  <li><strong>Emma answers.</strong> She uses your custom greeting (set in Settings) and identifies herself.</li>
+  <li><strong>She listens and asks clarifying questions.</strong> Natural back-and-forth ΓÇö "What kind of service do you need?" "When were you hoping to get this done?"</li>
+  <li><strong>She answers from your Knowledge Base.</strong> Pricing, hours, service area ΓÇö whatever you've added.</li>
+  <li><strong>She books or takes a message.</strong> If the caller wants an appointment, she checks your calendar and confirms a slot. Otherwise she captures details.</li>
+  <li><strong>The call ends and everything is logged.</strong> Transcript, recording, and a new lead appear in your dashboard within seconds.</li>
+</ol>
+
+<h2>AI vs human ΓÇö when Emma hands off</h2>
+<p>Emma handles the full conversation autonomously, but you stay in control:</p>
+<ul>
+  <li><strong>Urgent or complex calls</strong> can be transferred to your forwarding number mid-call.</li>
+  <li><strong>After hours</strong>, she still answers and schedules for the next business day.</li>
+  <li><strong>Every call is recorded</strong> ΓÇö review anything she handled and call the customer back yourself.</li>
+</ul>
+
+<div class="hc-callout"><span class="hc-co-h">Want to hear it?</span><p>Make a test call to your Branch Live number, then read the transcript in <a href="/p/calls">Calls</a>.</p></div>`;
+
+    case 'knowledge-base': return `
+<p class="hc-lead">Your Knowledge Base is Emma's brain. Add services, prices, and FAQs here ΓÇö she answers callers from this exact content.</p>
+
+<h2>What goes in the Knowledge Base</h2>
+<ul>
+  <li><strong>Services</strong> ΓÇö what you offer ("Driveway sealing", "Consultation").</li>
+  <li><strong>Pricing</strong> ΓÇö flat prices, ranges, or "quoted on inspection".</li>
+  <li><strong>FAQs</strong> ΓÇö anything callers typically ask: hours, service area, materials, lead time.</li>
+</ul>
+<p>The richer your knowledge, the more confidently Emma handles questions. Aim for the things a new customer would ask on a first call.</p>
+
+<h2>Adding an item</h2>
+<ol>
+  <li>Go to <a href="/p/knowledge">Knowledge</a>.</li>
+  <li>Click <strong>Add item</strong>.</li>
+  <li>Choose a category, enter the service name and price, and add notes Emma should reference.</li>
+  <li>Save. It's live for Emma immediately.</li>
+</ol>
+
+<h3>Example entry</h3>
+<pre class="hc-pre"><code>Category: Hardscape
+Name:     Patio installation
+Price:    $35ΓÇô55 / sq ft
+Notes:    Natural stone or concrete pavers. Free on-site estimate.
+          2ΓÇô3 week lead time. Serves within 40 miles.</code></pre>
+
+<div class="hc-callout"><span class="hc-co-h">Why this matters</span><p>If a price or detail isn't in your Knowledge Base, Emma can't quote it. Keep this page current.</p></div>`;
+
+    case 'calendar-booking': return `
+<p class="hc-lead">Emma books appointments against your live calendar. Set your availability once and she handles the rest.</p>
+
+<h2>Appointment types</h2>
+<p>Define the kinds of bookings you take ΓÇö for example a 30-minute consultation, a 2-hour site visit, or a full-day install. Each type has a duration Emma respects when offering slots.</p>
+
+<h2>Working hours</h2>
+<p>Set in <a href="/settings-htmx">Settings</a>. These are the windows Emma will book into. Outside them, she schedules for the next available business day instead of booking into your evenings or weekends.</p>
+
+<h2>Buffer time</h2>
+<p>Buffer is the padding added around each appointment ΓÇö travel time between jobs, cleanup, or just breathing room. A 30-minute buffer means Emma won't book two jobs back-to-back with no gap.</p>
+<blockquote class="hc-callout"><span class="hc-co-h">Example</span><p>With a 9ΓÇô5 schedule and a 30-minute buffer, a 1 PM booking blocks 12:30ΓÇô2:30 PM so you're never rushed.</p></blockquote>
+
+<p>See your bookings on the <a href="/p/calendar">Calendar</a> page.</p>`;
+
+    case 'leads': return `
+<p class="hc-lead">Every caller becomes a lead. Track them from first contact to closed \u2014 Emma handles the intake, you handle the close.</p>
+
+<h2>Lead statuses</h2>
+<p>Each lead moves through a pipeline. The status tells you exactly where someone is:</p>
+<ul>
+  <li><strong>New</strong> \u2014 just called in, not yet contacted.</li>
+  <li><strong>Contacted</strong> \u2014 you've reached out (call, text, email).</li>
+  <li><strong>Scheduled</strong> \u2014 an unconfirmed hold before the appointment is finalized.</li>
+  <li><strong>Booked</strong> \u2014 an appointment is confirmed on the calendar.</li>
+  <li><strong>Closed</strong> \u2014 won or lost; no longer active.</li>
+</ul>
+
+<h2>Filtering</h2>
+<p>On the <a href="/p/leads">Leads</a> page, filter by status to focus on what needs attention \u2014 for example, all <em>New</em> leads waiting on a follow-up.</p>
+
+<h2>Bulk actions</h2>
+<p>Select multiple leads to update their status together. Useful for marking a batch as <em>Contacted</em> after an outreach push, or closing out the ones you've finished.</p>
+
+<div class="hc-callout"><span class="hc-co-h">Goal</span><p>Move leads <em>New \u2192 Contacted \u2192 Scheduled \u2192 Booked \u2192 Closed</em>. Watch your conversion rate climb on <a href="/p/analytics">Analytics</a>.</p></div>`;
+
+    case 'calls-transcripts': return `
+<p class="hc-lead">Every call Emma handles is fully logged ΓÇö read the conversation, listen back, and call the customer when it matters.</p>
+
+<h2>The call log</h2>
+<p>The <a href="/p/calls">Calls</a> page lists every call chronologically. Each entry shows the caller's number, when it happened, how long it lasted, and whether Emma answered it.</p>
+
+<h2>Transcripts</h2>
+<p>Open any call to read the full transcript ΓÇö both sides of the conversation. Transcripts are searchable and let you scan dozens of calls in the time it'd take to listen to one.</p>
+
+<h2>Recordings</h2>
+<p>An audio recording is attached to each call. Play it back to catch tone and detail the transcript might miss, or to verify how Emma handled a specific situation.</p>
+
+<h2>Call-backs</h2>
+<p>Need to follow up? Every call's caller number is one tap away. Pair it with the captured lead details to make a confident return call.</p>`;
+
+    case 'website-builder': return `
+<p class="hc-lead">Build a one-page microsite for your business ΓÇö choose a template, fill in your sections, and publish.</p>
+
+<h2>Templates</h2>
+<p>Start from a professionally designed template. Each has its own look ΓÇö pick the one that matches your brand and customize from there.</p>
+
+<h2>Sections</h2>
+<p>Your microsite is built from toggleable sections:</p>
+<ul>
+  <li>Hero (headline + call-to-action)</li>
+  <li>Services</li>
+  <li>About</li>
+  <li>Gallery (pulls from your <a href="/p/gallery">Gallery</a>)</li>
+  <li>Reviews</li>
+  <li>Booking</li>
+  <li>Contact</li>
+  <li>Service area</li>
+  <li>Social links</li>
+</ul>
+<p>Turn sections on or off to show only what's relevant to your business.</p>
+
+<h2>Publishing</h2>
+<p>When you're happy, publish. Your microsite goes live at your Branch Live URL (for example <code>/s/your-business</code>) and is ready to share or link from your Google profile.</p>
+<p>Build yours on the <a href="/p/website">Website</a> page.</p>`;
+
+    case 'gallery': return `
+<p class="hc-lead">Show off your work. Upload project photos and they appear on your microsite's Gallery section.</p>
+
+<h2>Uploading photos</h2>
+<ol>
+  <li>Go to <a href="/p/gallery">Gallery</a>.</li>
+  <li>Click <strong>Upload</strong> and select photos from your device.</li>
+  <li>Each photo is stored and immediately available to your published website.</li>
+</ol>
+
+<h2>Organization</h2>
+<p>Photos display in the order you add them. Curate your gallery to lead with your strongest work ΓÇö a great first impression converts visitors into callers.</p>
+<blockquote class="hc-callout"><span class="hc-co-h">Tip</span><p>Before-and-after shots and finished projects outperform stock-style images.</p></blockquote>`;
+
+    case 'social-posts': return `
+<p class="hc-lead">Turn your services and photos into social posts ΓÇö auto-generated, editable, and schedulable.</p>
+
+<h2>Auto-generated posts</h2>
+<p>Branch Live drafts social posts from your Knowledge Base and Gallery ΓÇö no blank-page paralysis. Each draft is written in your business's voice and ready to edit before it goes out.</p>
+
+<h2>Scheduling</h2>
+<p>Pick when each post publishes. Stagger them across days or weeks to keep a steady presence without babysitting the queue.</p>
+
+<h2>Publishing</h2>
+<p>Connect your accounts (Facebook, Instagram) and publish directly from the <a href="/p/social">Social</a> page ΓÇö or publish a whole batch at once.</p>`;
+
+    case 'blog': return `
+<p class="hc-lead">Two blogs power Branch Live ΓÇö a platform blog for product news, and an optional business blog add-on for your own content.</p>
+
+<h2>Platform blog</h2>
+<p>Maintained by Branch Live. Read it for product updates, tips, and stories. You don't manage this one ΓÇö it's shared across all businesses.</p>
+
+<h2>Business blog (add-on)</h2>
+<p>An optional add-on that gives your microsite its own blog. Branch Live can auto-generate posts around your services and area, or you can write your own. A regularly updated blog helps your site rank and gives Emma more to talk about with callers.</p>
+<p>Enable it from <a href="/p/billing">Billing</a> under add-ons.</p>`;
+
+    case 'analytics': return `
+<p class="hc-lead">Numbers that tell you how the business is doing \u2014 where leads come from, how many convert, and what's slipping through.</p>
+
+<h2>What the numbers mean</h2>
+<ul>
+  <li><strong>Total leads</strong> \u2014 every caller Emma logged.</li>
+  <li><strong>New / Contacted / Scheduled / Booked / Closed</strong> \u2014 your pipeline counts at a glance.</li>
+  <li><strong>Calls</strong> \u2014 volume and total talk time handled by Emma.</li>
+  <li><strong>Appointments</strong> \u2014 confirmed bookings on your calendar.</li>
+</ul>
+
+<h2>Conversion rates</h2>
+<p>The funnel shows how leads move through each stage: <em>New \u2192 Contacted \u2192 Scheduled \u2192 Booked \u2192 Closed</em>. A high <em>Contacted \u2192 Booked</em> rate means your follow-up is working; a drop between stages shows you where leads are stalling.</p>
+<blockquote class="hc-callout"><span class="hc-co-h">Reading the funnel</span><p>Focus on the biggest drop-off. That's the stage where the most value is being lost.</p></blockquote>
+<p>See yours on the <a href="/p/analytics">Analytics</a> page.</p>`;
+
+    case 'billing-plans': return `
+<p class="hc-lead">Your plan, add-ons, and invoices \u2014 all managed through Stripe.</p>
+
+<h2>Base Plan & Pricing</h2>
+<p>Branch Live has a simple, flat pricing model. Instead of complicated plan tiers, you pay a flat <strong>$29.95/mo</strong> for the base plan, which includes unlimited minutes and team seats. You can then customize your setup by subscribing to individual add-ons as needed.</p>
+
+<h2>Add-ons</h2>
+<p>Optional features you can bolt onto any plan:</p>
+<ul>
+  <li><strong>Website ($9.95/mo)</strong> \u2014 the microsite builder.</li>
+  <li><strong>Reviews ($9.95/mo)</strong> \u2014 pull and display your Google reviews.</li>
+  <li><strong>Social Auto-posts ($9.95/mo)</strong> \u2014 auto-generate and schedule social media updates.</li>
+  <li><strong>Email Autoresponder ($9.95/mo)</strong> \u2014 automated email responses and follow-ups.</li>
+  <li><strong>Business blog ($14.95/mo)</strong> \u2014 auto-generated blog for your site.</li>
+</ul>
+<p>Toggle add-ons on or off anytime from <a href="/p/billing">Billing</a>; pricing prorates automatically.</p>
+
+<h2>Stripe billing</h2>
+<p>All payments run through Stripe \u2014 the same processor behind thousands of SaaS products. Update your card, manage add-ons, or download past invoices directly from the Billing page.</p>`;
+
+    case 'team-members': return `
+<p class="hc-lead">Bring your team on. Roles control who can see and change what.</p>
+
+<h2>Roles</h2>
+<ul>
+  <li><strong>Admin</strong> ΓÇö full access: billing, settings, team management, everything.</li>
+  <li><strong>Manager</strong> ΓÇö day-to-day operations: leads, calls, calendar, analytics, growth tools. No billing or settings.</li>
+  <li><strong>Employee</strong> ΓÇö view-only on calendar, knowledge, and gallery. Can see what's happening but can't change configuration.</li>
+</ul>
+
+<h2>Invitations</h2>
+<p>Invite teammates from the <a href="/p/team">Team</a> page by email. They'll get a link to join your business with the role you choose. As the owner, you're automatically an admin.</p>
+<blockquote class="hc-callout"><span class="hc-co-h">Note</span><p>Team members see the <em>business's</em> shared data ΓÇö leads, calendar, knowledge ΓÇö not their own private set.</p></blockquote>`;
+
+    case 'settings': return `
+<p class="hc-lead">The control panel for how Emma behaves and how you're reached.</p>
+
+<h2>Phone forwarding</h2>
+<p>Set the number Emma transfers urgent or complex calls to ΓÇö usually your cell or office line. Everything else she handles end-to-end.</p>
+
+<h2>Working hours</h2>
+<p>Define when you're open. During working hours Emma books appointments live; outside them she schedules for the next business day.</p>
+
+<h2>Notifications</h2>
+<p>Choose how you're alerted ΓÇö new lead, booked appointment, missed call. Stay on top of what matters without watching the dashboard all day.</p>
+
+<h2>Gmail OAuth</h2>
+<p>Connect Gmail so Branch Live can send follow-up emails (lead confirmations, appointment reminders) from your own address instead of a no-reply. One-time authorization; revoke anytime.</p>
+<p>Configure all of this on the <a href="/settings-htmx">Settings</a> page.</p>`;
+
+    case 'faq-languages': return `
+<p class="hc-lead">Emma currently works in English only.</p>
+<p>At this time, Emma\u2019s greeting and conversational logic are designed for English. Multi-language support is planned for the future to allow Emma to understand and respond in other languages.</p>
+<blockquote class="hc-callout"><span class="hc-co-h">Future updates</span><p>We are actively working on expanding Emma\u2019s capabilities. If you require a specific language, please let us know.</p></blockquote>`;
+
+    case 'faq-closed': return `
+<p class="hc-lead">Emma never clocks out. Outside your working hours, she keeps answering ΓÇö just books for the next business day.</p>
+<p>When you're closed, Emma still picks up every call, answers questions from your Knowledge Base, and captures the lead. The only difference: instead of booking into off-hours, she schedules the appointment for your next available working-hours slot.</p>
+<p>That means a call at 9 PM on a Sunday still becomes a Tuesday morning booking ΓÇö with a transcript waiting for you Monday.</p>`;
+
+    case 'faq-greeting': return `
+<p class="hc-lead">Your greeting is the first thing every caller hears. Make it yours.</p>
+<p>Change it on the <a href="/settings-htmx">Settings</a> page. Keep it warm and specific ΓÇö your business name and a sentence about how you'll help sets the right tone.</p>
+<blockquote class="hc-callout"><span class="hc-co-h">Example</span><p><code>"Thanks for calling Riverside Plumbing ΓÇö Emma here. How can I help you today?"</code></p></blockquote>`;
+
+    case 'faq-plan': return `
+<p class="hc-lead">All businesses get the same flat $29.95/mo base plan with unlimited minutes and seats, then add features as needed.</p>
+<p>Rather than charging for high-tier plans, Branch Live uses a modular system: a flat $29.95/mo base plan that covers core call handling, combined with individual add-ons starting at $9.95/mo (or $14.95/mo for the business blog) to customize your features.</p>
+<p>Manage your add-ons anytime directly from the <a href="/p/billing">Billing</a> page \u2014 pricing prorates automatically.</p>`;
+
+    default: return `
+<p class="hc-lead">Article not found.</p>
+<p>This topic doesn't exist. Browse the nav on the left, or start from the <a href="/p/help">Help Center home</a>.</p>`;
+  }
+}
+
+// Default Scout question for an article (pre-filled into the panel when the
+// ≡ƒªÇ button is clicked). Falls back to a generic prompt.
+function helpScoutQuestion(slug) {
+  const art = HELP_ARTICLES[slug];
+  const title = art ? art.title : 'the Help Center';
+  return `I was reading "${title}" in the Help Center ΓÇö can you tell me more?`;
+}
+
+// Render one article into the right-hand pane. Includes the breadcrumb, the
+// article body, and the "Still have questions?" Scout box.
+function helpArticlePane(slug) {
+  const art = HELP_ARTICLES[slug] || { title: 'Not found', group: 'Help' };
+  const body = helpArticleBody(slug);
+  return `<article class="hc-article">
+    <div class="hc-crumb"><a href="/p/help">Help Center</a> <span>ΓÇ║</span> <span>${htmxEsc(art.group)}</span></div>
+    <h1>${htmxEsc(art.title)}</h1>
+    ${body}
+    ${helpScoutBox(helpScoutQuestion(slug))}
+  </article>`;
+}
+
+// Landing page (/p/help with no slug): grid of cards linking into articles.
+function helpLandingPane() {
+  const esc = htmxEsc;
+  const intro = `
+<p class="hc-lead">Everything you need to get the most out of Branch Live ΓÇö setup guides, feature docs, and answers to common questions.</p>
+<p>New here? Start with <a href="/p/help/welcome">Welcome to Branch Live</a> or run the 15-minute <a href="/p/help/setup-checklist">Setup Checklist</a>.</p>`;
+  const sections = HELP_SECTIONS.map(sec => {
+    const cards = sec.articles.map(([slug, title]) => {
+      const body = helpArticleBody(slug);
+      // Pull the lead sentence as a description (strip tags, trim).
+      const leadMatch = body.match(/<p class="hc-lead">(.*?)<\/p>/s);
+      let desc = leadMatch ? leadMatch[1] : title;
+      desc = desc.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+      if (desc.length > 110) desc = desc.slice(0, 107).trimEnd() + 'ΓÇª';
+      return `<a class="hc-card" href="/p/help/${esc(slug)}"><div class="hc-card-t">${esc(title)}</div><div class="hc-card-d">${esc(desc)}</div></a>`;
+    }).join('');
+    return `<h2>${esc(sec.name)}</h2><div class="hc-cards">${cards}</div>`;
+  }).join('');
+  return `<article class="hc-article">
+    <div class="hc-crumb">Help Center</div>
+    <h1>Help Center</h1>
+    ${intro}
+    ${sections}
+  </article>`;
+}
+
+// ΓöÇΓöÇ Handlers ΓöÇΓöÇ
+// Both share the same two-column shell; the only difference is whether the
+// right pane shows the landing grid (no slug) or a single article.
+
+async function handleHelpHtmx(request, env, ctx) {
+  const styles = helpCenterStyles();
+  const pane = helpLandingPane();
+  const body = `${styles}<div class="app">${sidebarNav('help', undefined, ctx)}<div class="content">
+<div class="hc-layout">
+  ${helpTopicNav(HELP_DEFAULT_SLUG)}
+  <div>${helpMobileNav(null)}${pane}</div>
+</div>
+</div></div>${helpScoutScript()}`;
+  return new Response(simpleShell('Help Center', body), { headers: { 'Content-Type': 'text/html' } });
+}
+
+async function handleHelpArticleHtmx(request, env, slug, ctx) {
+  // Unknown slug ΓåÆ 404 page (still in the shell so nav stays usable).
+  if (!HELP_ARTICLES[slug]) {
+    const body = `${helpCenterStyles()}<div class="app">${sidebarNav('help', undefined, ctx)}<div class="content">
+<div class="hc-layout">
+  ${helpTopicNav(HELP_DEFAULT_SLUG)}
+  <div>${helpMobileNav(null)}${helpArticlePane(slug)}</div>
+</div>
+</div></div>${helpScoutScript()}`;
+    return new Response(simpleShell('Not found', body), { status: 404, headers: { 'Content-Type': 'text/html' } });
+  }
+  const styles = helpCenterStyles();
+  const pane = helpArticlePane(slug);
+  const body = `${styles}<div class="app">${sidebarNav('help', undefined, ctx)}<div class="content">
+<div class="hc-layout">
+  ${helpTopicNav(slug)}
+  <div>${helpMobileNav(slug)}${pane}</div>
+</div>
+</div></div>${helpScoutScript()}`;
+  return new Response(simpleShell(HELP_ARTICLES[slug].title + ' ΓÇö Help', body), { headers: { 'Content-Type': 'text/html' } });
+}
+
+// ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+// ADMIN DASHBOARD ΓÇö page handlers (/p/admin/*)
+// ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+
+
+// ═══════════════════════════════════════════════════════════════════════
 // MAIN ROUTER
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -14332,6 +15262,11 @@ export default {
             return onboardingWizardHtmx(request, env, pCtx.bid, pCtx);
           }
           if (path === '/p/overview') return handleOverviewHtmx(request, env, pCtx.bid, pCtx);
+          if (path === '/p/help') return handleHelpHtmx(request, env, pCtx);
+          if (path.startsWith('/p/help/')) {
+            const slug = path.split('/')[3];
+            return handleHelpArticleHtmx(request, env, slug, pCtx);
+          }
           if (path === '/p/gallery') return handleGalleryHtmx(request, env, pCtx.bid, pCtx);
           if (path === '/p/leads') return handleLeadsHtmx(request, env, pCtx.bid, pCtx);
           if (path === '/p/calls') return handleCallsHtmx(request, env, pCtx.bid, pCtx);
@@ -14930,6 +15865,24 @@ export default {
       }
       if (path === '/api/sites' && method === 'GET') {
         return handleSitesStatus(request, env, uid);
+      }
+
+      // 'Design My Site' AI website generator — cookie-authed (the builder has
+      // no Bearer token), manager+, scoped to ctx.bid so team members act on
+      // the owner's business. Mirrors the canonical knowledge/site gate.
+      if (path === '/api/site/design/generate' && method === 'POST') {
+        const dUid = await getUidFromSessionCookie(request, env);
+        if (!dUid) return json({ ok: false, error: 'Not logged in' });
+        const dCtx = await resolveContext(request, env, dUid);
+        if (!roleMeets(dCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
+        return handleSiteDesignGenerate(request, env, dCtx.bid);
+      }
+      if (path === '/api/site/design/approve' && method === 'POST') {
+        const aUid = await getUidFromSessionCookie(request, env);
+        if (!aUid) return json({ ok: false, error: 'Not logged in' });
+        const aCtx = await resolveContext(request, env, aUid);
+        if (!roleMeets(aCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
+        return handleSiteDesignApprove(request, env, aCtx.bid);
       }
 
       // Email autoresponder — trigger + history
