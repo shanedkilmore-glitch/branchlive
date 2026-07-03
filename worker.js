@@ -6402,78 +6402,78 @@ async function handleWebsiteBuilderHtmx(request, env, uid, ctx) {
 
     // Photos — these feed the AI generator's [PHOTO_N] gallery tokens, so they
     // stay editable here. Stored as base64 data URIs in the photos table.
-    const photoThumbs = photos.map(p => `<div class=”wb-photo” data-id=”${p.id}”>
-      <img src=”${htmxEsc(p.data)}” alt=”${htmxEsc(p.caption || p.type || 'photo')}”>
-      <select class=”wb-photo-tag” onchange=”wbPhotoTag(${p.id}, this.value)”>${['after', 'before', 'during'].map(t => `<option value=”${t}” ${p.type === t ? 'selected' : ''}>${t[0].toUpperCase() + t.slice(1)}</option>`).join('')}</select>
-      <button type=”button” class=”wb-photo-rm” onclick=”wbPhotoRm(${p.id}, this)” title=”Remove”>✕</button>
+    const photoThumbs = photos.map(p => `<div class="wb-photo" data-id="${p.id}">
+      <img src="${htmxEsc(p.data)}" alt="${htmxEsc(p.caption || p.type || 'photo')}">
+      <select class="wb-photo-tag" onchange="wbPhotoTag(${p.id}, this.value)">${['after', 'before', 'during'].map(t => `<option value="${t}" ${p.type === t ? 'selected' : ''}>${t[0].toUpperCase() + t.slice(1)}</option>`).join('')}</select>
+      <button type="button" class="wb-photo-rm" onclick="wbPhotoRm(${p.id}, this)" title="Remove">✕</button>
     </div>`).join('');
-    const photosBlock = `<h3 style=”margin-top:24px”>Photos <span style=”text-transform:none;font-weight:400;color:var(--text-faint)”>(${photos.length})</span></h3>
-    <p style=”font-size:.8em;color:var(--text-muted);margin:0 0 10px”>These feed the AI gallery. Up to 12 most-recent photos are used as design tokens.</p>
-    <div class=”wb-photos” id=”wb-photos”>${photoThumbs}</div>
-    <div class=”wb-upload”>
-      <label class=”wb-upload-btn”>＋ Add photo<input type=”file” accept=”image/*” id=”wb-file” onchange=”wbPhotoAdd()” hidden></label>
-      <select id=”wb-newtag”>${['after', 'before', 'during'].map(t => `<option value=”${t}”>${t[0].toUpperCase() + t.slice(1)}</option>`).join('')}</select>
-      <span id=”wb-up-status” class=”wb-up-status”></span>
+    const photosBlock = `<h3 style="margin-top:24px">Photos <span style="text-transform:none;font-weight:400;color:var(--text-faint)">(${photos.length})</span></h3>
+    <p style="font-size:.8em;color:var(--text-muted);margin:0 0 10px">These feed the AI gallery. Up to 12 most-recent photos are used as design tokens.</p>
+    <div class="wb-photos" id="wb-photos">${photoThumbs}</div>
+    <div class="wb-upload">
+      <label class="wb-upload-btn">＋ Add photo<input type="file" accept="image/*" id="wb-file" onchange="wbPhotoAdd()" hidden></label>
+      <select id="wb-newtag">${['after', 'before', 'during'].map(t => `<option value="${t}">${t[0].toUpperCase() + t.slice(1)}</option>`).join('')}</select>
+      <span id="wb-up-status" class="wb-up-status"></span>
     </div>
-    <p style=”color:var(--text-faint);font-size:.76em;margin:8px 0 0”>Max ~300KB each.</p>`;
+    <p style="color:var(--text-faint);font-size:.76em;margin:8px 0 0">Max ~300KB each.</p>`;
 
     // Reviews sync control — only shown when the Review Monitoring add-on is
     // active. Pulls fresh Google reviews used as AI testimonials.
     const reviewsBlock = ownedAddons.reviews ? `
-    <h3 style=”margin-top:24px”>Reviews <span style=”text-transform:none;font-weight:400;color:var(--text-faint)”>(Google)</span></h3>
-    <p style=”font-size:.85em;color:var(--text-muted);margin-bottom:8px”>
+    <h3 style="margin-top:24px">Reviews <span style="text-transform:none;font-weight:400;color:var(--text-faint)">(Google)</span></h3>
+    <p style="font-size:.85em;color:var(--text-muted);margin-bottom:8px">
       Synced reviews become AI testimonials.
-      <a href=”/settings-htmx” style=”color:var(--accent)”>Set your Google Place ID in Settings →</a>
+      <a href="/settings-htmx" style="color:var(--accent)">Set your Google Place ID in Settings →</a>
     </p>
-    <button class=”btn btn-ghost btn-sm” onclick=”wbSyncReviews(event)”>🔄 Sync reviews now</button>
-    <span id=”wb-rev-status” style=”font-size:.82em;margin-left:10px;color:var(--text-muted)”></span>` : '';
+    <button class="btn btn-ghost btn-sm" onclick="wbSyncReviews(event)">🔄 Sync reviews now</button>
+    <span id="wb-rev-status" style="font-size:.82em;margin-left:10px;color:var(--text-muted)"></span>` : '';
 
     const addonBanner = hasAddon ? '' :
-      `<div class=”wb-banner”><strong>Website Builder add-on ($9.95/mo)</strong> — preview is free. <a href=”/p/billing”>Enable it to publish →</a></div>`;
+      `<div class="wb-banner"><strong>Website Builder add-on ($9.95/mo)</strong> — preview is free. <a href="/p/billing">Enable it to publish →</a></div>`;
 
     const liveStatus = published
-      ? `<p class=”wb-live”><span class=”badge badge-new”>Live</span> <a href=”/s/${htmxEsc(slug)}” target=”_blank”>${htmxEsc(origin)}/s/${htmxEsc(slug)}</a></p>`
-      : (slug ? `<p class=”wb-live”><span class=”badge”>Preview only</span></p>` : '');
+      ? `<p class="wb-live"><span class="badge badge-new">Live</span> <a href="/s/${htmxEsc(slug)}" target="_blank">${htmxEsc(origin)}/s/${htmxEsc(slug)}</a></p>`
+      : (slug ? `<p class="wb-live"><span class="badge">Preview only</span></p>` : '');
 
-    const body = `<div class=”app”>${sidebarNav('website', undefined, ctx)}<div class=”content wb-content”>
-<span class=”eyebrow”>Website</span>
+    const body = `<div class="app">${sidebarNav('website', undefined, ctx)}<div class="content wb-content">
+<span class="eyebrow">Website</span>
 <h1>AI Website Designer</h1>
-<p class=”sub”>Harness artificial intelligence to write custom CSS and HTML tailored specifically to your business, services, and photos.${slug ? '' : ' Save a business name in Settings first.'}</p>
+<p class="sub">Harness artificial intelligence to write custom CSS and HTML tailored specifically to your business, services, and photos.${slug ? '' : ' Save a business name in Settings first.'}</p>
 ${addonBanner}
-<div class=”wb-grid”>
-  <div class=”wb-controls card”>
-    <div id=”ai-trigger-panel”>
+<div class="wb-grid">
+  <div class="wb-controls card">
+    <div id="ai-trigger-panel">
       <h3>Design Options</h3>
-      <p style=”font-size:.85em;color:var(--text-muted);margin-bottom:12px”>
+      <p style="font-size:.85em;color:var(--text-muted);margin-bottom:12px">
         Provide design guidance or styling notes to steer the AI generator:
       </p>
-      <textarea id=”wb-ai-notes” class=”wb-input” style=”height:100px;margin-bottom:16px;resize:vertical” placeholder=”e.g., Modern dark mode, elegant warm colors, clean typography...”></textarea>
-      <button class=”btn btn-amber” style=”width:100%” id=”wb-btn-generate” onclick=”wbGenerateAiSite()”>
+      <textarea id="wb-ai-notes" class="wb-input" style="height:100px;margin-bottom:16px;resize:vertical" placeholder="e.g., Modern dark mode, elegant warm colors, clean typography..."></textarea>
+      <button class="btn btn-amber" style="width:100%" id="wb-btn-generate" onclick="wbGenerateAiSite()">
         🚀 Design My Site (AI)
       </button>
-      ${hasDraft ? '<p style=”font-size:.78em;color:var(--text-muted);margin:10px 0 0;text-align:center”>A draft is waiting for your review below.</p>' : ''}
+      ${hasDraft ? '<p style="font-size:.78em;color:var(--text-muted);margin:10px 0 0;text-align:center">A draft is waiting for your review below.</p>' : ''}
     </div>
 
     <!-- Shown during generation -->
-    <div id=”ai-loading-panel” style=”display:none;padding:16px 0;text-align:center;”>
-      <div class=”wb-spinner”></div>
-      <p id=”ai-status-msg” style=”font-size:.9em;color:var(--cream-dim);margin-top:12px”>Preparing prompts...</p>
-      <p style=”font-size:.76em;color:var(--text-faint);margin-top:8px”>This can take 20-40 seconds.</p>
+    <div id="ai-loading-panel" style="display:none;padding:16px 0;text-align:center;">
+      <div class="wb-spinner"></div>
+      <p id="ai-status-msg" style="font-size:.9em;color:var(--cream-dim);margin-top:12px">Preparing prompts...</p>
+      <p style="font-size:.76em;color:var(--text-faint);margin-top:8px">This can take 20-40 seconds.</p>
     </div>
 
     <!-- Shown after a draft is generated -->
-    <div id=”ai-approval-panel” style=”display:none;”>
-      <div class=”ax-note” style=”margin-bottom:18px;”>
+    <div id="ai-approval-panel" style="display:none;">
+      <div class="ax-note" style="margin-bottom:18px;">
         <strong>✨ Draft Generated!</strong><br>
         Preview your custom site in the panel on the right.
       </div>
-      <button class=”btn btn-success” style=”width:100%;margin-bottom:10px” onclick=”wbApproveAiSite()”>
+      <button class="btn btn-success" style="width:100%;margin-bottom:10px" onclick="wbApproveAiSite()">
         🚀 Publish & Go Live
       </button>
-      <button class=”btn btn-ghost” style=”width:100%;margin-bottom:10px” onclick=”wbGenerateAiSite()”>
+      <button class="btn btn-ghost" style="width:100%;margin-bottom:10px" onclick="wbGenerateAiSite()">
         🔄 Regenerate Design
       </button>
-      <button class=”btn btn-ghost” style=”width:100%” onclick=”wbResetUI()”>
+      <button class="btn btn-ghost" style="width:100%" onclick="wbResetUI()">
         ✕ Discard Draft
       </button>
     </div>
@@ -6484,13 +6484,13 @@ ${addonBanner}
   </div>
 
   <!-- Right: Live Iframe Preview -->
-  <div class=”wb-preview card”>
-    <div class=”wb-preview-bar”>
-      <button class=”wb-dev” onclick=”wbDevice('desktop')” data-d=”desktop”>🖥 Desktop</button>
-      <button class=”wb-dev” onclick=”wbDevice('mobile')” data-d=”mobile”>📱 Mobile</button>
+  <div class="wb-preview card">
+    <div class="wb-preview-bar">
+      <button class="wb-dev" onclick="wbDevice('desktop')" data-d="desktop">🖥 Desktop</button>
+      <button class="wb-dev" onclick="wbDevice('mobile')" data-d="mobile">📱 Mobile</button>
     </div>
-    <div class=”wb-frame-wrap” id=”wb-frame-wrap”>
-      ${previewUrl ? `<iframe id=”wb-frame” src=”${htmxEsc(previewUrl)}” loading=”lazy”></iframe>` : '<div class=”empty-state”><div class=”empty-icon”>🌐</div><div class=”empty-title”>No site yet</div><div class=”empty-msg”>Add your business name in Settings, then design it with AI.</div></div>'}
+    <div class="wb-frame-wrap" id="wb-frame-wrap">
+      ${previewUrl ? `<iframe id="wb-frame" src="${htmxEsc(previewUrl)}" loading="lazy"></iframe>` : '<div class="empty-state"><div class="empty-icon">🌐</div><div class="empty-title">No site yet</div><div class="empty-msg">Add your business name in Settings, then design it with AI.</div></div>'}
     </div>
   </div>
 </div>
@@ -6557,7 +6557,7 @@ ${addonBanner}
     document.querySelectorAll('.wb-dev').forEach(function(b){b.classList.toggle('active',b.dataset.d===d);});
     if(frameWrap)frameWrap.classList.toggle('mobile',d==='mobile');
   };
-  document.querySelector('.wb-dev[data-d=”desktop”]').classList.add('active');
+  document.querySelector('.wb-dev[data-d="desktop"]').classList.add('active');
 
   // ── Design My Site: generate a draft via the DeepSeek-backed endpoint.
   window.wbGenerateAiSite=function(){
@@ -6569,13 +6569,13 @@ ${addonBanner}
 
     // Simulated progress messages — the request itself can take 20-40s.
     var steps=[
-      “Reading business settings...”,
-      “Gathering service categories...”,
-      “Injecting gallery photo placeholders...”,
-      “Drafting testimonials from reviews...”,
-      “Invoking LLM website layout writer...”,
-      “Compiling responsive styling layers...”,
-      “Rendering custom draft page...”
+      "Reading business settings...",
+      "Gathering service categories...",
+      "Injecting gallery photo placeholders...",
+      "Drafting testimonials from reviews...",
+      "Invoking LLM website layout writer...",
+      "Compiling responsive styling layers...",
+      "Rendering custom draft page..."
     ];
     var currentStep=0;
     statusMsg.textContent=steps[0];
@@ -6655,7 +6655,7 @@ ${addonBanner}
 
   // Review sync — pulls fresh Google reviews (cookie-authed, no Bearer).
   window.wbSyncReviews=function(ev){
-    var btn=ev&&ev.target?ev.target:document.querySelector('[onclick^=”wbSyncReviews”]');
+    var btn=ev&&ev.target?ev.target:document.querySelector('[onclick^="wbSyncReviews"]');
     var st=document.getElementById('wb-rev-status');
     if(btn){btn.disabled=true;btn.textContent='Syncing…';}
     if(st)st.textContent='';
@@ -6673,7 +6673,7 @@ ${addonBanner}
     return new Response(simpleShell('Website Builder', body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Website builder htmx error:', e);
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style=”color:#f85149”>Could not load the website builder.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load the website builder.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
