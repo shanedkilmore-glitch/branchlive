@@ -14822,161 +14822,270 @@ function helpArticleBody(slug) {
 
 <div class="hc-callout"><span class="hc-co-h">Want to hear it?</span><p>Make a test call to your Branch Live number, then read the transcript in <a href="/p/calls">Calls</a>.</p></div>`;
 
-    case 'knowledge-base': return `
-<p class="hc-lead">Your Knowledge Base is Emma's brain. Add services, prices, and FAQs here ΓÇö she answers callers from this exact content.</p>
+    case 'knowledge-base': return `<p class="hc-lead">Your Knowledge Base is Emma\u2019s brain. Add services, prices, and FAQs here \u2014 she answers callers using this exact information in real time.</p>
 
 <h2>What goes in the Knowledge Base</h2>
+<p>To ensure callers get accurate info, keep your entries detailed and structured. Populate it with:</p>
 <ul>
-  <li><strong>Services</strong> ΓÇö what you offer ("Driveway sealing", "Consultation").</li>
-  <li><strong>Pricing</strong> ΓÇö flat prices, ranges, or "quoted on inspection".</li>
-  <li><strong>FAQs</strong> ΓÇö anything callers typically ask: hours, service area, materials, lead time.</li>
+  <li><strong>Services & Pricing:</strong> Define flat rates, hourly ranges, or custom estimates (e.g., "Driveway sealing starting at $150" or "$45/hr consultation").</li>
+  <li><strong>Service Area & Hours:</strong> Specify exact zip codes or radius (e.g., "within 25 miles of downtown") and holiday hours.</li>
+  <li><strong>Common FAQs:</strong> Anticipate questions about materials, warranties, and lead times.</li>
 </ul>
-<p>The richer your knowledge, the more confidently Emma handles questions. Aim for the things a new customer would ask on a first call.</p>
 
-<h2>Adding an item</h2>
+<h2>Step-by-step instructions</h2>
+<h3>Option A: Adding manual entries</h3>
 <ol>
-  <li>Go to <a href="/p/knowledge">Knowledge</a>.</li>
-  <li>Click <strong>Add item</strong>.</li>
-  <li>Choose a category, enter the service name and price, and add notes Emma should reference.</li>
-  <li>Save. It's live for Emma immediately.</li>
+  <li>Navigate to the <a href="/p/knowledge">Knowledge</a> page in your dashboard.</li>
+  <li>Click <strong>Add Item</strong> at the top right.</li>
+  <li>Select a category (e.g., FAQ, Service), input the title/price, and write detailed notes for Emma to reference.</li>
+  <li>Click <strong>Save</strong> to make it live instantly.</li>
+</ol>
+
+<h3>Option B: Bulk importing via CSV</h3>
+<ol>
+  <li>Go to <a href="/p/knowledge">Knowledge</a> and click the <strong>Import</strong> button.</li>
+  <li>Upload a CSV file containing columns for <code>Category</code>, <code>Name</code>, <code>Price</code>, and <code>Notes</code>.</li>
+  <li>Review the parsed rows, then click <strong>Confirm Import</strong> to save all entries at once.</li>
 </ol>
 
 <h3>Example entry</h3>
 <pre class="hc-pre"><code>Category: Hardscape
 Name:     Patio installation
-Price:    $35ΓÇô55 / sq ft
+Price:    $35\u201355 / sq ft
 Notes:    Natural stone or concrete pavers. Free on-site estimate.
-          2ΓÇô3 week lead time. Serves within 40 miles.</code></pre>
+          2\u20133 week lead time. Serves within 40 miles.</code></pre>
 
-<div class="hc-callout"><span class="hc-co-h">Why this matters</span><p>If a price or detail isn't in your Knowledge Base, Emma can't quote it. Keep this page current.</p></div>`;
+<h2>Troubleshooting tips</h2>
+<ul>
+  <li><strong>Emma quotes outdated prices:</strong> Verify you don't have duplicate entries. If a service description changes, edit the existing item instead of adding a new one.</li>
+  <li><strong>Emma says she doesn't know:</strong> Ensure the answer is explicitly written in the notes. Emma won't guess or make up details that aren't present.</li>
+</ul>
 
-    case 'calendar-booking': return `
-<p class="hc-lead">Emma books appointments against your live calendar. Set your availability once and she handles the rest.</p>
+<div class="hc-callout"><span class="hc-co-h">Why this matters</span><p>Emma relies solely on this data. If a service or policy is missing, she will politely take a message instead of answering directly.</p></div>`;
+
+    case 'calendar-booking': return `<p class="hc-lead">Emma books appointments against your live calendar. Define your settings once, and she handles booking and scheduling in real time.</p>
 
 <h2>Appointment types</h2>
-<p>Define the kinds of bookings you take ΓÇö for example a 30-minute consultation, a 2-hour site visit, or a full-day install. Each type has a duration Emma respects when offering slots.</p>
+<p>Define the kinds of services you book \u2014 like a 30-minute estimate, a 2-hour repair, or a full-day installation. Each type has a specific duration and buffer that Emma respects when proposing time slots to callers.</p>
 
 <h2>Working hours</h2>
-<p>Set in <a href="/settings-htmx">Settings</a>. These are the windows Emma will book into. Outside them, she schedules for the next available business day instead of booking into your evenings or weekends.</p>
+<p>Set these in <a href="/settings-htmx">Settings</a>. Emma only offers slots within these windows. If someone calls after hours, she will offer times starting on the next business day.</p>
 
-<h2>Buffer time</h2>
-<p>Buffer is the padding added around each appointment ΓÇö travel time between jobs, cleanup, or just breathing room. A 30-minute buffer means Emma won't book two jobs back-to-back with no gap.</p>
-<blockquote class="hc-callout"><span class="hc-co-h">Example</span><p>With a 9ΓÇô5 schedule and a 30-minute buffer, a 1 PM booking blocks 12:30ΓÇô2:30 PM so you're never rushed.</p></blockquote>
+<h2>How buffers are calculated</h2>
+<p>Buffers prevent back-to-back bookings, giving you time for travel, cleanup, or breaks. A buffer blocks out time both before and after an appointment.</p>
+<blockquote class="hc-callout"><span class="hc-co-h">Concrete Example</span><p>If you have a 1-hour service booked from 2:00 PM to 3:00 PM with a 30-minute buffer, Emma blocks out 1:30 PM to 3:30 PM. The next available booking slot she can offer is at 3:30 PM.</p></blockquote>
 
-<p>See your bookings on the <a href="/p/calendar">Calendar</a> page.</p>`;
-
-    case 'leads': return `
-<p class="hc-lead">Every caller becomes a lead. Track them from first contact to closed \u2014 Emma handles the intake, you handle the close.</p>
-
-<h2>Lead statuses</h2>
-<p>Each lead moves through a pipeline. The status tells you exactly where someone is:</p>
-<ul>
-  <li><strong>New</strong> \u2014 just called in, not yet contacted.</li>
-  <li><strong>Contacted</strong> \u2014 you've reached out (call, text, email).</li>
-  <li><strong>Scheduled</strong> \u2014 an unconfirmed hold before the appointment is finalized.</li>
-  <li><strong>Booked</strong> \u2014 an appointment is confirmed on the calendar.</li>
-  <li><strong>Closed</strong> \u2014 won or lost; no longer active.</li>
-</ul>
-
-<h2>Filtering</h2>
-<p>On the <a href="/p/leads">Leads</a> page, filter by status to focus on what needs attention \u2014 for example, all <em>New</em> leads waiting on a follow-up.</p>
-
-<h2>Bulk actions</h2>
-<p>Select multiple leads to update their status together. Useful for marking a batch as <em>Contacted</em> after an outreach push, or closing out the ones you've finished.</p>
-
-<div class="hc-callout"><span class="hc-co-h">Goal</span><p>Move leads <em>New \u2192 Contacted \u2192 Scheduled \u2192 Booked \u2192 Closed</em>. Watch your conversion rate climb on <a href="/p/analytics">Analytics</a>.</p></div>`;
-
-    case 'calls-transcripts': return `
-<p class="hc-lead">Every call Emma handles is fully logged ΓÇö read the conversation, listen back, and call the customer when it matters.</p>
-
-<h2>The call log</h2>
-<p>The <a href="/p/calls">Calls</a> page lists every call chronologically. Each entry shows the caller's number, when it happened, how long it lasted, and whether Emma answered it.</p>
-
-<h2>Transcripts</h2>
-<p>Open any call to read the full transcript ΓÇö both sides of the conversation. Transcripts are searchable and let you scan dozens of calls in the time it'd take to listen to one.</p>
-
-<h2>Recordings</h2>
-<p>An audio recording is attached to each call. Play it back to catch tone and detail the transcript might miss, or to verify how Emma handled a specific situation.</p>
-
-<h2>Call-backs</h2>
-<p>Need to follow up? Every call's caller number is one tap away. Pair it with the captured lead details to make a confident return call.</p>`;
-
-    case 'website-builder': return `
-<p class="hc-lead">Build a one-page microsite for your business ΓÇö choose a template, fill in your sections, and publish.</p>
-
-<h2>Templates</h2>
-<p>Start from a professionally designed template. Each has its own look ΓÇö pick the one that matches your brand and customize from there.</p>
-
-<h2>Sections</h2>
-<p>Your microsite is built from toggleable sections:</p>
-<ul>
-  <li>Hero (headline + call-to-action)</li>
-  <li>Services</li>
-  <li>About</li>
-  <li>Gallery (pulls from your <a href="/p/gallery">Gallery</a>)</li>
-  <li>Reviews</li>
-  <li>Booking</li>
-  <li>Contact</li>
-  <li>Service area</li>
-  <li>Social links</li>
-</ul>
-<p>Turn sections on or off to show only what's relevant to your business.</p>
-
-<h2>Publishing</h2>
-<p>When you're happy, publish. Your microsite goes live at your Branch Live URL (for example <code>/s/your-business</code>) and is ready to share or link from your Google profile.</p>
-<p>Build yours on the <a href="/p/website">Website</a> page.</p>`;
-
-    case 'gallery': return `
-<p class="hc-lead">Show off your work. Upload project photos and they appear on your microsite's Gallery section.</p>
-
-<h2>Uploading photos</h2>
+<h2>Setup instructions</h2>
 <ol>
-  <li>Go to <a href="/p/gallery">Gallery</a>.</li>
-  <li>Click <strong>Upload</strong> and select photos from your device.</li>
-  <li>Each photo is stored and immediately available to your published website.</li>
+  <li>Go to the <a href="/p/calendar">Calendar</a> page in your dashboard.</li>
+  <li>Click <strong>New Appointment Type</strong> to set durations, names, and buffers.</li>
+  <li>Link your external calendar (e.g., Google Calendar) to sync your personal busy slots automatically.</li>
+  <li>Set your working hours in <a href="/settings-htmx">Settings</a> to lock in your availability.</li>
 </ol>
 
-<h2>Organization</h2>
-<p>Photos display in the order you add them. Curate your gallery to lead with your strongest work ΓÇö a great first impression converts visitors into callers.</p>
-<blockquote class="hc-callout"><span class="hc-co-h">Tip</span><p>Before-and-after shots and finished projects outperform stock-style images.</p></blockquote>`;
-
-    case 'social-posts': return `
-<p class="hc-lead">Turn your services and photos into social posts ΓÇö auto-generated, editable, and schedulable.</p>
-
-<h2>Auto-generated posts</h2>
-<p>Branch Live drafts social posts from your Knowledge Base and Gallery ΓÇö no blank-page paralysis. Each draft is written in your business's voice and ready to edit before it goes out.</p>
-
-<h2>Scheduling</h2>
-<p>Pick when each post publishes. Stagger them across days or weeks to keep a steady presence without babysitting the queue.</p>
-
-<h2>Publishing</h2>
-<p>Connect your accounts (Facebook, Instagram) and publish directly from the <a href="/p/social">Social</a> page ΓÇö or publish a whole batch at once.</p>`;
-
-    case 'blog': return `
-<p class="hc-lead">Two blogs power Branch Live ΓÇö a platform blog for product news, and an optional business blog add-on for your own content.</p>
-
-<h2>Platform blog</h2>
-<p>Maintained by Branch Live. Read it for product updates, tips, and stories. You don't manage this one ΓÇö it's shared across all businesses.</p>
-
-<h2>Business blog (add-on)</h2>
-<p>An optional add-on that gives your microsite its own blog. Branch Live can auto-generate posts around your services and area, or you can write your own. A regularly updated blog helps your site rank and gives Emma more to talk about with callers.</p>
-<p>Enable it from <a href="/p/billing">Billing</a> under add-ons.</p>`;
-
-    case 'analytics': return `
-<p class="hc-lead">Numbers that tell you how the business is doing \u2014 where leads come from, how many convert, and what's slipping through.</p>
-
-<h2>What the numbers mean</h2>
+<h2>Troubleshooting tips</h2>
 <ul>
-  <li><strong>Total leads</strong> \u2014 every caller Emma logged.</li>
-  <li><strong>New / Contacted / Scheduled / Booked / Closed</strong> \u2014 your pipeline counts at a glance.</li>
-  <li><strong>Calls</strong> \u2014 volume and total talk time handled by Emma.</li>
-  <li><strong>Appointments</strong> \u2014 confirmed bookings on your calendar.</li>
+  <li><strong>Double-bookings:</strong> If Emma schedules over a slot, make sure the slot wasn't marked as "Free" in your Google Calendar. Sync settings require slots to be marked "Busy".</li>
+  <li><strong>Time zone issues:</strong> Verify that your local time zone matches the setting in <a href="/settings-htmx">Settings</a>. If they differ, callers may be offered slots at unexpected times.</li>
 </ul>
 
-<h2>Conversion rates</h2>
-<p>The funnel shows how leads move through each stage: <em>New \u2192 Contacted \u2192 Scheduled \u2192 Booked \u2192 Closed</em>. A high <em>Contacted \u2192 Booked</em> rate means your follow-up is working; a drop between stages shows you where leads are stalling.</p>
-<blockquote class="hc-callout"><span class="hc-co-h">Reading the funnel</span><p>Focus on the biggest drop-off. That's the stage where the most value is being lost.</p></blockquote>
-<p>See yours on the <a href="/p/analytics">Analytics</a> page.</p>`;
+<p>Manage and review your schedule anytime on the <a href="/p/calendar">Calendar</a> page.</p>`;
+
+    case 'leads': return `<p class="hc-lead">Every caller becomes a lead. Track prospects from initial contact to the final close \u2014 Emma handles intake, you handle the relationship.</p>
+
+<h2>Lead statuses</h2>
+<p>Each lead moves through a structured pipeline so your team knows exactly who to follow up with next:</p>
+<ul>
+  <li><strong>New:</strong> A prospect who called in but has not yet been contacted by you.</li>
+  <li><strong>Contacted:</strong> You have reached out via phone call, text message, or email.</li>
+  <li><strong>Scheduled:</strong> A temporary or unconfirmed hold has been placed on your calendar.</li>
+  <li><strong>Booked:</strong> The appointment is confirmed and ready for your crew.</li>
+  <li><strong>Closed:</strong> The job was either won or lost, and the lead is marked inactive.</li>
+</ul>
+
+<h2>Concrete intake example</h2>
+<p>When a customer calls asking about deck sealing, Emma checks if they are in your database. If not, she automatically asks for their name and details, then creates a <strong>New</strong> lead record containing their phone number and notes, ready for your immediate follow-up.</p>
+
+<h2>Step-by-step instructions</h2>
+<ol>
+  <li>Open the <a href="/p/leads">Leads</a> page to view your active funnel.</li>
+  <li>Click on any lead's name to open their profile, edit their details, or add custom follow-up notes.</li>
+  <li>To update a status manually, select the new status from the dropdown menu on the lead's card.</li>
+  <li>For bulk updates, check the boxes next to multiple leads, select a new status, and click <strong>Bulk Update</strong>.</li>
+</ol>
+
+<h2>Troubleshooting tips</h2>
+<ul>
+  <li><strong>Duplicate leads:</strong> If a customer calls from a different number, a separate lead is created. Merge them by editing the phone fields or manually closing the duplicate.</li>
+  <li><strong>Missing names:</strong> When callers hang up early, Emma logs them as "Unknown Caller". Open the lead, listen to the call recording, and manually update the name once verified.</li>
+</ul>
+
+<div class="hc-callout"><span class="hc-co-h">Pipeline Goal</span><p>Move leads systematically through the pipeline to track your business metrics. Check conversion rates on the <a href="/p/analytics">Analytics</a> page.</p></div>`;
+
+    case 'calls-transcripts': return `<p class="hc-lead">Every call Emma handles is logged automatically. Access instant transcripts, audio playback, and call details to ensure you never miss customer context.</p>
+
+<h2>The call log</h2>
+<p>The <a href="/p/calls">Calls</a> page displays a list of all inbound calls sorted chronologically. Each log entry displays the caller's phone number, call duration, timestamp, and whether the call was handled autonomously by Emma or transferred to your forwarding line.</p>
+
+<h2>Transcripts and recordings</h2>
+<p>Select a call entry to open its detailed view. Here you can read a full text transcript of the conversation or play back the audio recording to hear the caller's tone and catch specific details.</p>
+
+<h2>Concrete usage example</h2>
+<p>Suppose a client calls to ask about your service area but hangs up without booking. By navigating to your logs, you can read the transcript to confirm she was in your service radius and use the call-back feature to reach out and secure her business.</p>
+
+<h2>Step-by-step instructions</h2>
+<ol>
+  <li>Go to the <a href="/p/calls">Calls</a> page on the dashboard.</li>
+  <li>Scroll or use the search bar to locate a call by phone number or date range.</li>
+  <li>Click the call row to expand the transcript and display the media controls.</li>
+  <li>Click the play button on the audio player to listen to the call recording.</li>
+  <li>Tap the phone icon next to the number to trigger a call-back from your device.</li>
+</ol>
+
+<h2>Troubleshooting tips</h2>
+<ul>
+  <li><strong>Recording fails to play:</strong> Ensure your browser permits audio playback. If the issue persists, clear your browser cache or try a different browser.</li>
+  <li><strong>Empty transcript:</strong> If a call duration is under 5 seconds, the caller likely hung up before Emma could start her greeting, resulting in a blank log.</li>
+</ul>
+
+<div class="hc-callout"><span class="hc-co-h">Quick Tip</span><p>Use search inside your browser (Ctrl+F) on the transcript screen to quickly find keywords like "price", "leak", or "asap".</p></div>`;
+
+    case 'website-builder': return `<p class="hc-lead">Build a completely custom, professional website for your business using the GrapesJS drag-and-drop page builder. Design layouts, customize styles, and publish instantly.</p>
+
+<h2>The Drag-and-Drop Editor</h2>
+<p>Branch Live has migrated from rigid templates to a powerful page-builder interface powered by GrapesJS. Instead of turning hardcoded sections on or off, you have full creative control to construct custom layouts. The GrapesJS interface allows you to drag pre-styled components directly onto your canvas, edit text inline, and adjust CSS properties like fonts, colors, and margins via the style manager. This builder outputs clean HTML and CSS, which is saved directly as your site’s layout.</p>
+
+<h2>Key Blocks and Elements</h2>
+<p>To design your website, you can drag and configure a variety of block types:</p>
+<ul>
+  <li><strong>Headers & Hero Sections:</strong> Add bold titles and call-to-action buttons.</li>
+  <li><strong>Services & Content:</strong> Showcase what your business offers with grid layouts.</li>
+  <li><strong>Gallery & Portfolios:</strong> Display your local projects (synchronized with your dashboard).</li>
+  <li><strong>Google Maps & Reviews:</strong> Let visitors see your service location and ratings.</li>
+  <li><strong>Booking Widgets:</strong> Embed scheduling options directly into the layout.</li>
+</ul>
+
+<h2>Step-by-Step Instructions</h2>
+<ol>
+  <li>Navigate to the <a href="/p/website">Website</a> tab in the dashboard.</li>
+  <li>Click <strong>Launch Builder</strong> to open the full-screen GrapesJS editor.</li>
+  <li>Drag blocks from the right-hand panel (e.g., header, two-column section, contact form) onto your workspace.</li>
+  <li>Double-click any text block to edit copy, or click a block to change its styling, margins, or background color.</li>
+  <li>Click <strong>Save Draft</strong> to store progress, or <strong>Publish Website</strong> to compile your clean HTML.</li>
+</ol>
+
+<h2>Troubleshooting & Publishing</h2>
+<p>Your site is immediately hosted at your custom Branch Live URL (such as <code>/s/your-business</code>). If custom styles do not load immediately on mobile devices, clear your browser cache or re-publish from the editor to force an update.</p>`;
+
+
+    case 'gallery': return `<p class="hc-lead">Showcase your best projects and services. Upload high-quality photos of finished work to build trust and display them dynamically in your gallery section.</p>
+
+<h2>Supported File Formats & Limits</h2>
+<p>To ensure your website loads fast on mobile devices and looks crisp on high-resolution screens, your images must adhere to the following specifications:</p>
+<ul>
+  <li><strong>Supported Formats:</strong> JPEG, PNG, and WebP files are accepted.</li>
+  <li><strong>File Size Limit:</strong> Maximum of 5MB per image. Larger files will be blocked automatically to preserve bandwidth.</li>
+  <li><strong>Aspect Ratios:</strong> Standard landscape (4:3 or 16:9) is recommended for grid layouts.</li>
+</ul>
+
+<h2>Step-by-Step Upload Flow</h2>
+<ol>
+  <li>Navigate to the <a href="/p/gallery">Gallery</a> page from your sidebar navigation.</li>
+  <li>Click the <strong>Upload Photos</strong> button, which opens your system file dialog.</li>
+  <li>Select one or multiple images from your computer or mobile device.</li>
+  <li>Wait for the progress bar to complete. Images are optimized and saved to your storage bucket.</li>
+  <li>Once uploaded, drag and drop the image cards on the page to change their display order.</li>
+  <li>Hover over any photo and click the trash icon if you need to delete it.</li>
+</ol>
+
+<h2>Maximizing Conversion Rates</h2>
+<p>A portfolio of real projects demonstrates your capability. We recommend uploading high-quality photos of actual results rather than generic stock imagery. Keep your gallery fresh by adding 2–3 new photos every month, showing before-and-after comparisons to help convert site visitors into booked calls. Emma can also mention these projects to callers looking for specific examples of your work.</p>
+
+<div class="hc-callout"><span class="hc-co-h">Pro Tip</span><p>Always name your image files descriptively before uploading (e.g., <code>bathroom-remodel-after.jpg</code>) to help search engines index your custom site.</p></div>`;
+
+
+    case 'social-posts': return `<p class="hc-lead">Auto-generate engaging updates, connect your social channels, and schedule regular posts to keep your local audience active and informed.</p>
+
+<h2>Supported Platforms & Formats</h2>
+<p>The social media scheduler supports publishing to Facebook Pages and Instagram Business profiles. When creating image posts, make sure your assets meet these guidelines:</p>
+<ul>
+  <li><strong>Supported Formats:</strong> JPEG and PNG are the standard formats.</li>
+  <li><strong>File Size Limits:</strong> Up to 8MB for Facebook and 5MB for Instagram.</li>
+  <li><strong>Dimensions:</strong> Square (1:1) or vertical (4:5) ratios work best.</li>
+</ul>
+
+<h2>Connecting Your Channels (OAuth Flow)</h2>
+<p>To publish automatically, you must authorize our application to post on your behalf:</p>
+<ol>
+  <li>Go to the <a href="/p/social">Social</a> page and click <strong>Connect Accounts</strong>.</li>
+  <li>You will be redirected to the secure Facebook OAuth verification portal.</li>
+  <li>Log in with your Facebook credentials and grant permissions for your Pages and associated Instagram Business profiles.</li>
+  <li>Select the target accounts to sync and click <strong>Authorize</strong> to return to the dashboard.</li>
+</ol>
+
+<h2>Drafting & Scheduling Posts</h2>
+<ol>
+  <li>Click <strong>Generate Draft</strong> to let the AI write a post based on your Knowledge Base.</li>
+  <li>Edit the generated caption to match your exact tone and voice, adding relevant hashtags.</li>
+  <li>Select an image from your project gallery or upload a new photo.</li>
+  <li>Click <strong>Schedule</strong>, pick your target date and time from the calendar, and queue the post.</li>
+</ol>
+
+<p>The AI writes posts contextually. For instance, if you have a service named "Lawn Mowing" with a price of "$50" in your Knowledge Base, the AI will automatically create a post offering that service at that price, complete with local call-to-actions.</p>
+
+<div class="hc-callout"><span class="hc-co-h">OAuth Troubleshooting</span><p>If your posts fail to send, your Facebook credentials may have expired. Go to settings, click disconnect, and restart the connection flow.</p></div>`;
+
+
+    case 'blog': return `<p class="hc-lead">Harness the power of content marketing with two distinct blogs: our Platform Blog for product updates, and the AI Business Blog for your custom website.</p>
+
+<h2>Platform Blog vs. Business Blog</h2>
+<p>Branch Live features two separate blogging systems designed for different purposes:</p>
+<ul>
+  <li><strong>Platform Blog:</strong> This blog is shared by all users. It is managed directly by Branch Live to share product updates, best practices, and reception tips.</li>
+  <li><strong>Business Blog ($14.95/mo Add-on):</strong> This option creates a dedicated blog page on your custom website. The AI auto-generates SEO-optimized articles based on your location and Knowledge Base services to drive organic search traffic.</li>
+</ul>
+
+<h2>Step-by-Step Activation & Posting</h2>
+<ol>
+  <li>Navigate to the <a href="/p/billing">Billing</a> page in your dashboard.</li>
+  <li>Locate the <strong>Business Blog</strong> add-on and toggle it to <strong>Active</strong>. Confirm the Stripe checkout subscription.</li>
+  <li>Go to the new <a href="/p/blog">Blog Manager</a> tab that appears in your sidebar.</li>
+  <li>Click <strong>Generate Article</strong> and input a topic (e.g., "Why regular gutter cleaning prevents foundation damage").</li>
+  <li>The AI writes a complete draft incorporating your service area and contact info. Review, make edits, and click <strong>Publish</strong> to push it live.</li>
+</ol>
+
+<h2>SEO and Business Integration</h2>
+<p>For example, if you run a plumbing business in Phoenix, the AI blog generator can write articles like "Preparing Phoenix Pipes for Winter." Publishing these posts helps your microsite rank on search engines. Furthermore, Emma references published blog content when answering caller queries, making her conversations even more informative and natural.</p>
+
+<div class="hc-callout"><span class="hc-co-h">Manual Writing</span><p>You can also write articles from scratch. Click <strong>Create Blank Post</strong> in the Blog Manager, enter your text, and upload a header image.</p></div>`;
+
+
+    case 'analytics': return `<p class="hc-lead">Track your business performance. Understand where leads come from, how your pipeline performs, and how many calls convert into confirmed revenue.</p>
+
+<h2>Understanding the 5-Stage Funnel</h2>
+<p>Your leads flow through a structured pipeline that reflects the health of your sales process. Analytics tracks conversion between five distinct stages:</p>
+<ul>
+  <li><strong>New:</strong> Initial contact. The caller has contacted your business but has not been qualified or followed up with.</li>
+  <li><strong>Contacted:</strong> Outgoing follow-up has occurred via email, SMS, or phone.</li>
+  <li><strong>Scheduled:</strong> A temporary hold or unconfirmed appointment has been placed on your calendar.</li>
+  <li><strong>Booked:</strong> The job or estimate is fully confirmed and locked on the schedule.</li>
+  <li><strong>Closed:</strong> The final result, representing either a completed project (Won) or a lost opportunity.</li>
+</ul>
+
+<h2>Step-by-Step Analytics Walkthrough</h2>
+<ol>
+  <li>Navigate to the <a href="/p/analytics">Analytics</a> page in your sidebar menu.</li>
+  <li>Use the date picker at the top of the screen to filter data by day, week, month, or a custom range.</li>
+  <li>Review the **Total Lead Count** and **Call Volume** cards to gauge raw interest levels.</li>
+  <li>Scroll down to the **Conversion Funnel** chart to locate drop-offs (e.g., a drop-off between *Contacted* and *Scheduled* highlights a booking bottleneck).</li>
+  <li>Examine the **Average Call Duration** card to assess how much time Emma saves you.</li>
+</ol>
+
+<h2>Actionable Example</h2>
+<p>If your funnel shows 100 *New* leads, 80 *Contacted*, but only 10 *Scheduled*, your follow-up script or responsiveness needs adjustment. If many leads stall at *Scheduled*, verify your calendar booking buffers are not overly restrictive, preventing unconfirmed holds from turning into confirmed bookings.</p>
+
+<div class="hc-callout"><span class="hc-co-h">Note</span><p>All metrics update in real time. The moment Emma wraps up a call or a user updates a lead's status, the charts recalculate immediately.</p></div>`;
+
 
     case 'billing-plans': return `
 <p class="hc-lead">Your plan, add-ons, and invoices \u2014 all managed through Stripe.</p>
@@ -15012,21 +15121,31 @@ Notes:    Natural stone or concrete pavers. Free on-site estimate.
 <p>Invite teammates from the <a href="/p/team">Team</a> page by email. They'll get a link to join your business with the role you choose. As the owner, you're automatically an admin.</p>
 <blockquote class="hc-callout"><span class="hc-co-h">Note</span><p>Team members see the <em>business's</em> shared data ΓÇö leads, calendar, knowledge ΓÇö not their own private set.</p></blockquote>`;
 
-    case 'settings': return `
-<p class="hc-lead">The control panel for how Emma behaves and how you're reached.</p>
+    case 'settings': return `<p class="hc-lead">Customize how Emma interacts with callers, set up call forwarding, define business hours, and connect your Gmail account for automated notifications.</p>
 
-<h2>Phone forwarding</h2>
-<p>Set the number Emma transfers urgent or complex calls to ΓÇö usually your cell or office line. Everything else she handles end-to-end.</p>
+<h2>Core Control Features</h2>
+<ul>
+  <li><strong>Call Forwarding:</strong> Input the phone number where Emma should transfer urgent inquiries or complex requests (e.g., your personal cell or office line).</li>
+  <li><strong>Working Hours:</strong> Define your open hours. Emma uses these to offer appointment slots. Off-hours calls are routed to message-taking or scheduled for the next business day.</li>
+  <li><strong>Notification Alerts:</strong> Set up SMS or email notifications to alert you instantly whenever Emma captures a new lead or schedules a booking.</li>
+</ul>
 
-<h2>Working hours</h2>
-<p>Define when you're open. During working hours Emma books appointments live; outside them she schedules for the next business day.</p>
+<h2>Step-by-Step Gmail OAuth Setup</h2>
+<p>To enable automated follow-ups (such as appointment confirmation emails) sent directly from your own domain, configure your Gmail connection:</p>
+<ol>
+  <li>Navigate to the <a href="/settings-htmx">Settings</a> page.</li>
+  <li>Scroll down to the <strong>Email Integration</strong> section and click <strong>Connect Gmail</strong>.</li>
+  <li>You will be redirected to the secure Google OAuth login window. Select your business email account.</li>
+  <li>Grant the necessary permissions for Branch Live to queue drafts and send messages on your behalf.</li>
+  <li>Once redirected back, verify that your email address is shown as "Connected".</li>
+  <li>Send a test email using the diagnostic tool to confirm that deliverability is functional.</li>
+</ol>
 
-<h2>Notifications</h2>
-<p>Choose how you're alerted ΓÇö new lead, booked appointment, missed call. Stay on top of what matters without watching the dashboard all day.</p>
+<h2>Actionable Settings Example</h2>
+<p>Suppose you set your working hours from 8:00 AM to 5:00 PM and specify your mobile number as the forwarding line. If a customer calls at 2:00 PM with an urgent emergency, Emma redirects the call to your cell. If another customer calls at 8:00 PM to book a routine service, Emma handles it autonomously, calendars it for Tuesday, and uses Gmail to email them a booking confirmation.</p>
 
-<h2>Gmail OAuth</h2>
-<p>Connect Gmail so Branch Live can send follow-up emails (lead confirmations, appointment reminders) from your own address instead of a no-reply. One-time authorization; revoke anytime.</p>
-<p>Configure all of this on the <a href="/settings-htmx">Settings</a> page.</p>`;
+<div class="hc-callout"><span class="hc-co-h">Security Note</span><p>Gmail OAuth tokens are encrypted and stored securely. You can revoke this connection at any time directly through your Google Account permissions page.</p></div>`;
+
 
     case 'faq-languages': return `
 <p class="hc-lead">Emma currently works in English only.</p>
@@ -15605,6 +15724,26 @@ export default {
         return handleScout(request, env, scCtx.bid);
       }
 
+      // 'Design My Site' AI website generator — cookie-authed (the /p/website
+      // builder has no Bearer token), manager+, scoped to ctx.bid so team
+      // members act on the owner's business. Must live ABOVE the Bearer
+      // gate (the `const uid = await getUserId` block below returns 401 for
+      // cookie-only requests), alongside scout and the *-htmx routes.
+      if (path === '/api/site/design/generate' && method === 'POST') {
+        const dUid = await getUidFromSessionCookie(request, env);
+        if (!dUid) return json({ ok: false, error: 'Not logged in' });
+        const dCtx = await resolveContext(request, env, dUid);
+        if (!roleMeets(dCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
+        return handleSiteDesignGenerate(request, env, dCtx.bid);
+      }
+      if (path === '/api/site/design/approve' && method === 'POST') {
+        const aUid = await getUidFromSessionCookie(request, env);
+        if (!aUid) return json({ ok: false, error: 'Not logged in' });
+        const aCtx = await resolveContext(request, env, aUid);
+        if (!roleMeets(aCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
+        return handleSiteDesignApprove(request, env, aCtx.bid);
+      }
+
       // ── Team / roles API (cookie-authed via bl_session) ──
       // switch works for any logged-in member; the rest require business admin.
       if (path === '/api/team/switch' && method === 'POST') {
@@ -15865,24 +16004,6 @@ export default {
       }
       if (path === '/api/sites' && method === 'GET') {
         return handleSitesStatus(request, env, uid);
-      }
-
-      // 'Design My Site' AI website generator — cookie-authed (the builder has
-      // no Bearer token), manager+, scoped to ctx.bid so team members act on
-      // the owner's business. Mirrors the canonical knowledge/site gate.
-      if (path === '/api/site/design/generate' && method === 'POST') {
-        const dUid = await getUidFromSessionCookie(request, env);
-        if (!dUid) return json({ ok: false, error: 'Not logged in' });
-        const dCtx = await resolveContext(request, env, dUid);
-        if (!roleMeets(dCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
-        return handleSiteDesignGenerate(request, env, dCtx.bid);
-      }
-      if (path === '/api/site/design/approve' && method === 'POST') {
-        const aUid = await getUidFromSessionCookie(request, env);
-        if (!aUid) return json({ ok: false, error: 'Not logged in' });
-        const aCtx = await resolveContext(request, env, aUid);
-        if (!roleMeets(aCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
-        return handleSiteDesignApprove(request, env, aCtx.bid);
       }
 
       // Email autoresponder — trigger + history
