@@ -2556,6 +2556,7 @@ const NAV_ITEMS = {
   social:   { key:'social',   href: '/p/social',      label: 'Social',    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-8-8 18-2-7-8-3z"/></svg>' },
   billing:  { key:'billing',  href: '/p/billing',     label: 'Billing',   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>' },
   help:     { key:'help',     href: '/p/help',        label: 'Help',      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' },
+  outreach: { key:'outreach', href: '/p/outreach',   label: 'Outreach',  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>' },
   team:     { key:'team',     href: '/p/team',        label: 'Team',       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' },
   settings: { key:'settings', href: '/settings-htmx', label: 'Settings',  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>' },
 };
@@ -2566,7 +2567,7 @@ const NAV_ITEMS = {
 const NAV_GROUPS = [
   { name: 'Main',     keys: ['overview','calendar','knowledge','gallery'] },
   { name: 'Business', keys: ['leads','calls','analytics'] },
-  { name: 'Growth',   keys: ['website','blog','social'] },
+  { name: 'Growth',   keys: ['website','blog','social','outreach'] },
   { name: 'Account',  keys: ['billing','team','settings','help'] },
 ];
 
@@ -2837,7 +2838,7 @@ async function userBusinesses(env, uid) {
 // Standard admin 500 page (keeps the shell so the nav still renders).
 function adminErrorPage(active, msg) {
   return new Response(
-    adminShell(active, 'Error', `<h1>⚠️ Error</h1><p style="color:#f85149">${htmxEsc(msg || 'Could not load this page.')}</p>`),
+    adminShell(active, 'Error', `<h1>⚠️ Error</h1><p style="color:var(--danger)">${htmxEsc(msg || 'Could not load this page.')}</p>`),
     { status: 500, headers: { 'Content-Type': 'text/html' } }
   );
 }
@@ -3566,7 +3567,7 @@ async function handleSettingsHtmx(request, env) {
     });
   } catch (e) {
     console.error('HTMX settings render error:', e);
-    return new Response(simpleShell('Settings', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load settings.</p>'), {
+    return new Response(simpleShell('Settings', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load settings.</p>'), {
       headers: { 'Content-Type': 'text/html' }, status: 500,
     });
   }
@@ -6682,7 +6683,7 @@ ${addonBanner}
     return new Response(simpleShell('Website Builder', body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Website builder htmx error:', e);
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load the website builder.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load the website builder.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
@@ -6723,7 +6724,7 @@ async function handleAdminSites(request, env, pUid) {
     return new Response(simpleShell('Business Websites · Admin', body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Admin sites error:', e);
-    return new Response(adminShell('sites', 'Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load business websites.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+    return new Response(adminShell('sites', 'Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load business websites.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
@@ -7109,7 +7110,7 @@ npx wrangler secret put TEXTMAGIC_API_KEY</pre>
     return new Response(simpleShell('Outreach', body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Outreach dashboard error:', e);
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load the outreach dashboard.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load the outreach dashboard.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
@@ -8524,7 +8525,7 @@ ${referrals.length ? '<table><thead><tr><th>Company</th><th>Status</th><th>Joine
     return new Response(simpleShell('Affiliate Dashboard', html), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Affiliate dashboard error:', e);
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Something went wrong.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Something went wrong.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
@@ -8619,7 +8620,7 @@ function filterLeads(q){
     return new Response(simpleShell('Leads', body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Leads htmx error:', e);
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load leads.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load leads.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
@@ -8752,7 +8753,7 @@ function setFb(id, ok, msg){
   var el=document.getElementById(id);
   if(!el)return;
   el.textContent = ok ? '✓ '+(msg||'Sent') : '✗ '+(msg||'Failed');
-  el.style.color = ok ? 'var(--success, #34d399)' : 'var(--danger, #f85149)';
+  el.style.color = ok ? 'var(--success, #34d399)' : 'var(--danger, var(--danger))';
 }
 // SMS follow-up — cookie-authed, fire-and-forget.
 async function sendLeadFollowup(kind, leadId){
@@ -8832,7 +8833,7 @@ async function sendLeadEmailDraft(leadId){
     return new Response(simpleShell(`Lead: ${lead.caller_name || lead.id}`, body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Lead detail htmx error:', e);
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load this lead.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load this lead.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
@@ -8958,7 +8959,7 @@ function filterCalls(q){
     return new Response(simpleShell('Call Logs', body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Calls htmx error:', e);
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load call logs.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load call logs.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
@@ -9115,7 +9116,7 @@ ${detailCard ? `<div class="detail-grid" style="margin-top:14px">${VIEW==='month
     return new Response(simpleShell('Calendar', body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Calendar htmx error:', e);
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load the calendar.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load the calendar.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
@@ -9190,7 +9191,7 @@ ${viewOnly ? '<div class="vo-banner"><span class="vo-ico">👁</span>View only �
     return new Response(simpleShell('Appointment', body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Appointment detail htmx error:', e);
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load this appointment.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load this appointment.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
@@ -9449,7 +9450,7 @@ kRenderPager(${totalPages});
     return new Response(simpleShell('Knowledge Base', body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Knowledge htmx error:', e);
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load the knowledge base.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load the knowledge base.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
@@ -9522,7 +9523,7 @@ async function toggleAddon(key,column,on,el){
     return new Response(simpleShell('Billing', body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Billing htmx error:', e);
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load billing.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load billing.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
@@ -9552,7 +9553,7 @@ ${style}<div class="g-tabs"><button class="btn btn-amber btn-sm" onclick="gfilte
 </div></div>`;
     return new Response(simpleShell('Photo Gallery', body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Something went wrong: ' + String(e.message || e).slice(0, 200) + '</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Something went wrong: ' + String(e.message || e).slice(0, 200) + '</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
@@ -9849,7 +9850,7 @@ ${newLeads > 0 ? `<p style="margin-top:18px;display:flex;align-items:center;gap:
     return new Response(simpleShell('Overview', body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Overview htmx error:', e);
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load your dashboard overview.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load your dashboard overview.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
@@ -10616,7 +10617,7 @@ async function onboardingWizardHtmx(request, env, uid, ctx) {
     return new Response(simpleShell('Onboarding', body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Onboarding wizard render error:', e);
-    return new Response(simpleShell('Error', '<h1>\u26a0\ufe0f Error</h1><p style="color:#f85149">Could not load the onboarding wizard.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+    return new Response(simpleShell('Error', '<h1>\u26a0\ufe0f Error</h1><p style="color:var(--danger)">Could not load the onboarding wizard.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
@@ -10789,7 +10790,7 @@ async function handleAnalyticsHtmx(request, env, uid, ctx) {
     return new Response(simpleShell('Analytics', body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Analytics htmx error:', e);
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load your analytics dashboard.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load your analytics dashboard.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
@@ -10905,7 +10906,7 @@ ${inviteList}
     return new Response(simpleShell('Team', body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Team htmx error:', e);
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load the team page.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load the team page.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
@@ -13000,7 +13001,7 @@ async function handleAdminSupportDetail(request, env, uid, ticketId) {
 
 ${replied ? `<div class="note-box" style="border-color:rgba(212,165,116,.4);color:var(--accent-amber);margin:18px 0">✓ Reply sent to ${htmxEsc(t.email || 'submitter')}. Status set to replied.</div>` : ''}
 ${resolved ? `<div class="note-box" style="border-color:rgba(212,165,116,.4);color:var(--accent-amber);margin:18px 0">✓ Ticket marked resolved.</div>` : ''}
-${sendErr ? `<div class="note-box" style="border-color:rgba(248,113,113,.4);color:#f85149;margin:18px 0">✗ Reply could not be sent. Check Resend config and try again.</div>` : ''}
+${sendErr ? `<div class="note-box" style="border-color:rgba(248,113,113,.4);color:var(--danger);margin:18px 0">✗ Reply could not be sent. Check Resend config and try again.</div>` : ''}
 
 <div class="grid2" style="margin-top:8px">
   <div class="card stat-card"><div class="stat-lab">Status</div><div style="margin-top:8px"><span class="badge ${statusBadge}">${htmxEsc(t.status || 'open')}</span></div></div>
@@ -13834,7 +13835,7 @@ async function delOne(id){
     return new Response(simpleShell('Social Media Auto-Posts', body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Social htmx error:', e);
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load the social dashboard.</p>'), { status: 500, headers: { 'Content-Type': 'text/html' } });
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load the social dashboard.</p>'), { status: 500, headers: { 'Content-Type': 'text/html' } });
   }
 }
 
@@ -13979,7 +13980,7 @@ async function genNow(btn){
     return new Response(simpleShell('AI Blog Posts', body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Business blog htmx error:', e);
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load your blog.</p>'), { status: 500, headers: { 'Content-Type': 'text/html' } });
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load your blog.</p>'), { status: 500, headers: { 'Content-Type': 'text/html' } });
   }
 }
 
@@ -14027,7 +14028,7 @@ ${publicHref ? `<p style="margin-top:28px"><a class="btn btn-ghost btn-sm" href=
     return new Response(simpleShell(post.title, body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Business blog detail htmx error:', e);
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load this post.</p>'), { status: 500, headers: { 'Content-Type': 'text/html' } });
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load this post.</p>'), { status: 500, headers: { 'Content-Type': 'text/html' } });
   }
 }
 
