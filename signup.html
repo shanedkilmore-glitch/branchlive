@@ -152,7 +152,11 @@ async function signup() {
     const d = await r.json();
     if (d.ok) {
       localStorage.setItem('branchlive_token', d.token); ok.textContent = 'Account created! Redirecting to setup...';
-      setTimeout(() => { window.location.href = 'https://branchlive-portal.shane-f58.workers.dev/onboarding'; }, 1000);
+      // Land new signups in the 5-step onboarding wizard. We route through
+      // /login-htmx?next=/p/onboarding so the user gets a bl_session cookie
+      // (the cookie the /p/* dashboard pages authenticate with) and then
+      // arrives inside the new wizard instead of the legacy standalone page.
+      setTimeout(() => { window.location.href = 'https://branchlive-portal.shane-f58.workers.dev/login-htmx?next=/p/onboarding'; }, 1000);
     } else {
       err.textContent = d.error || 'Something went wrong.';
     }

@@ -7653,34 +7653,81 @@ function switchBusiness(bid){var f=document.createElement('form');f.method='POST
   // Render documentElement via html2canvas. onclone injects the annotation
   // canvas (absolute, origin-aligned) into the CLONE so the live page is
   // untouched; scrollX/Y=0 + windowWidth/Height keep positioning correct.
+  // Each step logs to the console so a failed capture shows exactly where it
+  // died (load / render / toBlob / taint). The toast surfaces the step+error
+  // so the user does not need to open devtools to see why no image arrived.
   function captureAnnotated(info){
+    console.log('[Scout-capture] captureAnnotated starting...');
     return loadHtml2Canvas().then(function(){
-      if(!window.html2canvas)throw new Error('html2canvas missing');
+      console.log('[Scout-capture] html2canvas loaded:',typeof window.html2canvas);
+      if(!window.html2canvas)throw new Error('html2canvas missing after load');
       var src=annoCanvas; // may be null when called from Inspect
+      console.log('[Scout-capture] rendering documentElement; annoCanvas present:',!!src);
       return window.html2canvas(document.documentElement,{
         backgroundColor:getComputedStyle(document.body).backgroundColor||'#0a0a12',
-        logging:false,useCORS:true,scale:DPR,
+        logging:true,useCORS:true,allowTaint:false,scale:DPR,
         scrollX:0,scrollY:0,
         windowWidth:document.documentElement.scrollWidth,
         windowHeight:document.documentElement.scrollHeight,
         onclone:function(doc){
+          var grainEl=doc.querySelector('.grain');if(grainEl)grainEl.remove();
           if(!src)return;
           var c=src.cloneNode(true);
-          // Copy the painted bitmap (cloneNode doesn't carry canvas pixels).
-          try{var cc=c.getContext('2d');cc.drawImage(src,0,0);}catch(e){}
+          // Copy the painted bitmap (cloneNode does not carry canvas pixels).
+          try{var cc=c.getContext('2d');cc.drawImage(src,0,0);}catch(drawErr){console.error('[Scout-capture] onclone drawImage failed:',drawErr&&drawErr.message);}
           c.style.position='absolute';c.style.top='0';c.style.left='0';
           c.style.zIndex='2147483002';c.style.display='block';c.style.pointerEvents='none';
           doc.body.appendChild(c);
         }
+      }).then(function(canvas){
+        console.log('[Scout-capture] html2canvas produced canvas:',canvas&&canvas.width,'x',canvas&&canvas.height);
+        return canvas;
+      },function(renderErr){
+        console.error('[Scout-capture] html2canvas render THREW:',renderErr&&renderErr.message);
+        throw renderErr;
       });
     }).then(function(canvas){
+      if(!canvas)throw new Error('html2canvas returned no canvas');
       return new Promise(function(res,rej){
         var done=false;
-        var t=setTimeout(function(){if(!done){done=true;rej(new Error('toBlob timeout'))}},8000);
+        var t=setTimeout(function(){if(!done){done=true;console.error('[Scout-capture] toBlob TIMEOUT (8s)');rej(new Error('toBlob timeout'))}},8000);
         try{
-          canvas.toBlob(function(b){if(!done){done=true;clearTimeout(t);b?res(b):rej(new Error('toBlob empty'))}},'image/png');
-        }catch(e){if(!done){done=true;clearTimeout(t);rej(e);}}
+          canvas.toBlob(function(b){
+            if(done)return;
+            if(b){done=true;clearTimeout(t);console.log('[Scout-capture] toBlob OK, size:',b.size);res(b);}
+            else{
+              // toBlob returned null — almost always a TAINTED canvas (a
+              // cross-origin image without CORS was drawn). Try toDataURL as
+              // a probe: it throws SecurityError on taint, distinguishing it
+              // from other causes, and works as a fallback when not tainted.
+              console.error('[Scout-capture] toBlob returned NULL — trying toDataURL probe');
+              try{
+                var url=canvas.toDataURL('image/png');
+                console.log('[Scout-capture] toDataURL worked (len '+url.length+') — canvas NOT tainted; null-blob was a browser quirk');
+                dataURLToBlob(url).then(function(blob2){if(!done){done=true;clearTimeout(t);res(blob2);}},function(e2){if(!done){done=true;clearTimeout(t);rej(new Error('toBlob null + toDataURL->blob failed: '+(e2&&e2.message)));}});
+              }catch(secErr){
+                done=true;clearTimeout(t);
+                var msg='tainted canvas (cross-origin image without CORS): '+(secErr&&secErr.name)+' '+(secErr&&secErr.message);
+                console.error('[Scout-capture] CONFIRMED TAINTED:',msg);
+                rej(new Error(msg));
+              }
+            }
+          },'image/png');
+        }catch(e){if(!done){done=true;clearTimeout(t);console.error('[Scout-capture] toBlob threw:',e&&e.message);rej(e);}}
       });
+    });
+  }
+
+  // Convert a data: URL to a Blob (used as a fallback when toBlob returns null).
+  function dataURLToBlob(url){
+    return new Promise(function(res,rej){
+      try{
+        var parts=url.split(','),mime=(parts[0].match(/:(.*?);/)||[])[1]||'image/png';
+        var raw=atob(parts[1]);
+        var len=raw.length,arr=new Uint8Array(len);
+        for(var i=0;i<len;i++)arr[i]=raw.charCodeAt(i);
+        res(new Blob([arr],{type:mime}));
+      }catch(e){rej(e);}
     });
   }
 
@@ -7695,10 +7742,18 @@ function switchBusiness(bid){var f=document.createElement('form');f.method='POST
     var p=(location.pathname.split('/').pop()||'page').replace(/[^a-z0-9]/gi,'');
     var d=new Date();var ts=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     var name='branchlive-'+(p||'page')+'-'+ts+'-annotate.png';
-    toast('Capturing…');
+    toast('Capturing...');
     captureAnnotated(info)
       .then(function(blob){clearAnnos();exit();return copyRich(info,blob,name);})
-      .catch(function(){clearAnnos();exit();return copyRich(info,null,name);});
+      .catch(function(err){
+        // Surface the actual error so the failure is diagnosable without
+        // devtools. err may be undefined if a step rejected with nothing.
+        var msg=(err&&(err.message||String(err)))||'unknown capture failure';
+        console.error('[Scout-capture] captureFromAnnotate CAUGHT:',msg,err);
+        clearAnnos();exit();
+        toast('Capture failed: '+msg.slice(0,90));
+        return copyRich(info,null,name);
+      });
   }
 
   // ── Floating button bar ──────────────────────────────────────────────
@@ -8142,7 +8197,7 @@ async function handleLeadsHtmx(request, env, uid, ctx) {
     };
     const stat = (label, value, tone) => `<div class="card stat-card"><div class="stat-num ${tone}">${value}</div><div class="stat-lab">${label}</div></div>`;
     const initials = n => { const p = String(n || '?').trim().split(/\s+/); return ((p[0] || '?')[0] + (p[1] || '')[0]).toUpperCase(); };
-    const rows = leads.map(l => `<a class="lead-row" href="/p/leads/${l.id}">
+    const rows = leads.map(l => `<a class="lead-row" href="/p/leads/${l.id}" data-status="${htmxEsc(String(l.status || 'new').toLowerCase())}" data-name="${htmxEsc((l.caller_name || '').toLowerCase())}">
   <div class="avatar">${htmxEsc(initials(l.caller_name))}</div>
   <div class="meta">
     <div class="name">${htmxEsc(l.caller_name || 'Unknown caller')}</div>
@@ -8196,6 +8251,18 @@ function filterLeads(q){
   });
   document.getElementById('lead-empty-hint').style.display=any?'none':'';
 }
+// Honor ?status= deep-links from the overview stat cards (e.g. /p/leads?status=new).
+// Only applied when the value matches a real option, so unknown params are ignored.
+(function(){
+  try {
+    var p=new URLSearchParams(location.search).get('status');
+    if(p){
+      var sel=document.getElementById('lead-filter');
+      var opt=Array.prototype.some.call(sel.options,function(o){return o.value===p;});
+      if(opt){ sel.value=p; filterLeads(''); }
+    }
+  } catch(e){}
+})();
 </script>
 </div></div>`;
     return new Response(simpleShell('Leads', body), { headers: { 'Content-Type': 'text/html' } });
@@ -9144,16 +9211,22 @@ ${style}<div class="g-tabs"><button class="btn btn-amber btn-sm" onclick="gfilte
 // bl_session cookie, so it loads in a normal browser tab without a JS login.
 async function handleOverviewHtmx(request, env, uid, ctx) {
   try {
-    // One batched round-trip for every summary number on the page. Each query
-    // is guarded by user_id, so demo/other accounts never bleed together.
-    // The settings SELECT also pulls onboarding_complete + working_hours so the
-    // first-login wizard trigger can be evaluated here without a second trip.
-    const [leadCounts, apptCounts, callStats, user, settings, kbCount] = await Promise.all([
+    // One batched round-trip for every summary number AND chart on the page.
+    // Each query is guarded by user_id, so demo/other accounts never bleed
+    // together. The settings SELECT also pulls onboarding_complete +
+    // working_hours so the first-login wizard trigger can be evaluated here
+    // without a second trip. leadCounts now also yields the 4-step funnel
+    // (new/contacted/booked/closed) so the funnel chart needs no extra query;
+    // dailyLead feeds the 30-day bar chart, activity drives the mixed feed
+    // (mirrors handleAnalyticsHtmx's UNION), and upcomingRows drives Row 4.
+    const [leadCounts, apptCounts, callStats, user, settings, kbCount, dailyLead, activity, upcomingRows] = await Promise.all([
       env.DB.prepare(
         `SELECT
            COUNT(*) AS total,
            SUM(CASE WHEN status = 'new' THEN 1 ELSE 0 END) AS new_leads,
-           SUM(CASE WHEN status = 'booked' THEN 1 ELSE 0 END) AS booked
+           SUM(CASE WHEN status = 'contacted' THEN 1 ELSE 0 END) AS contacted,
+           SUM(CASE WHEN status = 'booked' THEN 1 ELSE 0 END) AS booked,
+           SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) AS closed
          FROM leads WHERE user_id = ?`
       ).bind(uid).first(),
       env.DB.prepare(
@@ -9169,6 +9242,34 @@ async function handleOverviewHtmx(request, env, uid, ctx) {
       env.DB.prepare('SELECT name, email FROM users WHERE id = ?').bind(uid).first(),
       env.DB.prepare('SELECT business_name, onboarding_complete, working_hours FROM settings WHERE user_id = ?').bind(uid).first(),
       env.DB.prepare('SELECT COUNT(*) AS n FROM knowledge WHERE user_id = ?').bind(uid).first(),
+      // Daily lead counts for the last 30 calendar days (includes today).
+      env.DB.prepare(
+        `SELECT date(created_at) AS day, COUNT(*) AS count
+         FROM leads WHERE user_id = ? AND created_at >= date('now','-29 days')
+         GROUP BY day ORDER BY day`
+      ).bind(uid).all(),
+      // Mixed recent activity across leads / calls / appointments. `ts` (not
+      // `when`) — WHEN is a SQLite reserved word. Calls synthesize a status
+      // from duration_sec (no status column). Same UNION as the analytics page.
+      env.DB.prepare(
+        `SELECT 'lead' AS type, id, caller_name AS name, created_at AS ts, status
+         FROM leads WHERE user_id = ?
+         UNION ALL
+         SELECT 'call', id, COALESCE(caller_phone, 'Unknown'), created_at,
+                CASE WHEN duration_sec > 0 THEN 'answered' ELSE 'missed' END
+         FROM call_logs WHERE user_id = ?
+         UNION ALL
+         SELECT 'appointment', id, customer_name, created_at, status
+         FROM appointments WHERE user_id = ?
+         ORDER BY ts DESC LIMIT 10`
+      ).bind(uid, uid, uid).all(),
+      // Next 5 confirmed appointments, today through tomorrow.
+      env.DB.prepare(
+        `SELECT id, customer_name, title, date, time, duration_min
+         FROM appointments WHERE user_id = ? AND status = 'confirmed'
+           AND date >= date('now') AND date <= date('now','+1 day')
+         ORDER BY date ASC, time ASC LIMIT 5`
+      ).bind(uid).all(),
     ]);
 
     // First-login wizard trigger: show the setup wizard when onboarding hasn't
@@ -9188,36 +9289,210 @@ async function handleOverviewHtmx(request, env, uid, ctx) {
       : (user && (user.name || user.email)) || 'your dashboard';
     const leadsTotal = (leadCounts && leadCounts.total) || 0;
     const newLeads = (leadCounts && leadCounts.new_leads) || 0;
+    const contacted = (leadCounts && leadCounts.contacted) || 0;
     const booked = (leadCounts && leadCounts.booked) || 0;
+    const closed = (leadCounts && leadCounts.closed) || 0;
     const apptTotal = (apptCounts && apptCounts.total) || 0;
     const upcoming = (apptCounts && apptCounts.upcoming) || 0;
-    const calls = (callStats && callStats.calls) || 0;
 
-    const statCard = (label, value, tone) =>
-      `<div class="card stat-card"><div class="stat-num ${tone}">${value}</div><div class="stat-lab">${label}</div></div>`;
+    // ── 30-day lead-volume axis ──
+    // Build a clean 30-day axis (oldest→newest) so the bar chart reads
+    // consistently even when days have no leads; gaps fill with 0. D1 stores
+    // created_at as local "YYYY-MM-DD HH:MM:SS", and date(created_at) yields
+    // the same YYYY-MM-DD the JS axis produces, so the keys line up.
+    const byDay = {};
+    for (const r of (dailyLead.results || [])) byDay[r.day] = r.count;
+    const dayLabels = [];
+    const dayCounts = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      dayLabels.push(`${d.getMonth() + 1}/${d.getDate()}`);
+      dayCounts.push(byDay[ymd] || 0);
+    }
+
+    // ── Conversion funnel ── New → Contacted → Booked → Closed, amber gradient
+    // lightest→darkest exactly as specified in the design brief.
+    const funnelValues = [newLeads, contacted, booked, closed];
+
+    // ── Activity feed ── relative time ("2h ago") + clickable detail link.
+    // SQLite created_at is "YYYY-MM-DD HH:MM:SS" (local-ish); normalize to ISO
+    // before Date() so the diff is sane. detail href: lead→detail page,
+    // call→calls list, appointment→calendar.
+    const relTime = (ts) => {
+      if (!ts) return '';
+      const iso = String(ts).replace(' ', 'T');
+      const diff = Date.now() - new Date(iso).getTime();
+      if (isNaN(diff)) return '';
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return mins + 'm ago';
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return hrs + 'h ago';
+      const days = Math.floor(hrs / 24);
+      if (days < 7) return days + 'd ago';
+      return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+    const actMeta = {
+      lead:        { icon: '👤', verb: 'New lead', href: (r) => `/p/leads/${r.id}` },
+      call:        { icon: '📞', verb: (r) => r.status === 'answered' ? 'Call answered' : 'Missed call', href: () => '/p/calls' },
+      appointment: { icon: '📅', verb: 'Appointment booked', href: () => '/p/calendar' },
+    };
+    const feedRows = (activity.results || []).map(r => {
+      const m = actMeta[r.type] || { icon: '•', verb: r.type, href: () => '/p/overview' };
+      const verb = typeof m.verb === 'function' ? m.verb(r) : m.verb;
+      return `<a class="ov-feed-row" href="${m.href(r)}">
+  <span class="ov-feed-ic">${m.icon}</span>
+  <span class="ov-feed-main"><strong>${htmxEsc(r.name || 'Unknown')}</strong> ${htmxEsc(verb.toLowerCase())}</span>
+  <span class="ov-feed-ts">${relTime(r.ts)}</span>
+</a>`;
+    }).join('');
+
+    // ── Upcoming appointments ── friendly "Today"/"Tomorrow"/"Jul 4" label.
+    const apptLabel = (dateStr) => {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const d = new Date(dateStr + 'T00:00:00');
+      const diff = Math.round((d - today) / 86400000);
+      if (diff === 0) return 'Today';
+      if (diff === 1) return 'Tomorrow';
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+    const fmtTime = (t) => {
+      if (!t) return '';
+      const [h, mm] = String(t).split(':');
+      const hr = parseInt(h, 10);
+      const ampm = hr >= 12 ? 'PM' : 'AM';
+      const hr12 = hr % 12 || 12;
+      return `${hr12}:${mm} ${ampm}`;
+    };
+    const apptRows = (upcomingRows.results || []).map(a => {
+      const svc = a.title ? htmxEsc(a.title) : 'Appointment';
+      return `<a class="ov-appt-row" href="/p/calendar">
+  <div class="ov-appt-when"><span class="ov-appt-day">${apptLabel(a.date)}</span><span class="ov-appt-time">${htmxEsc(fmtTime(a.time))}</span></div>
+  <div class="ov-appt-who"><strong>${htmxEsc(a.customer_name || 'Unknown')}</strong><span class="ov-appt-svc">${svc}</span></div>
+  <span class="ov-appt-go">›</span>
+</a>`;
+    }).join('');
+
+    // Clickable stat card — wraps the existing .card.stat-card in an <a>. Hover
+    // lift + amber border comes from .ov-stat (defined in the scoped <style>).
+    const statCard = (label, value, href) =>
+      `<a class="card stat-card ov-stat" href="${href}"><div class="stat-num">${value}</div><div class="stat-lab">${label}</div><span class="ov-stat-go">›</span></a>`;
 
     const body = `<div class="app">${sidebarNav('overview', undefined, ctx)}<div class="content">
 <span class="eyebrow">Overview</span>
 <h1>Welcome back</h1>
 <p class="sub">Here's what's happening across <strong style="color:var(--text-primary)">${htmxEsc(greeting)}</strong> today.</p>
+
 <h3>Stats</h3>
-<div class="grid2">
-  ${statCard('Total leads', leadsTotal, 'purple')}
-  ${statCard('New leads', newLeads, '')}
-  ${statCard('Booked', booked, 'green')}
-  ${statCard('Upcoming appts', upcoming, 'blue')}
+<div class="ov-stats">
+  ${statCard('Total leads', leadsTotal, '/p/leads')}
+  ${statCard('New leads', newLeads, '/p/leads?status=new')}
+  ${statCard('Booked', booked, '/p/leads?status=booked')}
+  ${statCard('Upcoming appts', upcoming, '/p/calendar')}
 </div>
 ${newLeads > 0 ? `<p style="margin-top:18px;display:flex;align-items:center;gap:10px"><span class="badge badge-new">${newLeads} new</span> <span style="color:var(--text-muted);font-size:.9em">lead${newLeads === 1 ? '' : 's'} waiting for a follow-up.</span></p>` : ''}
-<h3>Activity</h3>
-<table class="no-header">
-  <tr><td>Calls answered</td><td>${calls}</td></tr>
-  <tr><td>Confirmed appointments</td><td>${apptTotal}</td></tr>
-  <tr><td>Upcoming (today+)</td><td>${upcoming}</td></tr>
-</table>
+
+<h3>Trends</h3>
+<div class="ov-charts">
+  <div class="card ov-chart-card">
+    <div class="ov-chart-h">Lead Volume <span>last 30 days</span></div>
+    <div class="ov-chart-wrap"><canvas id="ov-volume-chart"></canvas></div>
+  </div>
+  <div class="card ov-chart-card">
+    <div class="ov-chart-h">Conversion Funnel <span>new → closed</span></div>
+    <div class="ov-chart-wrap"><canvas id="ov-funnel-chart"></canvas></div>
+  </div>
+</div>
+
+<div class="ov-twocol">
+  <section class="ov-col">
+    <h3>Recent activity</h3>
+    <div class="ov-feed">${feedRows || '<div class="ov-empty">No activity yet.</div>'}</div>
+  </section>
+  <section class="ov-col">
+    <h3>Upcoming appointments</h3>
+    <div class="ov-appts">${apptRows || '<div class="ov-empty">Nothing scheduled for today or tomorrow.</div>'}</div>
+  </section>
+</div>
+
 <p style="margin-top:28px">
   <a class="btn btn-ghost btn-sm" href="/p/gallery">📸 Gallery</a>
   ${ctx && roleMeets(ctx.role, 'manager') ? '<a class="btn btn-ghost btn-sm" href="/p/onboarding">✨ Run setup wizard</a>' : ''}
 </p>
+
+<style>
+.ov-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.ov-stat{position:relative;display:block;text-decoration:none;color:inherit;padding:24px 20px}
+.ov-stat .stat-num{color:var(--cream)}
+.ov-stat:hover{border-color:var(--accent);text-decoration:none}
+.ov-stat:hover .stat-num{color:var(--accent-bright)}
+.ov-stat-go{position:absolute;top:18px;right:18px;color:var(--text-faint);font-size:1.1rem;opacity:0;transform:translateX(-4px);transition:opacity .2s,transform .2s}
+.ov-stat:hover .ov-stat-go{opacity:1;transform:translateX(0);color:var(--accent)}
+.ov-charts{display:grid;grid-template-columns:1.4fr 1fr;gap:18px;margin-bottom:6px}
+.ov-chart-card{padding:20px 20px 16px}
+.ov-chart-h{font-family:var(--font-mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--cream);font-weight:500;margin-bottom:14px;display:flex;align-items:baseline;gap:8px}
+.ov-chart-h span{font-family:var(--font-sans);font-size:.72rem;letter-spacing:.04em;text-transform:none;color:var(--text-faint);font-weight:400}
+.ov-chart-wrap{position:relative;height:240px}
+.ov-twocol{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+.ov-feed,.ov-appts{display:flex;flex-direction:column;gap:2px}
+.ov-feed-row,.ov-appt-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--text-primary);background:var(--bg-card);transition:border-color .2s,transform .15s,background-color .2s;margin-top:8px}
+.ov-feed-row:hover,.ov-appt-row:hover{border-color:var(--accent);transform:translateX(2px);text-decoration:none;background:var(--bg-elev)}
+.ov-feed-ic{font-size:1.05rem;flex-shrink:0;width:26px;text-align:center}
+.ov-feed-main{flex:1;min-width:0;font-size:.9rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ov-feed-main strong{color:var(--cream);font-weight:600}
+.ov-feed-ts{font-family:var(--font-mono);font-size:.72rem;color:var(--text-faint);flex-shrink:0;white-space:nowrap}
+.ov-appt-when{display:flex;flex-direction:column;align-items:flex-start;flex-shrink:0;min-width:58px}
+.ov-appt-day{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.ov-appt-time{font-family:var(--font-mono);font-size:.82rem;color:var(--cream);margin-top:2px}
+.ov-appt-who{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.ov-appt-who strong{color:var(--cream);font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-appt-svc{font-size:.78rem;color:var(--text-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-appt-go{color:var(--text-faint);font-size:1.1rem;flex-shrink:0}
+.ov-empty{padding:32px 16px;text-align:center;color:var(--text-faint);font-size:.88rem;border:1px dashed var(--border);border-radius:10px;margin-top:8px}
+@media(max-width:768px){
+  .ov-stats{grid-template-columns:repeat(2,1fr)}
+  .ov-charts{grid-template-columns:1fr}
+  .ov-twocol{grid-template-columns:1fr;gap:8px}
+  .ov-chart-wrap{height:200px}
+}
+</style>
+
+<script>
+// Chart.js amber theme + render. Guarded: if window.Chart is already defined
+// (e.g. cached) we render immediately, otherwise inject the CDN script and
+// render on load — never injected twice.
+(function(){
+  var volumeData = ${JSON.stringify({ labels: dayLabels, counts: dayCounts })};
+  var funnelData = ${JSON.stringify(funnelValues)};
+  var AMBER = '#d4a574', GRID = '#252540', MUTED = '#94a3b8', LABEL = '#f1f5f9';
+  function render(){
+    Chart.defaults.font.family = "'Inter Tight', sans-serif";
+    Chart.defaults.color = MUTED;
+    // Lead volume — vertical bars, minimal grid.
+    new Chart(document.getElementById('ov-volume-chart'), {
+      type:'bar',
+      data:{labels:volumeData.labels, datasets:[{data:volumeData.counts, backgroundColor:AMBER, hoverBackgroundColor:'#e8c9a0', borderRadius:3, maxBarThickness:14}]},
+      options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{backgroundColor:'#0e0e18', borderColor:GRID, borderWidth:1, titleColor:LABEL, bodyColor:MUTED, padding:10, displayColors:false, callbacks:{title:function(i){return i[0].label;}, label:function(c){return c.parsed.y+' leads';}}}}, scales:{x:{grid:{display:false}, ticks:{color:MUTED, maxRotation:0, autoSkip:true, maxTicksLimit:8}, border:{color:GRID}}, y:{beginAtZero:true, grid:{color:GRID}, ticks:{color:MUTED, precision:0, maxTicksLimit:5}, border:{display:false}}}}
+    });
+    // Conversion funnel — horizontal bars, amber gradient lightest→darkest.
+    var grad = ['#d4a574','#b88a5a','#9a7040','#7a5830'];
+    new Chart(document.getElementById('ov-funnel-chart'), {
+      type:'bar',
+      data:{labels:['New','Contacted','Booked','Closed'], datasets:[{data:funnelData, backgroundColor:grad, borderRadius:4, maxBarThickness:30}]},
+      options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{backgroundColor:'#0e0e18', borderColor:GRID, borderWidth:1, titleColor:LABEL, bodyColor:MUTED, padding:10, displayColors:false, callbacks:{label:function(c){return c.parsed.x+' leads';}}}}, scales:{x:{beginAtZero:true, grid:{color:GRID}, ticks:{color:MUTED, precision:0, maxTicksLimit:5}, border:{display:false}}, y:{grid:{display:false}, ticks:{color:LABEL, font:{family:"'Inter Tight', sans-serif", size:12, weight:'600'}}, border:{color:GRID}}}}
+    });
+  }
+  if (window.Chart) { render(); }
+  else {
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+    s.onload = render;
+    document.head.appendChild(s);
+  }
+})();
+</script>
 </div></div>`;
 
     return new Response(simpleShell('Overview', body), { headers: { 'Content-Type': 'text/html' } });
