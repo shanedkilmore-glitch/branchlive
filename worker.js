@@ -1104,13 +1104,13 @@ function emailShell(content) {
 <table width="600" cellpadding="0" cellspacing="0" style="background-color:#0e0e18;border-radius:12px;border:1px solid #1e293b;">
 <tr><td style="padding:32px 40px;">
 <div style="text-align:center;margin-bottom:24px;">
-<span style="color:#8b5cf6;font-size:24px;font-weight:700;">⚡ Branch Live</span>
+<span style="color:#d4a574;font-size:24px;font-weight:700;">⚡ Branch Live</span>
 </div>
 ${content}
 </td></tr>
 <tr><td style="padding:20px 40px;border-top:1px solid #1e293b;text-align:center;">
 <p style="color:#475569;font-size:12px;margin:0;line-height:1.6;">
-Need help? Call Emma at <span style="color:#8b5cf6;">(717) 432-1061</span><br>
+Need help? Call Emma at <span style="color:#d4a574;">(717) 432-1061</span><br>
 &copy; 2026 Branch Live. All rights reserved.
 </p>
 </td></tr>
@@ -1138,10 +1138,10 @@ Your AI receptionist is ready to answer calls 24/7.
 </ul>
 </div>
 <div style="text-align:center;margin-bottom:8px;">
-<a href="https://branchlive.com/onboarding" style="display:inline-block;background-color:#8b5cf6;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:600;font-size:15px;">Set Up Your AI Receptionist →</a>
+<a href="https://branchlive.com/onboarding" style="display:inline-block;background-color:#d4a574;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:600;font-size:15px;">Set Up Your AI Receptionist →</a>
 </div>
 <p style="color:#475569;font-size:13px;text-align:center;margin:16px 0 0;">
-Questions? Call Emma anytime at <span style="color:#8b5cf6;">(717) 432-1061</span>
+Questions? Call Emma anytime at <span style="color:#d4a574;">(717) 432-1061</span>
 </p>`;
 }
 
@@ -1152,7 +1152,7 @@ function onboardingWelcomeEmailContent(name, dashboardUrl, siteSlug) {
   const safeName = escapeHtml(name || 'there');
   const safeUrl = escapeHtml(dashboardUrl || 'https://branchlive.com/dashboard');
   const siteLine = siteSlug
-    ? `<p style="color:#475569;font-size:13px;margin:8px 0 0;">Your preview site: <span style="color:#8b5cf6;">https://branchlive.com/s/${escapeHtml(siteSlug)}</span> (live once you hit Publish)</p>`
+    ? `<p style="color:#475569;font-size:13px;margin:8px 0 0;">Your preview site: <span style="color:#d4a574;">https://branchlive.com/s/${escapeHtml(siteSlug)}</span> (live once you hit Publish)</p>`
     : '';
   return `
 <h1 style="color:#f1f5f9;font-size:22px;font-weight:700;margin:0 0 12px;text-align:center;">Welcome to Branch Live, ${safeName}!</h1>
@@ -1160,7 +1160,7 @@ function onboardingWelcomeEmailContent(name, dashboardUrl, siteSlug) {
 Your account is set up and Emma, your AI receptionist, is ready to answer calls 24/7.
 </p>
 <div style="text-align:center;margin:0 0 24px;">
-<a href="${safeUrl}" style="display:inline-block;background-color:#8b5cf6;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:600;font-size:15px;">Go to your dashboard &rarr;</a>
+<a href="${safeUrl}" style="display:inline-block;background-color:#d4a574;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:600;font-size:15px;">Go to your dashboard &rarr;</a>
 </div>
 ${siteLine}
 <div style="background-color:#1a1a2e;border-radius:8px;padding:20px 24px;margin-bottom:20px;">
@@ -1178,7 +1178,7 @@ Forward your business line to Emma at <span style="color:#00d4aa;font-weight:600
 </ol>
 </div>
 <p style="color:#475569;font-size:13px;text-align:center;margin:16px 0 0;">
-Questions? Call us anytime at <span style="color:#8b5cf6;">(717) 432-1061</span>
+Questions? Call us anytime at <span style="color:#d4a574;">(717) 432-1061</span>
 </p>`;
 }
 
@@ -1205,7 +1205,7 @@ Emma is fully live &mdash; all your leads, settings, calendar, and photos carrie
 <a href="${safeUrl}" style="display:inline-block;background-color:#00d4aa;color:#06060c;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:700;font-size:15px;">Open your dashboard &rarr;</a>
 </div>
 <p style="color:#475569;font-size:13px;text-align:center;margin:16px 0 0;">
-Questions? Call us anytime at <span style="color:#8b5cf6;">(717) 432-1061</span>
+Questions? Call us anytime at <span style="color:#d4a574;">(717) 432-1061</span>
 </p>`;
 }
 
@@ -1217,7 +1217,7 @@ function appointmentConfirmEmailContent(title, date, time, customerName, custome
   if (customerPhone) customerRows += `<tr><td style="padding:8px 0;color:#94a3b8;font-size:14px;">📞 Phone</td><td style="padding:8px 0;color:#f1f5f9;font-size:14px;font-weight:500;text-align:right;">${escapeHtml(customerPhone)}</td></tr>`;
   return `
 <h1 style="color:#f1f5f9;font-size:20px;font-weight:700;margin:0 0 8px;text-align:center;">Appointment Confirmed</h1>
-<p style="color:#8b5cf6;font-size:16px;font-weight:600;text-align:center;margin:0 0 20px;">${escapeHtml(title)}</p>
+<p style="color:#d4a574;font-size:16px;font-weight:600;text-align:center;margin:0 0 20px;">${escapeHtml(title)}</p>
 <div style="background-color:#1a1a2e;border-radius:8px;padding:20px;margin-bottom:20px;">
 <table width="100%" cellpadding="0" cellspacing="0">
 <tr><td style="padding:8px 0;color:#94a3b8;font-size:14px;">📅 Date</td><td style="padding:8px 0;color:#f1f5f9;font-size:14px;font-weight:500;text-align:right;">${formattedDate}</td></tr>
@@ -1226,7 +1226,7 @@ ${customerRows}
 </table>
 </div>
 <div style="text-align:center;">
-<a href="https://branchlive.com/dashboard" style="display:inline-block;background-color:#8b5cf6;color:#fff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:14px;">View in Dashboard →</a>
+<a href="https://branchlive.com/dashboard" style="display:inline-block;background-color:#d4a574;color:#fff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:14px;">View in Dashboard →</a>
 </div>`;
 }
 
@@ -1237,7 +1237,7 @@ function passwordResetEmailContent(name, resetLink) {
 Hi ${escapeHtml(name || 'there')}, we received a request to reset your Branch Live password.
 </p>
 <div style="text-align:center;margin-bottom:20px;">
-<a href="${resetLink}" style="display:inline-block;background-color:#8b5cf6;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:600;font-size:15px;">Reset Password →</a>
+<a href="${resetLink}" style="display:inline-block;background-color:#d4a574;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:600;font-size:15px;">Reset Password →</a>
 </div>
 <p style="color:#475569;font-size:13px;text-align:center;margin:0;line-height:1.6;">
 This link expires in 1 hour.<br>
@@ -1251,19 +1251,19 @@ function leadNotificationEmailContent(callerName, callerPhone, callerEmail, jobD
   if (callerEmail) rows += `<tr><td style="padding:8px 0;color:#94a3b8;font-size:14px;">✉️ Email</td><td style="padding:8px 0;color:#f1f5f9;font-size:14px;font-weight:500;text-align:right;">${escapeHtml(callerEmail)}</td></tr>`;
   if (jobDetails) rows += `<tr><td style="padding:8px 0;color:#94a3b8;font-size:14px;vertical-align:top;">📋 Details</td><td style="padding:8px 0;color:#f1f5f9;font-size:14px;font-weight:500;text-align:right;">${escapeHtml(jobDetails)}</td></tr>`;
   if (urgency) {
-    const urgColor = urgency === 'high' ? '#ef4444' : urgency === 'medium' ? '#f59e0b' : '#00d4aa';
+    const urgColor = urgency === 'high' ? '#d4a574' : urgency === 'medium' ? '#b88a5a' : '#9a7040';
     rows += `<tr><td style="padding:8px 0;color:#94a3b8;font-size:14px;">⚠️ Urgency</td><td style="padding:8px 0;color:${urgColor};font-size:14px;font-weight:600;text-align:right;text-transform:capitalize;">${escapeHtml(urgency)}</td></tr>`;
   }
   return `
 <h1 style="color:#f1f5f9;font-size:20px;font-weight:700;margin:0 0 8px;text-align:center;">🔔 New Lead</h1>
-<p style="color:#8b5cf6;font-size:16px;font-weight:600;text-align:center;margin:0 0 20px;">${escapeHtml(callerName || 'Unknown Caller')}</p>
+<p style="color:#d4a574;font-size:16px;font-weight:600;text-align:center;margin:0 0 20px;">${escapeHtml(callerName || 'Unknown Caller')}</p>
 <div style="background-color:#1a1a2e;border-radius:8px;padding:20px;margin-bottom:20px;">
 <table width="100%" cellpadding="0" cellspacing="0">
 ${rows}
 </table>
 </div>
 <div style="text-align:center;">
-<a href="https://branchlive.com/dashboard" style="display:inline-block;background-color:#8b5cf6;color:#fff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:14px;">View in Dashboard →</a>
+<a href="https://branchlive.com/dashboard" style="display:inline-block;background-color:#d4a574;color:#fff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:14px;">View in Dashboard →</a>
 </div>`;
 }
 
@@ -1274,7 +1274,7 @@ ${rows}
 function leadFollowupEmailContent(businessName, customerName, jobDetails, phone) {
   const name = customerName ? escapeHtml(customerName).split(' ')[0] : 'there';
   const callLine = phone
-    ? `<p style="color:#94a3b8;font-size:14px;text-align:center;margin:8px 0 0;">Prefer to talk? Call us at <span style="color:#8b5cf6;">${escapeHtml(phone)}</span></p>`
+    ? `<p style="color:#94a3b8;font-size:14px;text-align:center;margin:8px 0 0;">Prefer to talk? Call us at <span style="color:#d4a574;">${escapeHtml(phone)}</span></p>`
     : '';
   const jobLine = jobDetails
     ? `<div style="background-color:#1a1a2e;border-radius:8px;padding:16px;margin:0 0 20px;"><p style="color:#94a3b8;font-size:13px;margin:0 0 4px;">Regarding:</p><p style="color:#f1f5f9;font-size:14px;margin:0;">${escapeHtml(jobDetails)}</p></div>`
@@ -1289,7 +1289,7 @@ ${jobLine}
 We're reviewing your request and will be in touch shortly to get things scheduled.
 </p>
 <div style="text-align:center;margin-bottom:8px;">
-<a href="https://branchlive.com/dashboard" style="display:inline-block;background-color:#8b5cf6;color:#fff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:14px;">Book Your Appointment →</a>
+<a href="https://branchlive.com/dashboard" style="display:inline-block;background-color:#d4a574;color:#fff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:14px;">Book Your Appointment →</a>
 </div>
 ${callLine}`;
 }
@@ -1314,8 +1314,8 @@ function customerAppointmentConfirmContent(businessName, title, date, time, cust
 function missedCallEmailContent(businessName, customerName, phone) {
   const name = customerName ? escapeHtml(customerName).split(' ')[0] : 'there';
   const callLine = phone
-    ? `<a href="tel:${escapeHtml(phone.replace(/[^0-9+]/g, ''))}" style="display:inline-block;background-color:#8b5cf6;color:#fff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:14px;">📞 Call Us Back: ${escapeHtml(phone)}</a>`
-    : `<a href="https://branchlive.com/dashboard" style="display:inline-block;background-color:#8b5cf6;color:#fff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:14px;">Get In Touch →</a>`;
+    ? `<a href="tel:${escapeHtml(phone.replace(/[^0-9+]/g, ''))}" style="display:inline-block;background-color:#d4a574;color:#fff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:14px;">📞 Call Us Back: ${escapeHtml(phone)}</a>`
+    : `<a href="https://branchlive.com/dashboard" style="display:inline-block;background-color:#d4a574;color:#fff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:14px;">Get In Touch →</a>`;
   return `
 <h1 style="color:#f1f5f9;font-size:20px;font-weight:700;margin:0 0 8px;text-align:center;">Sorry We Missed You!</h1>
 <p style="color:#94a3b8;font-size:15px;line-height:1.6;margin:0 0 20px;text-align:center;">
@@ -1521,7 +1521,7 @@ async function initDB(env) {
         user_id INTEGER,
         name TEXT,
         duration_min INTEGER DEFAULT 60,
-        color TEXT DEFAULT '#8b5cf6'
+        color TEXT DEFAULT '#d4a574'
       )`),
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS blocked_time (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2016,7 +2016,7 @@ Emma: You're welcome, Alex! We'll see you Thursday. Have a great day!`;
 
   // Demo appointment types
   const types = [
-    ['Estimate', 60, '#8b5cf6'],
+    ['Estimate', 60, '#d4a574'],
     ['Repair', 30, '#00d4aa'],
     ['Emergency', 90, '#ef4444'],
   ];
@@ -2296,7 +2296,7 @@ async function seedRiverside(env) {
 
   // ── Appointment types ──
   const types = [
-    ['Salon Service', 60, '#8b5cf6'],
+    ['Salon Service', 60, '#d4a574'],
     ['Cleaning', 180, '#00d4aa'],
     ['Consultation', 30, '#f59e0b'],
   ];
@@ -4466,7 +4466,7 @@ async function handleAppointmentTypeAdd(request, env, uid) {
     if (!body.name) return apiError('Type name is required');
     await env.DB.prepare(
       'INSERT INTO appointment_types VALUES(NULL, ?, ?, ?, ?)'
-    ).bind(uid, body.name, body.duration_min || 60, body.color || '#8b5cf6').run();
+    ).bind(uid, body.name, body.duration_min || 60, body.color || '#d4a574').run();
     return json({ ok: true });
   } catch(e) { console.error('Type add:', e); return apiError('Could not add type', 500); }
 }
@@ -5677,7 +5677,7 @@ const SITE_SECTIONS = ['services', 'about', 'gallery', 'reviews', 'blog', 'booki
 
 // Default accent palette offered in the builder. Amber is the brand default;
 // the rest are curated to read well across all five templates.
-const SITE_ACCENTS = ['#d4a574', '#8b5cf6', '#00d4aa', '#3b82f6', '#ef4444', '#0d1117'];
+const SITE_ACCENTS = ['#d4a574', '#b88a5a', '#9a7040', '#0d1117'];
 
 // Normalize hex-ish color → #rrggbb. Falls back to amber. Used for both the
 // stored accent and live-preview query overrides so a malformed value can
@@ -10973,9 +10973,9 @@ async function handleTeamInvite(request, env, ctx) {
   const loginLink = 'https://branchlive-portal.shane-f58.workers.dev/login-htmx?next=/p/overview';
   const bodyHtml = linkedUser
     ? `<p style="color:#94a3b8;font-size:15px;line-height:1.6;margin:0 0 16px;text-align:center;">You've been added to <strong style="color:#f1f5f9">${escapeHtml(bName)}</strong> on Branch Live as a <strong style="color:#f1f5f9">${role}</strong>. Sign in to see it in your dashboard.</p>
-       <div style="text-align:center;margin-bottom:8px;"><a href="${loginLink}" style="display:inline-block;background-color:#8b5cf6;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:600;font-size:15px;">Sign in →</a></div>`
+       <div style="text-align:center;margin-bottom:8px;"><a href="${loginLink}" style="display:inline-block;background-color:#d4a574;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:600;font-size:15px;">Sign in →</a></div>`
     : `<p style="color:#94a3b8;font-size:15px;line-height:1.6;margin:0 0 16px;text-align:center;">You've been added to <strong style="color:#f1f5f9">${escapeHtml(bName)}</strong> on Branch Live as a <strong style="color:#f1f5f9">${role}</strong>. Create your account to get started.</p>
-       <div style="text-align:center;margin-bottom:8px;"><a href="${signupLink}" style="display:inline-block;background-color:#8b5cf6;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:600;font-size:15px;">Create account →</a></div>`;
+       <div style="text-align:center;margin-bottom:8px;"><a href="${signupLink}" style="display:inline-block;background-color:#d4a574;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:600;font-size:15px;">Create account →</a></div>`;
   sendEmail(env, { to: email, subject: `You've been added to ${bName} on Branch Live`, html: emailShell(bodyHtml) }).catch(e => console.error('invite email:', e.message));
 
   return json({ ok: true });
@@ -12222,7 +12222,7 @@ BILLING:
 - 30-day free trial with no credit card to start.
 
 DESIGN / VISUAL STYLE:
-- Dark theme throughout: background #06060c, panels #0e0e18, accent purple #8b5cf6, accent teal #00d4aa.
+- Dark theme throughout: background #06060c, panels #0e0e18, accent amber #d4a574.
 - Inter font, rounded cards with subtle borders (#1e293b).
 - Mobile-first responsive design with bottom tab bar on phones, sidebar on desktop.
 
