@@ -1735,6 +1735,12 @@ async function initDB(env) {
     // column exists.
     try { await env.DB.prepare("ALTER TABLE settings ADD COLUMN timezone TEXT DEFAULT 'America/New_York'").run(); } catch(e) {}
 
+    // Migration: onboarding completion flag. 0 = wizard not finished, 1 = done.
+    // Drives the first-login wizard trigger in handleOverviewHtmx: when it's
+    // not 1 AND the account has no knowledge items OR no working hours, the
+    // overview redirects to /p/onboarding. Idempotent.
+    try { await env.DB.prepare("ALTER TABLE settings ADD COLUMN onboarding_complete INTEGER DEFAULT 0").run(); } catch(e) {}
+
     // Migration: social_posts queue. One row per drafted or published post,
     // keyed by user_id so each business's queue is independent. Idempotent.
     try {
@@ -7452,18 +7458,48 @@ function switchBusiness(bid){var f=document.createElement('form');f.method='POST
     return Promise.resolve();
   }
 
-  // Write rich clipboard payload (text + optional image blob). Falls back to
-  // text-only when ClipboardItem / image copying isn't supported.
-  function copyRich(text,blob){
-    if(blob&&window.ClipboardItem&&navigator.clipboard&&navigator.clipboard.write){
-      try{
-        var items={};
-        items['text/plain']=new Blob([text],{type:'text/plain'});
-        items['image/png']=blob;
-        return navigator.clipboard.write([new ClipboardItem(items)]).then(function(){toast('✓ Copied text + screenshot')}).catch(function(){return copyText(text).then(function(){toast('✓ Copied text (image write blocked)')})});
-      }catch(e){return copyText(text).then(function(){toast('✓ Copied text (image write blocked)')})}
+  // Save a PNG blob as a download. <a download> works without transient
+  // activation and regardless of blob size, so it is the reliable fallback
+  // when clipboard image-write fails (the common case — see copyRich).
+  function downloadBlob(blob,name){
+    try{
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a');
+      a.href=url;a.download=name||'screenshot.png';a.style.display='none';
+      document.body.appendChild(a);a.click();
+      setTimeout(function(){a.remove();URL.revokeObjectURL(url);},1000);
+      return true;
+    }catch(e){return false;}
+  }
+
+  // Write rich clipboard payload (text + optional image blob).
+  // IMPORTANT: image→clipboard only works inside the transient-activation
+  // window from a user gesture. By the time html2canvas finishes rendering
+  // (often several seconds), that window has EXPIRED and clipboard.write()
+  // silently rejects in Chrome / throws in Safari. So we treat clipboard as
+  // best-effort and ALWAYS fall back to an <a download> (reliable) + the text
+  // copy. The user gets the image one way or another.
+  function copyRich(text,blob,name){
+    function clipboardAttempt(){
+      if(!blob||!window.ClipboardItem||!navigator.clipboard||!navigator.clipboard.write)return Promise.resolve(false);
+      var items={};
+      items['text/plain']=new Blob([text],{type:'text/plain'});
+      items['image/png']=blob;
+      return navigator.clipboard.write([new ClipboardItem(items)]).then(function(){return true;}).catch(function(){return false;});
     }
-    return copyText(text).then(function(){toast(blob?'✓ Copied text (image unavailable)':'✓ Copied text')});
+    if(blob){
+      return clipboardAttempt().then(function(clipOk){
+        var didDownload=downloadBlob(blob,name);
+        // Still attempt the text copy (text write survives longer / works
+        // even when the image write lost activation).
+        return copyText(text).then(function(){
+          if(clipOk)toast('✓ Screenshot copied to clipboard');
+          else if(didDownload)toast('✓ Image downloaded (clipboard blocked) + text copied');
+          else toast('✓ Text copied (image save failed)');
+        });
+      });
+    }
+    return copyText(text).then(function(){toast('✓ Copied text')});
   }
 
   // ── Annotation canvas overlay + drawing ──────────────────────────────
@@ -7655,10 +7691,14 @@ function switchBusiness(bid){var f=document.createElement('form');f.method='POST
       +'Marks: '+annos.length+' ('+annos.filter(function(a){return a.type==='arrow'}).length+' arrow, '
       +annos.filter(function(a){return a.type==='rect'}).length+' rect, '
       +annos.filter(function(a){return a.type==='text'}).length+' text)';
+    // Unique filename like branchlive-overview-2026-07-03-annotate.png.
+    var p=(location.pathname.split('/').pop()||'page').replace(/[^a-z0-9]/gi,'');
+    var d=new Date();var ts=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    var name='branchlive-'+(p||'page')+'-'+ts+'-annotate.png';
     toast('Capturing…');
     captureAnnotated(info)
-      .then(function(blob){clearAnnos();exit();return copyRich(info,blob);})
-      .catch(function(){clearAnnos();exit();return copyRich(info,null);});
+      .then(function(blob){clearAnnos();exit();return copyRich(info,blob,name);})
+      .catch(function(){clearAnnos();exit();return copyRich(info,null,name);});
   }
 
   // ── Floating button bar ──────────────────────────────────────────────
@@ -7725,10 +7765,12 @@ function switchBusiness(bid){var f=document.createElement('form');f.method='POST
       +'Path: '+path+'\\n'
       +'Bounds: '+Math.round(r.left)+','+Math.round(r.top)+'  '+Math.round(r.width)+'x'+Math.round(r.height)+'\\n'
       +'Text: '+(txt||'(none)');
+    var p=(location.pathname.split('/').pop()||'page').replace(/[^a-z0-9]/gi,'');
+    var iname='branchlive-'+(p||'page')+'-inspect-'+(tag||'el')+'.png';
     exit();
     captureAnnotated(info)
-      .then(function(blob){return copyRich(info,blob)})
-      .catch(function(){return copyRich(info,null)});
+      .then(function(blob){return copyRich(info,blob,iname)})
+      .catch(function(){return copyRich(info,null,iname)});
   },true);
 
   // Build a short, readable CSS path for the captured element.
@@ -9104,7 +9146,9 @@ async function handleOverviewHtmx(request, env, uid, ctx) {
   try {
     // One batched round-trip for every summary number on the page. Each query
     // is guarded by user_id, so demo/other accounts never bleed together.
-    const [leadCounts, apptCounts, callStats, user, settings] = await Promise.all([
+    // The settings SELECT also pulls onboarding_complete + working_hours so the
+    // first-login wizard trigger can be evaluated here without a second trip.
+    const [leadCounts, apptCounts, callStats, user, settings, kbCount] = await Promise.all([
       env.DB.prepare(
         `SELECT
            COUNT(*) AS total,
@@ -9123,8 +9167,21 @@ async function handleOverviewHtmx(request, env, uid, ctx) {
          FROM call_logs WHERE user_id = ?`
       ).bind(uid).first(),
       env.DB.prepare('SELECT name, email FROM users WHERE id = ?').bind(uid).first(),
-      env.DB.prepare('SELECT business_name FROM settings WHERE user_id = ?').bind(uid).first(),
+      env.DB.prepare('SELECT business_name, onboarding_complete, working_hours FROM settings WHERE user_id = ?').bind(uid).first(),
+      env.DB.prepare('SELECT COUNT(*) AS n FROM knowledge WHERE user_id = ?').bind(uid).first(),
     ]);
+
+    // First-login wizard trigger: show the setup wizard when onboarding hasn't
+    // been completed AND the account looks empty (no knowledge items OR no
+    // working hours). Managers+ only — a team member on a fresh shared account
+    // isn't bounced. Once the wizard flips onboarding_complete to 1, overview
+    // loads normally. Reachable anytime via /p/onboarding (manual re-entry).
+    const obDone = !!(settings && settings.onboarding_complete);
+    const hasHours = !!(settings && settings.working_hours && settings.working_hours.trim());
+    const kbTotal = (kbCount && kbCount.n) || 0;
+    if (!obDone && (kbTotal === 0 || !hasHours) && ctx && roleMeets(ctx.role, 'manager')) {
+      return new Response(null, { status: 302, headers: { Location: '/p/onboarding' } });
+    }
 
     const greeting = (settings && settings.business_name)
       ? settings.business_name
@@ -9159,6 +9216,7 @@ ${newLeads > 0 ? `<p style="margin-top:18px;display:flex;align-items:center;gap:
 </table>
 <p style="margin-top:28px">
   <a class="btn btn-ghost btn-sm" href="/p/gallery">📸 Gallery</a>
+  ${ctx && roleMeets(ctx.role, 'manager') ? '<a class="btn btn-ghost btn-sm" href="/p/onboarding">✨ Run setup wizard</a>' : ''}
 </p>
 </div></div>`;
 
@@ -9166,6 +9224,773 @@ ${newLeads > 0 ? `<p style="margin-top:18px;display:flex;align-items:center;gap:
   } catch (e) {
     console.error('Overview htmx error:', e);
     return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:#f85149">Could not load your dashboard overview.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ONBOARDING WIZARD (/p/onboarding)
+// A 5-step setup wizard rendered inside simpleShell (no sidebar — a centered
+// card). Shown automatically to first-time accounts from handleOverviewHtmx
+// (onboarding_complete != 1 AND empty knowledge/hours), and reachable anytime
+// for re-entry. Each step POSTs to /api/onboarding/save (cookie auth,
+// manager+); step 5 flips settings.onboarding_complete to 1.
+// Steps: 1 Business info · 2 Services · 3 Calendar · 4 Emma greeting · 5 Done.
+// ═══════════════════════════════════════════════════════════════════════
+
+// Industry dropdown options for Step 1. Keys are the exact labels shown in the
+// <select>; the same labels key INDUSTRY_SERVICE_SUGGESTIONS so Step 2 can
+// pre-suggest categories. ("business" — never the banned word.)
+const ONBOARDING_INDUSTRIES = [
+  'Salon/Beauty', 'Real Estate', 'Cleaning', 'Hardscape', 'Photography', 'Other',
+];
+
+// Suggested service categories per industry — populate the Step 2 category
+// dropdown defaults. Each entry is [category, name, price] so the rows prefill.
+const INDUSTRY_SERVICE_SUGGESTIONS = {
+  'Salon/Beauty': [
+    ['Hair', "Women\u2019s Haircut & Style", 65],
+    ['Hair', 'Full Balayage', 225],
+    ['Nails', 'Gel Manicure', 45],
+    ['Beauty', 'Facial Treatment', 90],
+  ],
+  'Real Estate': [
+    ['Services', 'Listing Consultation', 0],
+    ['Services', 'CMA / Home Valuation', 0],
+    ['Services', 'Buyer Tour', 0],
+    ['Marketing', 'Professional Photography', 200],
+  ],
+  'Cleaning': [
+    ['Residential', 'Standard Clean', 130],
+    ['Residential', 'Deep Clean', 250],
+    ['Commercial', 'Office Cleaning', 180],
+    ['Add-ons', 'Move-In / Move-Out', 300],
+  ],
+  'Hardscape': [
+    ['Pavers', 'Paver Patio (per sq ft)', 18],
+    ['Walls', 'Retaining Wall (per sq ft)', 55],
+    ['Services', 'On-Site Estimate', 0],
+    ['Repair', 'Paver Repair (per hour)', 95],
+  ],
+  'Photography': [
+    ['Sessions', 'Portrait Session', 250],
+    ['Sessions', 'Event Coverage (per hour)', 350],
+    ['Real Estate', 'Listing Photos', 200],
+    ['Editing', 'Additional Edited Images', 25],
+  ],
+  'Other': [
+    ['Services', 'Consultation', 0],
+    ['Services', 'Service Call', 100],
+  ],
+};
+
+// Convert a step-3 working-hours object {mon:{open,start,end}, ...} into the
+// free-text format the settings form + booking-slot parser expect, e.g.
+// "Mon-Fri 8am-6pm, Sat 9am-2pm". Groups consecutive identical ranges; days
+// that are closed are simply omitted. Empty input → the Mon-Fri 8-6 default.
+function formatWorkingHours(wh) {
+  const days = [
+    ['mon', 'Mon'], ['tue', 'Tue'], ['wed', 'Wed'], ['thu', 'Thu'],
+    ['fri', 'Fri'], ['sat', 'Sat'], ['sun', 'Sun'],
+  ];
+  const to12 = (hhmm) => {
+    if (!hhmm) return '';
+    const [h, m] = String(hhmm).split(':').map(n => parseInt(n, 10) || 0);
+    const period = h >= 12 ? 'pm' : 'am';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return m > 0 ? `${h12}:${String(m).padStart(2, '0')}${period}` : `${h12}${period}`;
+  };
+  // Normalize each open day to a signature string for run-grouping.
+  const rows = days.map(([key, label]) => {
+    const d = wh && wh[key];
+    if (!d || !d.open) return { label, open: false, sig: '' };
+    const start = to12(d.start || '08:00');
+    const end = to12(d.end || '18:00');
+    return { label, open: true, start, end, sig: `${start}-${end}` };
+  });
+  const parts = [];
+  let run = null; // { from, to, sig }
+  for (const r of rows) {
+    if (!r.open) {
+      if (run) { parts.push(formatRun(run, days)); run = null; }
+      continue;
+    }
+    if (run && run.sig === r.sig) {
+      run.to = r.label;
+    } else {
+      if (run) parts.push(formatRun(run, days));
+      run = { from: r.label, to: r.label, sig: r.sig, start: r.start, end: r.end };
+    }
+  }
+  if (run) parts.push(formatRun(run, days));
+  return parts.length ? parts.join(', ') : 'Mon-Fri 8am-6pm';
+  function formatRun(run, days) {
+    const range = run.from === run.to ? run.from : collapseRange(run.from, run.to, days);
+    return `${range} ${run.start}-${run.end}`;
+  }
+}
+
+// Turn a "Mon" … "Fri" pair into "Mon-Fri" using short labels. (Consecutive
+// labels collapse to the dash form; identical stays bare.)
+function collapseRange(from, to, days) {
+  return `${from}-${to}`;
+}
+
+// Smart default Emma greeting, templated from the business name + industry.
+// Mirrors the registration seed ("Hi, thanks for calling {name}!") but adds a
+// helpful second clause. Used only when the user hasn't written their own.
+function defaultWelcomeMessage(businessName, industry) {
+  const name = (businessName || '').trim() || 'us';
+  const tag = industry && industry !== 'Other'
+    ? `a ${industry.toLowerCase()} business`
+    : 'here to help';
+  return `Hi, thanks for calling ${name}! I\u2019m Emma, ${tag}. How can I help you today?`;
+}
+
+// GET /api/onboarding/suggestions?industry=... — returns the suggested service
+// rows (category/name/price) for the given industry label. Pure lookup, no DB.
+// Used by the wizard to refresh step-2 pre-filled rows when the industry on
+// step 1 changes. Cookie-authed (no body, manager+ — reuses the save dispatch).
+async function handleOnboardingSuggestions(request, env, uid) {
+  try {
+    const url = new URL(request.url);
+    const industry = (url.searchParams.get('industry') || '').trim();
+    const list = INDUSTRY_SERVICE_SUGGESTIONS[industry] || INDUSTRY_SERVICE_SUGGESTIONS['Other'] || [];
+    return json({ ok: true, suggestions: list });
+  } catch (e) {
+    return json({ ok: true, suggestions: [] });
+  }
+}
+
+// POST /api/onboarding/save — cookie-authed, manager+, scoped to ctx.bid.
+// Body: { step: 1..5, data: {...} }. Persists per step into settings (and the
+// knowledge table for step 2); step 5 flips onboarding_complete = 1 and ensures
+// a sites row exists so the /s/{slug} link resolves. Returns { ok, step, slug? }.
+async function handleOnboardingSave(request, env, uid) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const step = parseInt(body.step, 10);
+    const data = body.data || {};
+    if (!(step >= 1 && step <= 5)) return apiError('Invalid step number');
+
+    const s = (v) => (typeof v === 'string' ? v.trim() : (v == null ? '' : String(v)));
+
+    // ── Step 1: business info ──
+    if (step === 1) {
+      const businessName = s(data.business_name);
+      const industry = ONBOARDING_INDUSTRIES.includes(data.industry) ? data.industry : '';
+      const phone = s(data.phone);
+      const serviceArea = s(data.service_area);
+      await env.DB.prepare(
+        `INSERT INTO settings (user_id, business_name, industry, forwarding_number, service_area)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET
+           business_name = excluded.business_name,
+           industry = excluded.industry,
+           forwarding_number = excluded.forwarding_number,
+           service_area = excluded.service_area`
+      ).bind(uid, businessName, industry, phone, serviceArea).run();
+      // Keep users.company/phone in sync (matches the registration seed shape).
+      if (businessName || phone) {
+        await env.DB.prepare(
+          `UPDATE users SET company = COALESCE(NULLIF(?, ''), company), phone = COALESCE(NULLIF(?, ''), phone) WHERE id = ?`
+        ).bind(businessName, phone, uid).run();
+      }
+      return json({ ok: true, step });
+    }
+
+    // ── Step 2: services / knowledge rows ──
+    if (step === 2) {
+      const rows = Array.isArray(data.services) ? data.services : [];
+      const batch = [];
+      for (const r of rows) {
+        const item = s(r && r.name);
+        if (!item) continue; // skip empty rows
+        const category = s(r && r.category);
+        const price = parseFloat(r && r.price);
+        batch.push(env.DB.prepare(
+          'INSERT INTO knowledge (user_id, category, item, price, notes) VALUES (?, ?, ?, ?, ?)'
+        ).bind(uid, category, item, Number.isFinite(price) ? price : 0, ''));
+      }
+      if (batch.length) await env.DB.batch(batch);
+      return json({ ok: true, step, added: batch.length });
+    }
+
+    // ── Step 3: calendar (working hours + buffer) ──
+    if (step === 3) {
+      const whText = formatWorkingHours(data.working_hours);
+      const buffer = [15, 30, 60].includes(parseInt(data.buffer_min, 10)) ? parseInt(data.buffer_min, 10) : 15;
+      const tz = s(data.timezone);
+      await env.DB.prepare(
+        `INSERT INTO settings (user_id, working_hours, buffer_min, timezone)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET
+           working_hours = excluded.working_hours,
+           buffer_min = excluded.buffer_min,
+           timezone = excluded.timezone`
+      ).bind(uid, whText, buffer, tz || 'America/New_York').run();
+      return json({ ok: true, step, working_hours: whText });
+    }
+
+    // ── Step 4: Emma greeting ──
+    if (step === 4) {
+      const welcome = s(data.welcome_message) || '';
+      await env.DB.prepare(
+        `INSERT INTO settings (user_id, welcome_message)
+         VALUES (?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET welcome_message = excluded.welcome_message`
+      ).bind(uid, welcome).run();
+      return json({ ok: true, step });
+    }
+
+    // ── Step 5: finalize — mark complete + ensure a public site exists ──
+    if (step === 5) {
+      // Read current settings so the summary is accurate.
+      const row = await env.DB.prepare(
+        'SELECT business_name, industry, working_hours, welcome_message, service_area FROM settings WHERE user_id = ?'
+      ).bind(uid).first();
+      const businessName = (row && row.business_name) || '';
+
+      // Ensure a sites row exists for the public /s/{slug} link.
+      let slug = null;
+      const site = await env.DB.prepare('SELECT slug FROM sites WHERE user_id = ?').bind(uid).first();
+      if (site && site.slug) {
+        slug = site.slug;
+      } else if (businessName) {
+        slug = await siteUniqueSlug(env, businessName);
+        await env.DB.prepare(
+          'INSERT INTO sites (user_id, slug, published, theme) VALUES (?, ?, 0, ?)'
+        ).bind(uid, slug, 'modern').run();
+      }
+
+      // Flip the completion flag so the overview redirect stops firing.
+      await env.DB.prepare(
+        'UPDATE settings SET onboarding_complete = 1 WHERE user_id = ?'
+      ).bind(uid).run();
+
+      const kb = await env.DB.prepare('SELECT COUNT(*) AS n FROM knowledge WHERE user_id = ?').bind(uid).first();
+      return json({
+        ok: true, step, slug,
+        summary: {
+          business_name: businessName,
+          industry: (row && row.industry) || '',
+          working_hours: (row && row.working_hours) || '',
+          welcome_message: (row && row.welcome_message) || defaultWelcomeMessage(businessName, (row && row.industry) || ''),
+          service_area: (row && row.service_area) || '',
+          knowledge_count: (kb && kb.n) || 0,
+        },
+      });
+    }
+  } catch (e) {
+    console.error('Onboarding save error:', e);
+    return apiError('Could not save onboarding step', 500);
+  }
+}
+
+// GET /p/onboarding — the 5-step wizard. Centered single card (no sidebar),
+// scoped wizard CSS layered on the amber-monotone simpleShell base. All 5
+// steps render in one page; a vanilla-JS controller toggles visibility and
+// POSTs each step to /api/onboarding/save. Steps 3-4 are skippable.
+async function onboardingWizardHtmx(request, env, uid, ctx) {
+  try {
+    const [user, settings, kbCount] = await Promise.all([
+      env.DB.prepare('SELECT email FROM users WHERE id = ?').bind(uid).first(),
+      env.DB.prepare('SELECT business_name, industry, forwarding_number, service_area, working_hours, buffer_min, timezone, welcome_message FROM settings WHERE user_id = ?').bind(uid).first(),
+      env.DB.prepare('SELECT COUNT(*) AS n FROM knowledge WHERE user_id = ?').bind(uid).first(),
+    ]);
+
+    const bizName = (settings && settings.business_name) || (user && user.email) || '';
+    const industry = (settings && settings.industry) || '';
+    const phone = (settings && settings.forwarding_number) || '';
+    const area = (settings && settings.service_area) || '';
+    const savedHours = (settings && settings.working_hours) || '';
+    const savedBuffer = (settings && settings.buffer_min) || 15;
+    const savedTz = (settings && settings.timezone) || 'America/New_York';
+    const welcome = (settings && settings.welcome_message) || defaultWelcomeMessage(bizName, industry);
+    const kbTotal = (kbCount && kbCount.n) || 0;
+
+    const esc = htmxEsc;
+    // Suggested services for the chosen industry (pre-fill step 2 when empty).
+    const suggest = INDUSTRY_SERVICE_SUGGESTIONS[industry] || INDUSTRY_SERVICE_SUGGESTIONS['Other'];
+
+    const wizardStyle = `
+<style>
+/* Wizard shell — centered card, no sidebar. Layered over simpleShell's base. */
+.ob-shell{max-width:680px;margin:0 auto;padding:64px 24px 80px;position:relative;z-index:2;animation:fadeUp .6s cubic-bezier(.2,.7,.2,1)}
+.ob-head{text-align:center;margin-bottom:30px}
+.ob-head .eyebrow{margin-bottom:10px}
+.ob-head h1{font-size:2rem;margin-bottom:8px}
+.ob-head .sub{color:var(--text-muted);font-size:.95rem;max-width:440px;margin:0 auto}
+
+/* Progress: segmented bar + "Step X of 5". */
+.ob-progress{margin:0 auto 30px;max-width:420px}
+.ob-bar{display:flex;gap:6px}
+.ob-seg{flex:1;height:5px;border-radius:999px;background:var(--border);transition:background-color .35s ease}
+.ob-seg.done{background:var(--accent-deep)}
+.ob-seg.cur{background:linear-gradient(90deg,var(--accent-deep),var(--accent))}
+.ob-progress .ob-count{font-family:var(--font-mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);text-align:center;margin-top:10px}
+
+/* Card holds one step at a time. */
+.ob-card{background:var(--bg-card);border:1px solid var(--border);border-radius:18px;padding:30px 28px;min-height:340px;display:flex;flex-direction:column}
+.ob-step{display:none;flex:1;flex-direction:column;animation:fadeUp .4s cubic-bezier(.2,.7,.2,1)}
+.ob-step.active{display:flex}
+.ob-step h2{font-family:var(--font-serif);font-weight:500;font-size:1.5rem;letter-spacing:-.02em;margin-bottom:6px}
+.ob-step .ob-desc{color:var(--text-muted);font-size:.92rem;margin-bottom:22px}
+.ob-fields{display:flex;flex-direction:column;gap:14px;flex:1}
+.ob-field label{display:block;font-family:var(--font-mono);font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);margin-bottom:6px;font-weight:500}
+.ob-field input,.ob-field select,.ob-field textarea{width:100%;box-sizing:border-box}
+.ob-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:560px){.ob-grid2{grid-template-columns:1fr}}
+
+/* Service rows (step 2). */
+.ob-svc-head{display:grid;grid-template-columns:1.1fr 1.4fr .8fr 32px;gap:8px;font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:4px}
+.ob-svc-row{display:grid;grid-template-columns:1.1fr 1.4fr .8fr 32px;gap:8px;align-items:center;margin-bottom:8px}
+.ob-svc-row input{padding:9px 11px;font-size:.9rem}
+.ob-svc-del{background:transparent;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;width:32px;height:38px;cursor:pointer;font-size:1rem;transition:all .15s ease}
+.ob-svc-del:hover{border-color:var(--danger);color:var(--danger)}
+.ob-svc-add{align-self:flex-start;margin-top:6px}
+
+/* Working hours (step 3). */
+.ob-wh-row{display:grid;grid-template-columns:60px 1fr 1fr;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)}
+.ob-wh-row:last-child{border-bottom:none}
+.ob-wh-row .ob-wh-day{display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--cream-dim)}
+.ob-wh-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent-amber)}
+.ob-wh-row input[type=time]{padding:8px 10px;font-size:.88rem;font-family:var(--font-mono)}
+.ob-wh-row.closed input[type=time]{opacity:.35}
+
+/* Greeting preview (step 4). */
+.ob-preview{background:var(--bg-primary);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-top:6px}
+.ob-preview .ob-quote{font-family:var(--font-serif);font-style:italic;font-size:1.05rem;line-height:1.6;color:var(--cream)}
+.ob-preview .ob-tag{font-family:var(--font-mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);margin-bottom:8px}
+
+/* Done (step 5). */
+.ob-done{text-align:center;align-items:center}
+.ob-done .ob-check{font-size:2.8rem;margin-bottom:8px}
+.ob-done h2{font-size:1.9rem}
+.ob-summary{width:100%;text-align:left;margin:18px 0;background:var(--bg-primary);border:1px solid var(--border);border-radius:12px;padding:6px 18px}
+.ob-summary .kv{padding:12px 0}
+.ob-sitelink{display:inline-flex;align-items:center;gap:8px;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:10px;padding:12px 16px;font-family:var(--font-mono);font-size:.88rem;color:var(--accent-amber);text-decoration:none;margin:8px auto 4px}
+.ob-sitelink:hover{text-decoration:underline}
+
+/* Footer nav: Back / Skip / Continue. */
+.ob-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)}
+.ob-nav .ob-left{display:flex;gap:8px}
+.ob-nav .ob-right{display:flex;gap:8px;align-items:center;margin-left:auto}
+.ob-msg{font-size:.82rem;font-family:var(--font-mono);min-height:1.1em}
+.ob-msg.err{color:var(--danger)}
+.ob-msg.ok{color:var(--accent-amber)}
+.ob-skip{background:transparent;border:none;color:var(--text-muted);font-size:.85rem;cursor:pointer;text-decoration:underline;font-family:inherit;padding:6px 4px}
+.ob-skip:hover{color:var(--cream)}
+.ob-back{background:transparent;border:1px solid var(--border);color:var(--cream-dim);border-radius:9999px;padding:9px 16px;font-size:.88rem;cursor:pointer;font-family:inherit}
+.ob-back:hover{border-color:var(--border-soft);color:var(--cream)}
+.ob-back:disabled{opacity:.35;cursor:not-allowed}
+</style>`;
+
+    // Initial state injected for the client controller. working_hours come in
+    // as free text; the client re-parses it into day toggles (best-effort).
+    const initState = {
+      business_name: bizName, industry, phone, service_area: area,
+      working_hours: savedHours, buffer_min: savedBuffer, timezone: savedTz,
+      welcome_message: welcome, kb_count: kbTotal,
+      suggestions: suggest,
+    };
+
+    const body = `${wizardStyle}
+<div class="ob-shell">
+  <div class="ob-head">
+    <span class="eyebrow">Welcome to Branch Live</span>
+    <h1>Let\u2019s set up <em>Emma</em></h1>
+    <p class="sub">Five quick steps and your AI receptionist will be ready to answer calls.</p>
+  </div>
+  <div class="ob-progress">
+    <div class="ob-bar" id="ob-bar">
+      <span class="ob-seg cur"></span><span class="ob-seg"></span><span class="ob-seg"></span><span class="ob-seg"></span><span class="ob-seg"></span>
+    </div>
+    <div class="ob-count" id="ob-count">Step 1 of 5</div>
+  </div>
+
+  <form id="ob-form" class="ob-card" onsubmit="return false">
+
+    <!-- Step 1 — Business info -->
+    <section class="ob-step active" data-step="1">
+      <h2>Tell us about your business</h2>
+      <p class="ob-desc">Emma uses this to greet callers and answer their questions.</p>
+      <div class="ob-fields">
+        <div class="ob-field">
+          <label for="ob-name">Business name</label>
+          <input id="ob-name" type="text" placeholder="e.g. Riverside Salon" value="${esc(bizName)}" autocomplete="organization">
+        </div>
+        <div class="ob-grid2">
+          <div class="ob-field">
+            <label for="ob-industry">Industry</label>
+            <select id="ob-industry" onchange="obIndustryChanged()">
+              <option value="">Select\u2026</option>
+              ${ONBOARDING_INDUSTRIES.map(i => `<option value="${esc(i)}"${i === industry ? ' selected' : ''}>${esc(i)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="ob-field">
+            <label for="ob-phone">Phone</label>
+            <input id="ob-phone" type="tel" placeholder="(555) 123-4567" value="${esc(phone)}" autocomplete="tel">
+          </div>
+        </div>
+        <div class="ob-field">
+          <label for="ob-area">Service area</label>
+          <input id="ob-area" type="text" placeholder="e.g. Lancaster, York, Harrisburg PA" value="${esc(area)}">
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 2 — Services -->
+    <section class="ob-step" data-step="2">
+      <h2>Add your services</h2>
+      <p class="ob-desc">These become Emma\u2019s knowledge base \u2014 what she references when callers ask about pricing.</p>
+      <div class="ob-fields">
+        <div class="ob-svc-head"><span>Category</span><span>Service name</span><span>Price ($)</span><span></span></div>
+        <div id="ob-svc-rows"></div>
+        <button type="button" class="btn btn-ghost btn-sm ob-svc-add" onclick="obAddRow()">+ Add another service</button>
+      </div>
+    </section>
+
+    <!-- Step 3 — Calendar -->
+    <section class="ob-step" data-step="3">
+      <h2>Set your hours</h2>
+      <p class="ob-desc">When Emma can book appointments. You can fine-tune this later in Settings.</p>
+      <div class="ob-fields">
+        <div id="ob-wh"></div>
+        <div class="ob-grid2" style="margin-top:6px">
+          <div class="ob-field">
+            <label for="ob-buffer">Buffer time between appointments</label>
+            <select id="ob-buffer">
+              <option value="15"${String(savedBuffer) === '15' ? ' selected' : ''}>15 minutes</option>
+              <option value="30"${String(savedBuffer) === '30' ? ' selected' : ''}>30 minutes</option>
+              <option value="60"${String(savedBuffer) === '60' ? ' selected' : ''}>60 minutes</option>
+            </select>
+          </div>
+          <div class="ob-field">
+            <label for="ob-tz">Timezone</label>
+            <input id="ob-tz" type="text" readonly>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 4 — Emma greeting -->
+    <section class="ob-step" data-step="4">
+      <h2>Emma\u2019s greeting</h2>
+      <p class="ob-desc">The first thing callers hear. We\u2019ve drafted a smart default \u2014 edit it to match your voice.</p>
+      <div class="ob-fields">
+        <div class="ob-field">
+          <label for="ob-welcome">Welcome message</label>
+          <textarea id="ob-welcome" rows="3" oninput="obUpdatePreview()">${esc(welcome)}</textarea>
+        </div>
+        <div class="ob-preview">
+          <div class="ob-tag">Caller hears</div>
+          <div class="ob-quote" id="ob-preview-text">${esc(welcome)}</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 5 — Done -->
+    <section class="ob-step ob-done" data-step="5">
+      <div class="ob-check">\u2728</div>
+      <h2>You\u2019re all set</h2>
+      <p class="ob-desc">Emma is ready to answer your calls. Here\u2019s what you configured:</p>
+      <div class="ob-summary" id="ob-summary"></div>
+      <a class="ob-sitelink" id="ob-sitelink" href="#" target="_blank" rel="noopener"></a>
+    </section>
+
+    <div class="ob-nav">
+      <div class="ob-left">
+        <button type="button" class="ob-back" id="ob-back" onclick="obBack()" disabled>\u2190 Back</button>
+      </div>
+      <span class="ob-msg" id="ob-msg"></span>
+      <div class="ob-right">
+        <button type="button" class="ob-skip" id="ob-skip" onclick="obSkip()" style="display:none">Skip for now</button>
+        <button type="button" class="btn btn-amber" id="ob-next" onclick="obNext()">Continue \u2192</button>
+      </div>
+    </div>
+  </form>
+</div>
+<script>
+// Onboarding wizard controller — vanilla JS (no HTMX dependency). One page,
+// five .ob-step sections; this toggles visibility, gathers inputs, and POSTs
+// each step to /api/onboarding/save. Steps 3-4 are skippable. State shared
+// across steps (e.g. industry \u2192 service suggestions) lives in obState.
+(function () {
+  var TOTAL = 5;
+  var SKIPPABLE = { 3: true, 4: true };
+  var state = ${JSON.stringify(initState)};
+  var step = 1;
+
+  // ── Helpers ──
+  function $(id) { return document.getElementById(id); }
+  function val(id) { var el = $(id); return el ? el.value.trim() : ''; }
+  function showMsg(text, kind) { var m = $('ob-msg'); m.textContent = text || ''; m.className = 'ob-msg' + (kind ? ' ' + kind : ''); }
+
+  function renderProgress() {
+    var segs = $('ob-bar').children;
+    for (var i = 0; i < segs.length; i++) {
+      var n = i + 1;
+      segs[i].className = 'ob-seg' + (n < step ? ' done' : (n === step ? ' cur' : ''));
+    }
+    $('ob-count').textContent = 'Step ' + step + ' of ' + TOTAL;
+    $('ob-back').disabled = (step === 1);
+    var next = $('ob-next');
+    next.textContent = (step === TOTAL) ? 'Go to Dashboard \u2192' : 'Continue \u2192';
+    // Skip is offered only on skippable steps that aren't the last.
+    $('ob-skip').style.display = SKIPPABLE[step] ? '' : 'none';
+  }
+
+  function showStep(n) {
+    step = n;
+    var secs = document.querySelectorAll('.ob-step');
+    for (var i = 0; i < secs.length; i++) secs[i].classList.remove('active');
+    var cur = document.querySelector('.ob-step[data-step="' + n + '"]');
+    if (cur) cur.classList.add('active');
+    renderProgress();
+    showMsg('');
+  }
+
+  // ── Step 2: dynamic service rows ──
+  // Pre-fill with the industry suggestions on first visit, then keep whatever
+  // the user has typed across step changes (rows persist in the DOM).
+  var svcSeeded = false;
+  function seedRows() {
+    if (svcSeeded) return;
+    svcSeeded = true;
+    var wrap = $('ob-svc-rows');
+    wrap.innerHTML = '';
+    var sugg = (state.suggestions && state.suggestions.length) ? state.suggestions : [];
+    sugg.forEach(function (s) { addRow(s[0], s[1], s[2]); });
+    // Always offer at least 3 empty rows (spec: start with 3 empty rows when
+    // there are no suggestions, e.g. "Other").
+    if (sugg.length === 0) { addRow('', '', ''); addRow('', '', ''); addRow('', '', ''); }
+  }
+  function addRow(cat, name, price) {
+    var wrap = $('ob-svc-rows');
+    var div = document.createElement('div');
+    div.className = 'ob-svc-row';
+    div.innerHTML =
+      '<input type="text" class="svc-cat" placeholder="Category" value="' + escAttr(cat) + '">' +
+      '<input type="text" class="svc-name" placeholder="Service name" value="' + escAttr(name) + '">' +
+      '<input type="number" step="0.01" class="svc-price" placeholder="0.00" value="' + (price ? price : '') + '">' +
+      '<button type="button" class="ob-svc-del" title="Remove" onclick="this.parentNode.remove()">\u00d7</button>';
+    wrap.appendChild(div);
+  }
+  window.obAddRow = function () { addRow('', '', ''); };
+
+  // When the industry changes on step 1, refresh the suggested services so the
+  // user sees relevant rows when they reach step 2 (only if they haven't
+  // started typing yet \u2014 don't clobber their work).
+  window.obIndustryChanged = function () {
+    state.industry = val('ob-industry');
+    fetch('/api/onboarding/suggestions?industry=' + encodeURIComponent(state.industry), { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d && d.ok && Array.isArray(d.suggestions)) {
+          if (!svcSeeded) { state.suggestions = d.suggestions; }
+        }
+      }).catch(function () {});
+  };
+
+  // ── Step 3: working-hours toggles ──
+  var DAYS = [['mon','Mon'],['tue','Tue'],['wed','Wed'],['thu','Thu'],['fri','Fri'],['sat','Sat'],['sun','Sun']];
+  function buildHours() {
+    var wrap = $('ob-wh');
+    if (wrap.children.length) return; // build once
+    // Parse the saved free-text (e.g. "Mon-Fri 8am-6pm") into a default range.
+    var rng = parseHoursText(state.working_hours || 'Mon-Fri 8am-6pm');
+    DAYS.forEach(function (d) {
+      var open = /sat/i.test(d[1]) || /sun/i.test(d[1]) ? false : true; // weekdays default open
+      var row = document.createElement('div');
+      row.className = 'ob-wh-row' + (open ? '' : ' closed');
+      row.innerHTML =
+        '<label class="ob-wh-day"><input type="checkbox" data-day="' + d[0] + '"' + (open ? ' checked' : '') + ' onchange="obDayToggle(this)">' + d[1] + '</label>' +
+        '<input type="time" data-day="' + d[0] + '" data-end="start" value="' + rng.start + '">' +
+        '<input type="time" data-day="' + d[0] + '" data-end="end" value="' + rng.end + '">';
+      wrap.appendChild(row);
+    });
+  }
+  window.obDayToggle = function (cb) {
+    var row = cb.closest('.ob-wh-row');
+    if (row) row.classList.toggle('closed', !cb.checked);
+  };
+  // Best-effort parse of "Mon-Fri 8am-6pm" / "8:00-18:00" \u2192 {start,end} 24h.
+  function parseHoursText(t) {
+    var m = String(t || '').match(/(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)?\\s*[\\u2013\\-]\\s*(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)?/i);
+    if (!m) return { start: '08:00', end: '18:00' };
+    var sh = parseInt(m[1], 10), sm = m[2] ? parseInt(m[2], 10) : 0;
+    var eh = parseInt(m[4], 10), em = m[5] ? parseInt(m[5], 10) : 0;
+    var sp = (m[3] || '').toLowerCase(), ep = (m[6] || '').toLowerCase();
+    if (sp === 'pm' && sh < 12) sh += 12; if (sp === 'am' && sh === 12) sh = 0;
+    if (ep === 'pm' && eh < 12) eh += 12; if (ep === 'am' && eh === 12) eh = 0;
+    if (!sp && !ep && eh <= sh) eh += 12; // "8-6" \u2192 8-18
+    return { start: pad(sh) + ':' + pad(sm), end: pad(eh) + ':' + pad(em) };
+  }
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function gatherHours() {
+    var out = {};
+    DAYS.forEach(function (d) {
+      var cb = document.querySelector('.ob-wh-row input[type=checkbox][data-day="' + d[0] + '"]');
+      var sEl = document.querySelector('.ob-wh-row input[type=time][data-day="' + d[0] + '"][data-end=start]');
+      var eEl = document.querySelector('.ob-wh-row input[type=time][data-day="' + d[0] + '"][data-end=end]');
+      out[d[0]] = { open: !!(cb && cb.checked), start: sEl ? sEl.value : '08:00', end: eEl ? eEl.value : '18:00' };
+    });
+    return out;
+  }
+
+  // ── Step 4: greeting preview ──
+  window.obUpdatePreview = function () {
+    var t = $('ob-welcome').value || '';
+    $('ob-preview-text').textContent = t;
+  };
+
+  // ── Save a step ──
+  function saveStep(n, data) {
+    return fetch('/api/onboarding/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ step: n, data: data || {} })
+    }).then(function (r) { return r.json(); });
+  }
+
+  // ── Navigation ──
+  function gatherStepData(n) {
+    if (n === 1) return {
+      business_name: val('ob-name'), industry: val('ob-industry'),
+      phone: val('ob-phone'), service_area: val('ob-area'),
+    };
+    if (n === 2) {
+      var rows = document.querySelectorAll('.ob-svc-row');
+      var svcs = [];
+      rows.forEach(function (r) {
+        var name = r.querySelector('.svc-name').value.trim();
+        if (!name) return;
+        svcs.push({
+          category: r.querySelector('.svc-cat').value.trim(),
+          name: name,
+          price: parseFloat(r.querySelector('.svc-price').value) || 0,
+        });
+      });
+      return { services: svcs };
+    }
+    if (n === 3) return {
+      working_hours: gatherHours(),
+      buffer_min: parseInt(val('ob-buffer'), 10) || 15,
+      timezone: (Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York'),
+    };
+    if (n === 4) return { welcome_message: $('ob-welcome').value.trim() };
+    return {};
+  }
+
+  function validateStep(n) {
+    if (n === 1) {
+      if (!val('ob-name')) { showMsg('Business name is required.', 'err'); $('ob-name').focus(); return false; }
+    }
+    if (n === 4) {
+      if (!$('ob-welcome').value.trim()) { showMsg('The welcome message can\u2019t be empty.', 'err'); $('ob-welcome').focus(); return false; }
+    }
+    return true;
+  }
+
+  window.obNext = function () {
+    var btn = $('ob-next'); btn.disabled = true;
+    var goingToFinish = (step === TOTAL);
+
+    function proceed() {
+      if (step < TOTAL) { showStep(step + 1); initStep(step); }
+      btn.disabled = false;
+    }
+
+    // On the final step, "Continue" becomes "Go to Dashboard".
+    if (goingToFinish) { window.location.href = '/p/overview'; return; }
+
+    if (!validateStep(step)) { btn.disabled = false; return; }
+
+    // Persist before advancing (steps 1-4). Failure is non-fatal for skippable
+    // steps so a transient save error never traps the user.
+    showMsg('Saving\u2026');
+    saveStep(step, gatherStepData(step)).then(function (d) {
+      btn.disabled = false;
+      if (d && d.ok) {
+        // Step 2 may report how many rows were added; surface a soft confirmation.
+        if (step === 2 && typeof d.added === 'number' && d.added > 0) {
+          showMsg('Saved ' + d.added + ' service' + (d.added === 1 ? '' : 's') + '.', 'ok');
+        } else {
+          showMsg('');
+        }
+        proceed();
+      } else {
+        showMsg((d && d.error) || 'Saved locally (will retry on finish).', SKIPPABLE[step] ? 'ok' : 'err');
+        if (SKIPPABLE[step]) proceed(); // don't block skippable steps
+      }
+    }).catch(function () {
+      btn.disabled = false;
+      showMsg('Network error \u2014 continuing anyway.', SKIPPABLE[step] ? 'ok' : 'err');
+      if (SKIPPABLE[step]) proceed();
+    });
+  };
+
+  window.obBack = function () {
+    if (step > 1) { showStep(step - 1); initStep(step); }
+  };
+
+  // Skip is offered on steps 3-4: advance without saving that step.
+  window.obSkip = function () {
+    showMsg('');
+    showStep(step + 1);
+    initStep(step);
+  };
+
+  // Lazy-build the dynamic parts of a step the first time it's shown.
+  function initStep(n) {
+    if (n === 2) seedRows();
+    if (n === 3) buildHours();
+    if (n === 4) window.obUpdatePreview();
+    if (n === 5) loadSummary();
+  }
+
+  // Step 5 loads the final summary + public link from a step-5 save (which
+  // returns the account snapshot). Falls back to a plain dashboard CTA.
+  function loadSummary() {
+    showMsg('Finishing up\u2026');
+    saveStep(5, {}).then(function (d) {
+      if (!d || !d.ok) { showMsg('Done! Head to your dashboard to review.', 'ok'); return; }
+      showMsg('Setup complete!', 'ok');
+      var s = d.summary || {};
+      $('ob-summary').innerHTML =
+        kvRow('Business', s.business_name || '\u2014') +
+        kvRow('Industry', s.industry || '\u2014') +
+        kvRow('Services', (s.knowledge_count || 0) + ' in knowledge base') +
+        kvRow('Hours', s.working_hours || '\u2014') +
+        kvRow('Greeting', '\u201c' + (s.welcome_message || '').slice(0, 70) + ((s.welcome_message || '').length > 70 ? '\u2026' : '') + '\u201d');
+      var link = $('ob-sitelink');
+      if (d.slug) { link.href = '/s/' + encodeURIComponent(d.slug); link.textContent = 'View your public site \u2192 /s/' + d.slug; }
+      else { link.style.display = 'none'; }
+    }).catch(function () {
+      showMsg('Done! Head to your dashboard to review.', 'ok');
+    });
+  }
+  function kvRow(k, v) {
+    return '<div class="kv"><span class="k">' + escHtml(k) + '</span><span class="v">' + escHtml(v) + '</span></div>';
+  }
+
+  // ── tiny escapers (values are server-validated; this is defense-in-depth) ──
+  function escAttr(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+  function escHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  // Auto-detect timezone for the readonly field + step-3 save.
+  try { var tz = Intl.DateTimeFormat().resolvedOptions().timeZone || state.timezone || 'America/New_York'; } catch (e) { tz = 'America/New_York'; }
+  var tzEl = $('ob-tz'); if (tzEl) tzEl.value = tz;
+
+  renderProgress();
+})();
+</script>`;
+
+    return new Response(simpleShell('Onboarding', body), { headers: { 'Content-Type': 'text/html' } });
+  } catch (e) {
+    console.error('Onboarding wizard render error:', e);
+    return new Response(simpleShell('Error', '<h1>\u26a0\ufe0f Error</h1><p style="color:#f85149">Could not load the onboarding wizard.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
@@ -13223,6 +14048,14 @@ export default {
           }
           // Handlers receive ctx.bid as their "uid" arg (owner-scoped queries)
           // plus pCtx where role-aware rendering is needed.
+          // Onboarding wizard — manager+ only (employees can't configure the
+          // business). Auto-triggered from /p/overview for empty accounts.
+          if (path === '/p/onboarding') {
+            if (!roleMeets(pCtx.role, 'manager')) {
+              return new Response(null, { status: 302, headers: { Location: '/p/overview' } });
+            }
+            return onboardingWizardHtmx(request, env, pCtx.bid, pCtx);
+          }
           if (path === '/p/overview') return handleOverviewHtmx(request, env, pCtx.bid, pCtx);
           if (path === '/p/gallery') return handleGalleryHtmx(request, env, pCtx.bid, pCtx);
           if (path === '/p/leads') return handleLeadsHtmx(request, env, pCtx.bid, pCtx);
@@ -13339,6 +14172,22 @@ export default {
       // These writes are role-gated (manager+ for knowledge, admin for billing
       // toggles) and scoped to ctx.bid so a team member edits the business's
       // data, not their own (empty) rows.
+      // ── Onboarding wizard writes (cookie auth, manager+, ctx.bid-scoped) ──
+      // The 5-step wizard at /p/onboarding POSTs each step here. Step 5 flips
+      // settings.onboarding_complete = 1, which stops the first-login redirect.
+      if (path === '/api/onboarding/save' && method === 'POST') {
+        const oUid = await getUidFromSessionCookie(request, env);
+        if (!oUid) return json({ ok: false, error: 'Not logged in' });
+        const oCtx = await resolveContext(request, env, oUid);
+        if (!roleMeets(oCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
+        return handleOnboardingSave(request, env, oCtx.bid);
+      }
+      // Industry → service suggestions (GET, cookie auth). Pure lookup, no DB.
+      if (path === '/api/onboarding/suggestions' && method === 'GET') {
+        const oUid = await getUidFromSessionCookie(request, env);
+        if (!oUid) return json({ ok: false, error: 'Not logged in' });
+        return handleOnboardingSuggestions(request, env, oUid);
+      }
       if (path === '/api/knowledge/add-htmx' && method === 'POST') {
         const kUid = await getUidFromSessionCookie(request, env);
         if (!kUid) return json({ ok: false, error: 'Not logged in' });
