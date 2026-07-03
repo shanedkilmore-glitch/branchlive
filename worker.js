@@ -14598,6 +14598,10 @@ const HELP_SECTIONS = [
     ['social-posts',    'Social Posts'],
     ['blog',            'Blog'],
     ['analytics',       'Analytics'],
+    ['google-reviews',  'Syncing and Displaying Google Reviews'],
+    ['csv-import',      'Bulk Importing Services via CSV'],
+    ['gmail-oauth',     'Connecting Gmail for Automated Emails'],
+    ['call-flow',       'Understanding How Emma Handles a Call'],
   ]},
   { name: 'Account', articles: [
     ['billing-plans',   'Billing & Plans'],
@@ -15159,6 +15163,100 @@ Notes:    Natural stone or concrete pavers. Free on-site estimate.
 <p>Suppose you set your working hours from 8:00 AM to 5:00 PM and specify your mobile number as the forwarding line. If a customer calls at 2:00 PM with an urgent emergency, Emma redirects the call to your cell. If another customer calls at 8:00 PM to book a routine service, Emma handles it autonomously, calendars it for Tuesday, and uses Gmail to email them a booking confirmation.</p>
 
 <div class="hc-callout"><span class="hc-co-h">Security Note</span><p>Gmail OAuth tokens are encrypted and stored securely. You can revoke this connection at any time directly through your Google Account permissions page.</p></div>`;
+
+
+    case 'google-reviews': return `
+<p class="hc-lead">Connecting your Google Business Profile allows Emma to monitor your customer reviews in real time and display a beautiful review badge directly on your local business website.</p>
+
+<h2>Activating the Review Add-on</h2>
+<p>To enable review monitoring, navigate to the <a href="/p/billing">Billing</a> page in your dashboard. Under the Available Add-ons section, find the <strong>Review Monitoring</strong> feature and toggle it on. This service is available as a modular add-on for <strong>$9.95/mo</strong>. Once active, a new Reviews tab will become accessible in your settings panel.</p>
+
+<h2>Finding Your Google Place ID</h2>
+<p>Before Emma can sync your ratings, you need to identify your unique Google Place ID. Follow these steps:</p>
+<ol>
+  <li>Visit the official Google Place ID Finder tool or perform a Google search for your business.</li>
+  <li>Locate your business name on the map.</li>
+  <li>Copy the long string of alphanumeric characters displayed in the Place ID field (for example, <code>ChIJN1t_tDeuEmsRUsoyG83VSY4</code>).</li>
+  <li>Navigate to <a href="/settings-htmx">Settings</a> in your dashboard, paste the code into the <strong>Google Place ID</strong> input, and click <strong>Save</strong>.</li>
+</ol>
+
+<h2>Displaying the Review Badge</h2>
+<p>After linking your Place ID, you can showcase your top ratings on your public microsite. Navigate to the website settings section, scroll down to the Section Toggles, and verify that the <strong>Reviews</strong> section is checked. Emma will fetch your recent four and five-star reviews, generating an interactive badge that updates automatically. This badge highlights your credibility to prospective customers visiting your site.</p>
+
+<div class="hc-callout"><span class="hc-co-h">Troubleshooting Tip</span><p>If reviews do not appear, confirm your Place ID is correct and your billing is active. Reviews are cached for 24 hours to optimize page speeds, so new reviews may take a short time to sync.</p></div>`;
+
+    case 'csv-import': return `
+<p class="hc-lead">Populating your digital assistant's brain with services and pricing manually can be time-consuming. You can bulk import your entire service menu using a CSV template.</p>
+
+<h2>Preparing Your CSV Template</h2>
+<p>To ensure our database parses your file successfully, you must format your spreadsheet with exact column headers. Open a new spreadsheet in Microsoft Excel or Google Sheets and define the following four columns in the first row:</p>
+<ul>
+  <li><strong>Category:</strong> The grouping for the service (for example, <code>Plumbing</code> or <code>Landscaping</code>).</li>
+  <li><strong>Item:</strong> The specific name of the job or service offered (such as <code>Drain Cleaning</code>).</li>
+  <li><strong>Price:</strong> The numeric cost of the service. Enter numbers only (e.g., <code>150</code>). Do not include currency symbols.</li>
+  <li><strong>Notes:</strong> Detailed descriptions and instructions. Emma reads these notes to answer customer questions about what is included.</li>
+</ul>
+
+<h2>The Step-by-Step Import Process</h2>
+<p>Once your spreadsheet matches the required template structure, save or export the file in <code>.csv</code> (Comma Separated Values) format. Follow these steps to complete the upload:</p>
+<ol>
+  <li>Navigate to the <a href="/p/knowledge">Knowledge</a> management page in your dashboard.</li>
+  <li>Look for the import area (often toggled via the spreadsheet icon or <strong>Import</strong> button).</li>
+  <li>Click the file selector and select your saved CSV file from your computer.</li>
+  <li>Click <strong>Upload</strong> to initialize the parsing process.</li>
+  <li>Review the imported services list on screen to verify that the categories, titles, prices, and notes are aligned correctly.</li>
+</ol>
+
+<div class="hc-callout"><span class="hc-co-h">Verification & Syncing</span><p>If you encounter formatting errors, double-check that your headers match the exact names: <em>Category, Item, Price, Notes</em>. Extra columns or misspelled headers will cause the parser to fail. Emma updates her knowledge system immediately once the upload completes successfully.</p></div>`;
+
+    case 'gmail-oauth': return `
+<p class="hc-lead">Connecting your business email via Gmail OAuth allows Emma to automatically send booking confirmations, appointment reminders, and follow-up requests directly from your own domain.</p>
+
+<h2>Setting Up Gmail OAuth</h2>
+<p>Integrating your Gmail account is straightforward. Connecting your address ensures that email notifications appear authentic to your customers. Follow this process:</p>
+<ol>
+  <li>Navigate to the <a href="/settings-htmx">Settings</a> page in your dashboard.</li>
+  <li>Scroll down to the <strong>Email Integration</strong> section.</li>
+  <li>Click the <strong>Connect Gmail</strong> button.</li>
+  <li>A secure Google permissions window will open. Log into the business Google Account you wish to use.</li>
+  <li>Review the requested permissions (which allow the portal to draft and send emails on your behalf) and click <strong>Allow</strong>.</li>
+  <li>Once redirected back to your dashboard, check that the status displays as "Connected."</li>
+</ol>
+
+<h2>Automated Emails Sent by Emma</h2>
+<p>With active email integration, Emma handles patient or client communication automatically, executing these triggers:</p>
+<ul>
+  <li><strong>Booking Confirmations:</strong> Sent immediately after a caller successfully schedules an appointment.</li>
+  <li><strong>Appointment Reminders:</strong> Sent twenty-four hours before the scheduled time to reduce no-shows.</li>
+  <li><strong>Customer Follow-ups:</strong> Sent after a job is marked closed to request feedback or ask for reviews.</li>
+</ul>
+
+<h2>Verifying Functionality</h2>
+<p>To verify the email integration is fully operational, navigate to the Email Integration section under Settings and use the built-in diagnostic tool. Click <strong>Send Test Email</strong>. If configured correctly, a test message will land in your inbox. In case of issues, check your Google Account settings to ensure the permissions were not revoked.</p>
+
+<div class="hc-callout"><span class="hc-co-h">Email Add-on Pricing</span><p>Note that automated email scheduling requires the Email Autoresponder add-on, available in the Billing portal for $9.95/mo.</p></div>`;
+
+    case 'call-flow': return `
+<p class="hc-lead">Emma is designed to interact with callers as a helpful receptionist. Understanding the step-by-step call flow reveals the synergy between the customer's phone call and your dashboard.</p>
+
+<h2>The Step-by-Step Call Lifecycle</h2>
+<p>Each incoming phone call advances through these five key milestones:</p>
+<ol>
+  <li><strong>Greeting:</strong> Emma picks up the call and delivers your custom greeting instantly, presenting a warm first impression.</li>
+  <li><strong>Knowledge Lookup:</strong> As the caller explains their needs or asks questions, Emma cross-references your saved Knowledge Base to provide precise answers about your pricing, hours, or services.</li>
+  <li><strong>Appointment Booking:</strong> If the caller wants to schedule, Emma references your connected Google Calendar to locate and propose available slots, booking them in real time.</li>
+  <li><strong>Lead Capture:</strong> Emma captures essential lead details, including the caller's name, phone number, and brief notes about their request.</li>
+  <li><strong>Transcript Generation:</strong> Once the call terminates, the platform processes the audio, creating a detailed transcript and saving the recording.</li>
+</ol>
+
+<h2>What Callers Hear vs. What You See</h2>
+<p>While callers experience a fluid, conversational phone discussion, your dashboard updates live at each step:</p>
+<ul>
+  <li><strong>During the Call:</strong> The caller hears natural responses. In your dashboard, a new entry is initialized in the <a href="/p/leads">Leads</a> pipeline and the status is tracked as "new" or "contacted".</li>
+  <li><strong>After the Call:</strong> The customer receives a text or email confirmation. In your dashboard, you can view the complete transcript and play back the audio file on the <a href="/p/calls">Calls</a> tab. If an appointment was booked, your calendar will display the new slot.</li>
+</ul>
+
+<div class="hc-callout"><span class="hc-co-h">Transfer Ringing</span><p>For urgent emergencies, Emma can immediately transfer the caller to your forwarding cell phone. The call status in your dashboard will indicate that a live transfer was completed.</p></div>`;
 
 
     case 'faq-languages': return `
