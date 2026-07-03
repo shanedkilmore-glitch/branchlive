@@ -6311,7 +6311,16 @@ async function handlePublicSite(request, env, slug) {
     const site = (isPreview || isDraftPreview)
       ? await env.DB.prepare('SELECT * FROM sites WHERE slug = ?').bind(slug).first()
       : await env.DB.prepare('SELECT * FROM sites WHERE slug = ? AND published = 1').bind(slug).first();
-    if (!site || ((isPreview || isDraftPreview) && ownerUid && site.user_id !== ownerUid)) {
+    if (!site) {
+      return new Response(siteNotFoundShell(), { status: 404, headers: { 'Content-Type': 'text/html' } });
+    }
+    // Draft preview is strictly owner-only: an anonymous visitor (no session
+    // cookie → ownerUid is null) must get 404, never the draft. The plain
+    // ?preview=1 path below keeps its original owner-or-fall-through behavior.
+    if (isDraftPreview && (!ownerUid || site.user_id !== ownerUid)) {
+      return new Response(siteNotFoundShell(), { status: 404, headers: { 'Content-Type': 'text/html' } });
+    }
+    if (isPreview && ownerUid && site.user_id !== ownerUid) {
       return new Response(siteNotFoundShell(), { status: 404, headers: { 'Content-Type': 'text/html' } });
     }
 
@@ -15088,38 +15097,43 @@ Notes:    Natural stone or concrete pavers. Free on-site estimate.
 
 
     case 'billing-plans': return `
-<p class="hc-lead">Your plan, add-ons, and invoices \u2014 all managed through Stripe.</p>
+<p class="hc-lead">Manage your billing details, active plan features, and Stripe invoices directly from your dashboard account portal.</p>
 
-<h2>Base Plan & Pricing</h2>
-<p>Branch Live has a simple, flat pricing model. Instead of complicated plan tiers, you pay a flat <strong>$29.95/mo</strong> for the base plan, which includes unlimited minutes and team seats. You can then customize your setup by subscribing to individual add-ons as needed.</p>
+<h2>Flat Base Pricing</h2>
+<p>Branch Live offers a straightforward flat pricing model rather than confusing subscription levels. You pay a single flat rate of <strong>$29.95/mo</strong> for the base service. This includes core call-answering features, unlimited call minutes, and unlimited team member seats, meaning you never have to worry about sudden overage fees during busy months.</p>
 
-<h2>Add-ons</h2>
-<p>Optional features you can bolt onto any plan:</p>
+<h2>Modular Add-ons</h2>
+<p>Customize your platform experience by activating or deactivating modular add-on features dynamically:</p>
 <ul>
-  <li><strong>Website ($9.95/mo)</strong> \u2014 the microsite builder.</li>
-  <li><strong>Reviews ($9.95/mo)</strong> \u2014 pull and display your Google reviews.</li>
-  <li><strong>Social Auto-posts ($9.95/mo)</strong> \u2014 auto-generate and schedule social media updates.</li>
-  <li><strong>Email Autoresponder ($9.95/mo)</strong> \u2014 automated email responses and follow-ups.</li>
-  <li><strong>Business blog ($14.95/mo)</strong> \u2014 auto-generated blog for your site.</li>
+  <li><strong>Website Builder ($9.95/mo):</strong> Enables the custom GrapesJS drag-and-drop site editor.</li>
+  <li><strong>Google Review Monitor ($9.95/mo):</strong> Automatically syncs and displays local customer reviews.</li>
+  <li><strong>Social Auto-posts ($9.95/mo):</strong> Generates and queues automated updates for social profiles.</li>
+  <li><strong>Email Autoresponder ($9.95/mo):</strong> Automatically triggers personalized follow-up emails via Gmail OAuth.</li>
+  <li><strong>Business Blog ($14.95/mo):</strong> Creates an SEO-optimized blog with AI-generated articles.</li>
 </ul>
-<p>Toggle add-ons on or off anytime from <a href="/p/billing">Billing</a>; pricing prorates automatically.</p>
 
-<h2>Stripe billing</h2>
-<p>All payments run through Stripe \u2014 the same processor behind thousands of SaaS products. Update your card, manage add-ons, or download past invoices directly from the Billing page.</p>`;
+<h2>Stripe Integration & Invoices</h2>
+<p>All subscription payments are handled securely via Stripe. When you toggle add-ons in the <a href="/p/billing">Billing</a> portal, Stripe automatically calculates the prorated amount and applies the credit or charge to your next monthly statement. You can download historical receipts, update saved payment cards, or review upcoming charges at any time through our Stripe customer billing dashboard.</p>
+
+<blockquote class="hc-callout"><span class="hc-co-h">Billing Disputes</span><p>If you notice any unexpected charges or require assistance with custom invoice formatting for corporate expense reporting, please reach out to support. We process all refunds and modifications in compliance with our standard terms of service.</p></blockquote>
+`;
 
     case 'team-members': return `
-<p class="hc-lead">Bring your team on. Roles control who can see and change what.</p>
+<p class="hc-lead">Invite team members to access your account dashboard. Fine-grained permissions control which features and configurations each staff member can view or modify.</p>
 
-<h2>Roles</h2>
+<h2>Role Descriptions & Permissions</h2>
+<p>To secure your data, assign one of three specific roles when adding a team member:</p>
 <ul>
-  <li><strong>Admin</strong> ΓÇö full access: billing, settings, team management, everything.</li>
-  <li><strong>Manager</strong> ΓÇö day-to-day operations: leads, calls, calendar, analytics, growth tools. No billing or settings.</li>
-  <li><strong>Employee</strong> ΓÇö view-only on calendar, knowledge, and gallery. Can see what's happening but can't change configuration.</li>
+  <li><strong>Admin:</strong> Possesses unrestricted access. Admins can view billing details, change payment plans, adjust settings, and invite or remove other team members. The business owner is an Admin by default.</li>
+  <li><strong>Manager:</strong> Oversees daily operations. Managers can view and manage leads, review call recordings, adjust calendar bookings, inspect analytics, and configure marketing or social tools. Managers cannot access billing or general settings.</li>
+  <li><strong>Employee:</strong> Accesses the portal with view-only permissions. Employees can view calendar events, read knowledge base items, and check the image gallery, but they cannot edit layouts or change configurations.</li>
 </ul>
 
-<h2>Invitations</h2>
-<p>Invite teammates from the <a href="/p/team">Team</a> page by email. They'll get a link to join your business with the role you choose. As the owner, you're automatically an admin.</p>
-<blockquote class="hc-callout"><span class="hc-co-h">Note</span><p>Team members see the <em>business's</em> shared data ΓÇö leads, calendar, knowledge ΓÇö not their own private set.</p></blockquote>`;
+<h2>The Invitation Flow</h2>
+<p>Invite new members by navigating to the <a href="/p/team">Team</a> settings page. Enter their email address, select their role, and click the send button. The system sends a secure invitation link that remains valid for 48 hours. When the recipient clicks the link, they will be prompted to create an account connected to your workspace.</p>
+
+<blockquote class="hc-callout"><span class="hc-co-h">Troubleshooting Expiry</span><p>If an invitation link expires before the team member registers, go back to the Team page, find their email under pending invites, and click "Resend Invite" to generate a new active link.</p></blockquote>
+`;
 
     case 'settings': return `<p class="hc-lead">Customize how Emma interacts with callers, set up call forwarding, define business hours, and connect your Gmail account for automated notifications.</p>
 
@@ -15148,24 +15162,60 @@ Notes:    Natural stone or concrete pavers. Free on-site estimate.
 
 
     case 'faq-languages': return `
-<p class="hc-lead">Emma currently works in English only.</p>
-<p>At this time, Emma\u2019s greeting and conversational logic are designed for English. Multi-language support is planned for the future to allow Emma to understand and respond in other languages.</p>
-<blockquote class="hc-callout"><span class="hc-co-h">Future updates</span><p>We are actively working on expanding Emma\u2019s capabilities. If you require a specific language, please let us know.</p></blockquote>`;
+<p class="hc-lead">At this time, Emma is designed to converse exclusively in English.</p>
+
+<h2>English-Only Support</h2>
+<p>Emma's conversational voice prompts, greeting messages, and knowledge base reasoning systems are fully optimized for English. There is no automatic language detection, translation, or multi-language voice synthesis available in the current phone system integration. Callers must communicate in English for Emma to understand details and record precise information.</p>
+
+<h2>Handling Non-English Callers</h2>
+<p>If a customer calls and speaks to Emma in a different language, she will try to process the words using English phonetics. This often leads to incomplete transcriptions or booking errors. To prevent issues, we recommend mentioning your English-only setup on your custom business website or in your business voice greeting.</p>
+
+<h2>Troubleshooting & Edge Cases</h2>
+<p>If Emma receives a call from a non-English speaker, she may fail to identify the booking request or contact details. When reviewing transcripts in the <a href="/p/calls">Calls</a> tab, check for phonetic errors. If Emma captured a garbled name or phone number, review the raw call recording to retrieve the caller's actual information and reach out to them directly.</p>
+
+<blockquote class="hc-callout"><span class="hc-co-h">Future Multi-Language Plans</span><p>We are active in developing multi-language translation pipelines. If your local customer base relies on Spanish, French, or other languages, let us know so we can prioritize these updates.</p></blockquote>
+`;
 
     case 'faq-closed': return `
-<p class="hc-lead">Emma never clocks out. Outside your working hours, she keeps answering ΓÇö just books for the next business day.</p>
-<p>When you're closed, Emma still picks up every call, answers questions from your Knowledge Base, and captures the lead. The only difference: instead of booking into off-hours, she schedules the appointment for your next available working-hours slot.</p>
-<p>That means a call at 9 PM on a Sunday still becomes a Tuesday morning booking ΓÇö with a transcript waiting for you Monday.</p>`;
+<p class="hc-lead">Emma operates 24 hours a day, 7 days a week, and 365 days a year, ensuring your business never misses a customer query, support question, or booking opportunity, even in the middle of the night.</p>
+
+<h2>After-Hours Call Flow</h2>
+<p>When a call comes in outside your defined working hours, Emma answers immediately, answers questions from your Knowledge Base, and captures lead data. Instead of booking jobs into your personal time (evenings or weekends), Emma checks your calendar and schedules the appointment for your next open working-hours slot. For example, a customer calling at 10 PM on Sunday can be automatically booked for Monday morning.</p>
+
+<h2>Troubleshooting Forwarding & Voicemails</h2>
+<p>If you have urgent call forwarding enabled, Emma might attempt to transfer high-priority calls to your mobile phone. During your closed hours, this can cause your personal cell phone to ring. To avoid midnight interruptions, we recommend updating your forwarding settings before logging off, or routing transfers to a business voicemail service.</p>
+
+<h2>Handling Holidays & Temporary Closures</h2>
+<p>If your business is closing temporarily for a holiday or vacation, Emma will continue booking slots unless you modify your availability. To prevent bookings when you are away, navigate to <a href="/settings-htmx">Settings</a> and temporarily adjust your active business hours or block out those calendar dates in the dashboard.</p>
+`;
 
     case 'faq-greeting': return `
-<p class="hc-lead">Your greeting is the first thing every caller hears. Make it yours.</p>
-<p>Change it on the <a href="/settings-htmx">Settings</a> page. Keep it warm and specific ΓÇö your business name and a sentence about how you'll help sets the right tone.</p>
-<blockquote class="hc-callout"><span class="hc-co-h">Example</span><p><code>"Thanks for calling Riverside Plumbing ΓÇö Emma here. How can I help you today?"</code></p></blockquote>`;
+<p class="hc-lead">Your business voice greeting is the crucial first impression for every incoming caller. You can customize this message to align with your brand.</p>
+
+<h2>Best Practices for Custom Greetings</h2>
+<p>To configure your greeting, navigate to the <a href="/settings-htmx">Settings</a> tab. For the best user experience, keep your greeting friendly, professional, and concise. We recommend clearly stating your business name, identifying Emma as your digital assistant, and asking a direct question. For example: <em>"Thank you for calling Elite Auto Care, this is Emma. How can I help you today?"</em></p>
+
+<h2>Greeting Edge Cases & Caller Interruptions</h2>
+<p>Our voice integration supports interruption detection. If a caller begins speaking while Emma is reciting her greeting, she will immediately stop and listen to their request. To prevent confusion, avoid overly long greetings (more than 20 words). Long greetings increase the chance of callers speaking over Emma, which can sometimes result in clipped transcriptions or missed introductory details.</p>
+
+<h2>Troubleshooting Greeting Issues</h2>
+<p>If you update your greeting but still hear the old message during test calls, the new settings may not have synced. Refresh the Settings page and verify that your changes were saved successfully. If the issue persists, ensure your phone forwarding line points directly to your Branch Live number rather than a secondary answering service.</p>
+`;
 
     case 'faq-plan': return `
-<p class="hc-lead">All businesses get the same flat $29.95/mo base plan with unlimited minutes and seats, then add features as needed.</p>
-<p>Rather than charging for high-tier plans, Branch Live uses a modular system: a flat $29.95/mo base plan that covers core call handling, combined with individual add-ons starting at $9.95/mo (or $14.95/mo for the business blog) to customize your features.</p>
-<p>Manage your add-ons anytime directly from the <a href="/p/billing">Billing</a> page \u2014 pricing prorates automatically.</p>`;
+<p class="hc-lead">We offer a simplified, modular billing model. Instead of dividing features into expensive, rigid tiers, every business gets full access to our core platform on a flat plan.</p>
+
+<h2>Base Plan Features</h2>
+<p>The standard subscription is priced at a flat <strong>$29.95/mo</strong>. Unlike other voice platforms, our base plan does not impose limits on call minutes or the number of team seats you can create. This core plan covers all essential AI reception, message-taking, calendar synchronization, and lead tracking features.</p>
+
+<h2>Modular Customization</h2>
+<p>If you require advanced capabilities, you can enable specific add-on features (ranging from $9.95/mo to $14.95/mo) in the <a href="/p/billing">Billing</a> portal. This ensures you only pay for the exact tools your business needs, such as review management or auto-posting schedules.</p>
+
+<h2>Troubleshooting Failed Payments</h2>
+<p>If your credit card on file fails, Stripe will automatically retry processing the invoice three times over a seven-day grace period. During this time, your call forwarding and dashboard access remain fully functional. If the payment details are not updated before the final retry, call-answering features will be paused automatically until a valid card is added.</p>
+
+<blockquote class="hc-callout"><span class="hc-co-h">Prorated Charges</span><p>Adding or removing add-ons mid-billing cycle triggers automatic proration by Stripe. Any credit from cancelled features will be applied directly to your subsequent invoice.</p></blockquote>
+`;
 
     default: return `
 <p class="hc-lead">Article not found.</p>
