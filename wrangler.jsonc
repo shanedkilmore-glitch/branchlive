@@ -10,5 +10,11 @@
       "database_name": "branchlive-portal",
       "database_id": "cbe33e38-6532-4c58-9749-352a5a473019"
     }
-  ]
+  ],
+  "triggers": {
+    "crons": ["*/15 * * * *"]
+  },
+  "ai": {
+    "binding": "AI"
+  }
 }

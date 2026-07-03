@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="Branch Live logo — letter B with a branch element">
+  <title>Branch Live — Concept 2: B Letterform with Branch</title>
+  <defs>
+    <linearGradient id="bl2-purple" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a78bfa"/>
+      <stop offset="0.55" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#6d28d9"/>
+    </linearGradient>
+    <linearGradient id="bl2-leaf" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#34d399"/>
+      <stop offset="1" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <filter id="bl2-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="240" height="240" rx="48" fill="#0d1117"/>
+
+  <!-- "B" built from a thick vertical stem + two bowls (strokes), with rounded caps -->
+  <g filter="url(#bl2-glow)" fill="none" stroke="url(#bl2-purple)"
+     stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+    <!-- vertical stem -->
+    <line x1="78" y1="56" x2="78" y2="184"/>
+    <!-- top bowl -->
+    <path d="M 78 60 H 132 A 34 34 0 0 1 132 128 H 78"/>
+    <!-- bottom bowl -->
+    <path d="M 78 128 H 138 A 37 37 0 0 1 138 202 H 78"/>
+  </g>
+
+  <!-- Branch: a sprig with leaves wrapping the upper-right of the B -->
+  <g transform="translate(168,46)" filter="url(#bl2-glow)">
+    <path d="M 0 0 C 14 22 14 54 0 76" fill="none"
+          stroke="#5eead4" stroke-width="3.5" stroke-linecap="round"/>
+    <g transform="translate(0,16) rotate(38)">
+      <path d="M 0 0 C 20 6 20 30 0 38 C -20 30 -20 6 0 0 Z" fill="url(#bl2-leaf)"/>
+    </g>
+    <g transform="translate(4,44) rotate(38)">
+      <path d="M 0 0 C 16 5 16 24 0 30 C -16 24 -16 5 0 0 Z" fill="url(#bl2-leaf)" opacity="0.92"/>
+    </g>
+    <!-- tip bud -->
+    <circle cx="2" cy="2" r="4.5" fill="#34d399"/>
+  </g>
+</svg>

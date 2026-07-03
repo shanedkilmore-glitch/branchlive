@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="Branch Live logo — abstract mark combining phone and nature">
+  <title>Branch Live — Concept 3: Abstract Phone + Nature Mark</title>
+  <defs>
+    <linearGradient id="bl3-ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a78bfa"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="bl3-leaf" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#34d399"/>
+      <stop offset="1" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <filter id="bl3-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="240" height="240" rx="48" fill="#0d1117"/>
+
+  <!-- Abstract mark: a circular phone "speech/signal" ring split like a branch fork -->
+  <g filter="url(#bl3-glow)">
+    <!-- left arc of the ring (suggests a handset silhouette / receiver) -->
+    <path d="M 120 52 A 68 68 0 1 0 188 120"
+          fill="none" stroke="url(#bl3-ring)" stroke-width="30" stroke-linecap="round"/>
+    <!-- sound waves (phone signal) -->
+    <path d="M 198 86 A 40 40 0 0 1 198 154" fill="none"
+          stroke="url(#bl3-ring)" stroke-width="8" stroke-linecap="round" opacity="0.55"/>
+    <path d="M 214 70 A 64 64 0 0 1 214 170" fill="none"
+          stroke="url(#bl3-ring)" stroke-width="8" stroke-linecap="round" opacity="0.3"/>
+  </g>
+
+  <!-- Branch + leaf filling the open gap of the ring (nature grows through the phone) -->
+  <g transform="translate(118,118)">
+    <!-- stem -->
+    <path d="M 0 0 C 0 28 -8 50 -22 66" fill="none"
+          stroke="#5eead4" stroke-width="4" stroke-linecap="round"/>
+    <!-- two leaves forking like a branch -->
+    <g transform="translate(-8,42) rotate(-142)">
+      <path d="M 0 0 C 28 8 28 46 0 56 C -28 46 -28 8 0 0 Z" fill="url(#bl3-leaf)"/>
+      <path d="M 0 8 L 0 48" stroke="#0d1117" stroke-width="2.2" opacity="0.5"/>
+    </g>
+    <g transform="translate(-22,66) rotate(-188)">
+      <path d="M 0 0 C 22 6 22 38 0 46 C -22 38 -22 6 0 0 Z" fill="url(#bl3-leaf)" opacity="0.95"/>
+    </g>
+    <!-- node bud -->
+    <circle cx="0" cy="0" r="5" fill="#34d399"/>
+  </g>
+</svg>

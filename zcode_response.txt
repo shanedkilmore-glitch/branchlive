@@ -1,0 +1,126 @@
+SCOUT — AI ASSISTANT PANEL — BUILD COMPLETE
+============================================
+Worker: branchlive-portal (https://branchlive-portal.shane-f58.workers.dev)
+File:   worker.js (single-file Cloudflare Worker)
+Date:   2026-07-02
+
+────────────────────────────────────────────
+WHAT WAS BUILT
+────────────────────────────────────────────
+Scout — a collapsible AI assistant panel on the right edge of every signed-in
+/p/* dashboard page. Amber-monotone, DeepSeek-Flash-backed, with proactive
+nudges and graceful fallback.
+
+────────────────────────────────────────────
+1. UI — ScoutPanel (injected into simpleShell)
+────────────────────────────────────────────
+Self-injecting DOM + JS, gated on a `.sidebar` being present (signed-in pages
+only — never on the public landing or login screens). Lives in the shared
+simpleShell() so it appears on ALL /p/* pages.
+
+  • Fixed right panel, 300px wide, full height, bg #0a0a14, left border.
+  • Collapsed by default to a 40px vertical tab "🦀 Scout" on the right edge.
+  • Click tab → expands (slide-in animation); ✕ or Escape → collapses.
+  • Message bubbles: amber border-left for Scout, darker/right-aligned for user.
+  • Typing indicator (3 animated amber dots) while waiting for response.
+  • Auto-scrolls to the latest message.
+  • Input + send button; Enter to send.
+  • Mobile (≤920px): panel becomes an 86%-width off-canvas overlay.
+  • Knows the current page (derived from URL path → "overview", "leads", etc.)
+
+2. PROACTIVE NUDGES
+  • 30s idle timer (resets on any click/keydown/scroll) → pushes a page-
+    specific hardcoded tip into the panel (no API call). One nudge per page
+    load, only while the panel is open.
+  • e.g. Calendar: "Tip: Click any appointment to see details and reschedule."
+  • e.g. Knowledge: "Tip: Add services with Category, Item, Price, and Notes."
+
+────────────────────────────────────────────
+3. API — POST /api/scout
+────────────────────────────────────────────
+Cookie-authed (bl_session), wired into the cookie-authed dispatcher section
+alongside the other /p/*-facing endpoints. Resolves the active business via
+resolveContext() (honors the bl_business_id switcher cookie) so a team member
+gets the business's context, not their own empty rows.
+
+  Accepts:  { "question": "...", "page": "overview" }
+  Returns:  { "ok": true, "answer": "..." }
+  Auth:     session cookie required → else { ok:false, error:"Not logged in" }
+
+────────────────────────────────────────────
+4. DEEPSEEK FLASH INTEGRATION (handleScout)
+────────────────────────────────────────────
+Endpoint:  POST https://api.deepseek.com/chat/completions  (OpenAI-compatible)
+Model:     deepseek-chat  (fast, cheap non-reasoning model)
+System prompt: "You are Scout, the helpful in-dashboard assistant for Branch
+               Live…" — includes business name, industry, current page, and
+               account stats (leads/appointments/calls counts).
+Temperature: 0.7   Max tokens: 500   (quick answers, not essays)
+
+SMART CONTEXT injected before sending the question:
+  • Business name + industry (from settings table).
+  • Current page (overview, leads, calendar, knowledge, …) with a friendly label.
+  • Recent activity summary: total/new/booked leads, confirmed + upcoming
+    appointments, calls handled by Emma.
+  (One batched D1 round-trip, scoped to the owning account.)
+
+GRACEFUL FALLBACK — Scout ALWAYS replies:
+  • If DEEPSEEK_API_KEY is unset OR the API call fails → scoutFallback() returns
+    a short, page-aware canned answer (keyword-routed: knowledge/calendar/leads/
+    settings/billing). This mirrors the existing handleChat() pattern, so Scout
+    is functional immediately without a key and upgrades automatically once one
+    is added via `npx wrangler secret put DEEPSEEK_API_KEY`.
+
+────────────────────────────────────────────
+DESIGN — amber-monotone ONLY
+────────────────────────────────────────────
+  • Panel bg #0a0a14, border var(--border). No purple, no green badges.
+  • Scout messages: subtle amber border-left (var(--accent)).
+  • User messages: darker bg (#13131f), right-aligned.
+  • Tab + send button: amber accent gradient.
+  • Uses the existing CSS variables (--accent, --bg-card, --border, etc.).
+  • Respects the AGENTS.md language rule (no "contractor").
+
+────────────────────────────────────────────
+VERIFY (all passing)
+────────────────────────────────────────────
+  ✅ node --check worker.js              → SYNTAX_OK
+  ✅ npx wrangler deploy                 → Deployed (Version ce469213…)
+  ✅ curl /p/overview                    → HTTP 200, no 1101
+  ✅ Scout panel HTML present on /p/overview
+       (scout-tab, scout-panel, scout-messages, #scout-input, /api/scout fetch,
+        🦀 crab, SCOUT JS block — all confirmed in the rendered HTML)
+  ✅ POST /api/scout {question:"hello"}
+       → {"ok":true,"answer":"Your Overview shows today's stats…"}  (HTTP 200)
+  ✅ POST /api/scout {question:"How do I add services to my knowledge base?"}
+       → {"ok":true,"answer":"…Category, Item, Price, Notes…CSV bulk-import…"}
+       (smart fallback keyword routing confirmed)
+  ✅ POST /api/scout (no cookie)
+       → {"ok":false,"error":"Not logged in"}  (auth gating confirmed)
+
+────────────────────────────────────────────
+TO ENABLE LIVE DEEPSEEK ANSWERS (optional)
+────────────────────────────────────────────
+Scout works now via graceful fallback. To upgrade to live DeepSeek Flash
+responses, add the secret:
+    npx wrangler secret put DEEPSEEK_API_KEY
+  (paste a key from https://platform.deepseek.com/)
+No code change or redeploy needed — handleScout detects the key automatically.
+
+NOTE: deepseek-chat is the current valid model id (the legacy name remains
+usable through 2026-07-24 per DeepSeek's changelog). If DeepSeek retires it,
+update the `model` field in handleScout() to the then-current id (e.g.
+deepseek-v4-flash).
+
+────────────────────────────────────────────
+CODE LOCATIONS (worker.js)
+────────────────────────────────────────────
+  • Scout CSS            → simpleShell <style> block (~line 7073+)
+  • Scout panel HTML+JS → simpleShell, before </script></body></html>
+                           (self-injecting IIFE, gated on .sidebar)
+  • handleScout()        → after handleChat() (~line 10546+)
+  • scoutFallback()      → immediately after handleScout()
+  • /api/scout route     → cookie-authed dispatcher section (~line 13246+)
+
+No files were deleted or overwritten destructively; all changes are additive
+edits to worker.js.

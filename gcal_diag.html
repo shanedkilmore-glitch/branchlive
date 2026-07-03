@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Google Calendar — Branch Live</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+       background:#06060c;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:#f1f5f9}
+  .card{background:#0e0e18;border:1px solid #1e293b;border-radius:14px;padding:36px;max-width:560px;width:100%;text-align:center}
+  .icon{font-size:46px;margin-bottom:12px}
+  h1{font-size:20px;margin:0 0 8px}
+  p{color:#94a3b8;line-height:1.5;margin:0 0 24px;font-size:15px}
+  a.btn{display:inline-block;background:#8b5cf6;color:#fff;text-decoration:none;padding:13px 32px;
+    border-radius:9px;font-weight:600;font-size:15px}
+  dl{margin:0}
+  dt{color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-top:10px}
+  dd{margin:2px 0 0;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+     color:#e2e8f0;font-size:12px;word-break:break-all;white-space:pre-wrap;background:#06060c;
+     border:1px solid #1e293b;border-radius:6px;padding:6px 10px}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">⚠️</div>
+    <h1 style="color:#ef4444">Connection Failed</h1>
+    <p>Google rejected the authorization code. Details below.</p>
+    <a class="btn" href="https://branchlive.com/dashboard">Return to Dashboard →</a>
+    <div style="text-align:left;margin-top:20px;border-top:1px solid #1e293b;padding-top:16px">
+      <div style="color:#f59e0b;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:10px">🔧 Diagnostics</div>
+      <dl style="margin:0;font-size:13px;line-height:1.6"><dt>google_status</dt><dd>401</dd><dt>google_response (raw)</dt><dd>{
+  &quot;error&quot;: &quot;invalid_client&quot;,
+  &quot;error_description&quot;: &quot;The provided client secret is invalid.&quot;
+}</dd><dt>google_response (parsed)</dt><dd>{
+  &quot;error&quot;: &quot;invalid_client&quot;,
+  &quot;error_description&quot;: &quot;The provided client secret is invalid.&quot;
+}</dd><dt>code (first 20 chars)</dt><dd>4/0FAKE_CODE_FOR_TES…</dd><dt>code length</dt><dd>24</dd><dt>redirect_uri_sent</dt><dd>https://branchlive-portal.shane-f58.workers.dev/api/google-calendar/callback</dd><dt>client_id_sent</dt><dd>313340615642… (72 chars)</dd><dt>client_secret_sent</dt><dd>36 chars, starts "GOCSP"</dd><dt>hint</dt><dd>invalid_grant usually means the code was already used (reload/refresh of the callback) OR redirect_uri mismatch. invalid_client means the secret/id is wrong.</dd></dl>
+    </div>
+  </div>
+</body>
+</html>

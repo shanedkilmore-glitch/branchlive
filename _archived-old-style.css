@@ -1,0 +1,19 @@
+# OLD DASHBOARD STYLE — DO NOT USE
+# Archived 2026-07-01. The amber-monotone restyle is the only active style.
+# Reference only — grab individual CSS rules if needed, never restore wholesale.
+
+:root {
+  --bg-primary: #0a0a16;
+  --bg-secondary: #141428;
+  --bg-tertiary: #1e1e3a;
+  --accent-primary: #9b6dff;
+  --accent-secondary: #00e8b8;
+  --accent-danger: #ef4444;
+  --text-primary: #f8fafc;
+  --text-secondary: #b0bdd0;
+  --text-muted: #6b7d95;
+  --border: #293350;
+  --amber: #f59e0b;
+}
+
+Fonts: Inter (all weights 300-800)

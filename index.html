@@ -3,595 +3,1399 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Branch Live — AI That Answers. 24/7.</title>
-<meta name="description" content="AI receptionist for contractors. Emma answers your phone 24/7 — books jobs, captures leads, and sounds completely human. Free demo. No credit card.">
+<title>Branch Live — Your business, handled. 24/7.</title>
+<meta name="description" content="Emma is the AI receptionist that runs your front office — answers every call 24/7, books the job, then powers your website, reviews, social, blog, estimates, and analytics from one dashboard. From $29.95/mo. 30 days free.">
+<meta name="keywords" content="AI receptionist, business phone answering, HVAC, plumbing, beauty, real estate, 24/7 answering service, website builder, review management, Branch Live">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://branchlive.com/">
-<meta property="og:title" content="Branch Live — AI That Answers. 24/7.">
-<meta property="og:description" content="An AI receptionist that sounds real, books jobs while you work, and costs less than your monthly phone bill. Free demo — call now.">
+<meta property="og:title" content="Branch Live — Your business, handled. 24/7.">
+<meta property="og:description" content="Emma answers every call, books the job, and runs your website, reviews, social, and follow-ups — all from one dashboard. From $29.95/mo.">
 <meta property="og:site_name" content="Branch Live">
 <meta property="og:locale" content="en_US">
-<meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Branch Live — AI That Answers. 24/7.">
-<meta name="twitter:description" content="AI receptionist for contractors. Emma answers 24/7, books jobs, captures leads. Free demo.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Branch Live — Your business, handled. 24/7.">
+<meta name="twitter:description" content="Emma answers every call, books the job, and runs your website, reviews, social, and follow-ups — all from one dashboard.">
 <link rel="canonical" href="https://branchlive.com/">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230e0e18'/%3E%3Cline x1='16' y1='24' x2='16' y2='13' stroke='%2300d4aa' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M16 12 Q8 10 6 6 Q8 10 16 12' fill='%238b5cf6'/%3E%3Cpath d='M16 12 Q24 10 26 6 Q24 10 16 12' fill='%2300d4aa'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2306060c'/%3E%3Cg fill='%23d4a574'%3E%3Crect x='5' y='14' width='2' height='4' rx='1'/%3E%3Crect x='9' y='10' width='2' height='12' rx='1'/%3E%3Crect x='13' y='6' width='2' height='20' rx='1'/%3E%3Crect x='17' y='10' width='2' height='12' rx='1'/%3E%3Crect x='21' y='14' width='2' height='4' rx='1'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
-/* ═════════ RESET & DESIGN.md TOKENS ═════════ */
-*{margin:0;padding:0;box-sizing:border-box}
+/* ═════════ Branch Live — amber-monotone "Sound Made Visible" palette ═════════ */
 :root{
-  --bg-primary:#06060c;     --bg-secondary:#0e0e18;
-  --bg-tertiary:#1a1a2e;    --accent-primary:#8b5cf6;
-  --accent-secondary:#00d4aa;--accent-danger:#ef4444;
-  --text-primary:#f1f5f9;   --text-secondary:#94a3b8;
-  --text-muted:#475569;     --border:#1e293b;
-  --radius-sm:8px;--radius:14px;--radius-lg:20px;
-  --shadow-lg:0 12px 40px rgba(0,0,0,0.5);
-  --transition:0.2s cubic-bezier(0.4,0,0.2,1);
-}
-html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
-body{font-family:'Inter',system-ui,sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.6;font-size:16px;overflow-x:hidden}
-/* Subtle background grid pattern */
-body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;
-  background-image:radial-gradient(circle at 20% 20%,rgba(139,92,246,0.03) 0%,transparent 50%),
-    radial-gradient(circle at 80% 60%,rgba(0,212,170,0.03) 0%,transparent 50%),
-    radial-gradient(circle at 50% 80%,rgba(139,92,246,0.02) 0%,transparent 40%);
-}
-::selection{background:var(--accent-primary);color:#fff}
+  --radius:0.625rem;
 
-/* ═════════ TOP BANNER ═════════ */
-.free-banner{
-  position:relative;z-index:30;
-  background:var(--bg-tertiary);
-  border-bottom:1px solid rgba(139,92,246,0.2);
-  padding:12px 24px;text-align:center;
-  font-size:0.92em;font-weight:500;
-  display:flex;align-items:center;justify-content:center;
-  gap:10px;flex-wrap:wrap;
-}
-.free-banner .banner-cta{
-  display:inline-flex;align-items:center;gap:6px;
-  color:var(--accent-secondary);text-decoration:none;
-  font-weight:700;font-size:0.95em;
-  padding:4px 14px;border-radius:100px;
-  border:1px solid rgba(0,212,170,0.3);
-  transition:all var(--transition);white-space:nowrap;
-}
-.free-banner .banner-cta:hover{background:rgba(0,212,170,0.12);border-color:var(--accent-secondary)}
+  /* Amber-monotone background — #06060c deepest dark, warm to feel hand-printed */
+  --background:#06060c;
+  --foreground:oklch(0.96 0.012 75);
+  --card:oklch(0.12 0.006 280);
+  --card-foreground:oklch(0.96 0.012 75);
+  --primary:oklch(0.96 0.012 75);
+  --primary-foreground:oklch(0.08 0.005 280);
+  --secondary:oklch(0.18 0.008 280);
+  --secondary-foreground:oklch(0.96 0.012 75);
+  --muted:oklch(0.16 0.006 280);
+  --muted-foreground:oklch(0.62 0.01 75);
 
-/* ═════════ NAV ═════════ */
-nav{
-  position:sticky;top:0;width:100%;z-index:20;
-  padding:12px 28px;display:flex;
-  justify-content:space-between;align-items:center;
-  background:rgba(6,6,12,0.8);
-  backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);
-  border-bottom:1px solid transparent;
-  transition:border-color 0.3s;
-}
-nav.scrolled{border-color:var(--border)}
-nav .nav-left{display:flex;align-items:center;gap:10px}
-nav .nav-left a{display:flex;align-items:center;text-decoration:none;color:inherit}
-nav .nav-left svg{width:34px;height:34px}
-nav .nav-left span{font-size:1.15em;font-weight:700;color:var(--text-primary);letter-spacing:-0.01em}
+  /* Warm amber accent — phone-screen-at-night warmth, not SaaS purple */
+  --accent:oklch(0.78 0.13 70);
+  --accent-hex:#d4a574;
+  --accent-foreground:oklch(0.10 0.005 280);
+  --destructive:oklch(0.65 0.22 25);
+  --border:oklch(0.22 0.008 280);
+  --input:oklch(0.18 0.008 280);
+  --ring:oklch(0.78 0.13 70);
 
-.nav-links{display:flex;align-items:center;gap:6px}
-.nav-links a{
-  color:var(--text-secondary);text-decoration:none;
-  font-size:0.9em;font-weight:500;
-  padding:8px 14px;border-radius:var(--radius-sm);
-  transition:all var(--transition);
-}
-.nav-links a:hover{color:var(--text-primary);background:var(--bg-tertiary)}
-.nav-links a.nav-signin{color:var(--accent-primary);font-weight:600;background:rgba(139,92,246,0.08)}
-.nav-links a.nav-signin:hover{background:rgba(139,92,246,0.15)}
+  /* Waveform speaker colors */
+  --wave-emma:oklch(0.78 0.13 70);     /* warm amber — Emma */
+  --wave-caller:oklch(0.88 0.015 75);  /* warm cream — caller */
+  --wave-pause:oklch(0.42 0.008 280);  /* dim ink — silence */
 
-/* Hamburger */
-.nav-toggle-check{display:none}
-.nav-toggle-btn{display:none;cursor:pointer;z-index:100;padding:4px}
-.nav-toggle-btn span{display:block;width:22px;height:2px;background:var(--text-primary);border-radius:2px;transition:all var(--transition)}
-.nav-toggle-btn span:nth-child(2){margin:5px 0;width:16px}
-.nav-toggle-btn:hover span:nth-child(2){width:22px}
-
-/* ═════════ HERO ═════════ */
-.hero{
-  min-height:calc(100vh - 100px);display:flex;
-  align-items:center;justify-content:center;
-  text-align:center;padding:100px 20px 80px;
-  position:relative;z-index:2;
-}
-.hero::before{content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);
-  width:800px;height:800px;background:radial-gradient(circle,rgba(139,92,246,0.06) 0%,transparent 70%);pointer-events:none;z-index:0}
-.hero::after{content:'';position:absolute;bottom:-100px;right:10%;
-  width:400px;height:400px;background:radial-gradient(circle,rgba(0,212,170,0.05) 0%,transparent 70%);pointer-events:none;z-index:0}
-.hero-content{max-width:720px}
-.hero-logo{display:flex;justify-content:center;margin-bottom:24px}
-.hero-logo svg{animation:logo-enter 0.6s cubic-bezier(0.23,1,0.32,1) both}
-@keyframes logo-enter{0%{opacity:0;transform:scale(0.8) translateY(10px)}100%{opacity:1;transform:scale(1) translateY(0)}}
-
-.hero .badge{
-  display:inline-flex;align-items:center;gap:8px;
-  padding:7px 18px;border-radius:100px;
-  background:var(--bg-tertiary);
-  border:1px solid var(--border);
-  font-size:0.85em;color:var(--text-secondary);
-  font-weight:500;margin-bottom:28px;
-  animation:fade-up 0.5s 0.1s cubic-bezier(0.23,1,0.32,1) both;
-}
-.hero .badge .dot{width:7px;height:7px;background:#22c55e;border-radius:50%;animation:pulse-dot 2s ease-in-out infinite}
-@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:0.4}}
-@keyframes fade-up{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}
-
-.hero h1{
-  font-size:clamp(2.8em,6vw,4.8em);
-  font-weight:800;line-height:1.06;
-  letter-spacing:-0.04em;margin-bottom:20px;
-  color:var(--text-primary);
-  animation:fade-up 0.5s 0.2s cubic-bezier(0.23,1,0.32,1) both;
-}
-.hero h1 .accent{color:var(--accent-secondary)}
-.hero p.sub{
-  font-size:1.15em;color:var(--text-secondary);
-  max-width:520px;margin:0 auto 36px;line-height:1.7;
-  animation:fade-up 0.5s 0.3s cubic-bezier(0.23,1,0.32,1) both;
+  --font-sans:'Inter Tight', system-ui, -apple-system, sans-serif;
+  --font-serif:'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-mono:'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
 }
 
-/* Buttons */
-.hero-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;animation:fade-up 0.5s 0.4s cubic-bezier(0.23,1,0.32,1) both}
-.btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:8px;
-  padding:15px 30px;border-radius:var(--radius);
-  font-size:0.95em;font-weight:600;text-decoration:none;
-  transition:all var(--transition);cursor:pointer;border:none;
+*{margin:0;padding:0;box-sizing:border-box}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+body{
+  font-family:var(--font-sans);
+  background:var(--background);
+  color:var(--foreground);
+  line-height:1.6;
+  font-size:17px;
+  overflow-x:hidden;
+  font-feature-settings:"ss01","cv11";
 }
-.btn:active{transform:scale(0.97)}
-.btn-primary{
-  background:linear-gradient(135deg,var(--accent-primary),#7c3aed);color:#fff;
-  box-shadow:0 4px 20px rgba(139,92,246,0.3);
-  position:relative;overflow:hidden;
+::selection{background:oklch(0.78 0.13 70 / 0.25);color:oklch(0.96 0.012 75)}
+a{color:inherit;text-decoration:none}
+
+/* ═════════ Layout helpers ═════════ */
+main{position:relative;min-height:100vh;display:flex;flex-direction:column}
+.wrap{width:100%;max-width:72rem;margin-inline:auto;padding-inline:1.5rem}       /* max-w-6xl */
+.max5{max-width:64rem}   /* max-w-5xl */
+.max4{max-width:56rem}   /* max-w-4xl */
+.max3{max-width:48rem}   /* max-w-3xl */
+.max2{max-width:42rem}   /* max-w-2xl */
+.mxauto{margin-inline:auto}
+.center{text-align:center}
+.relative{position:relative}
+.z10{position:relative;z-index:10}
+.z20{position:relative;z-index:20}
+.z30{position:relative;z-index:30}
+.flex{display:flex}
+.iflex{display:inline-flex}
+.fcol{display:flex;flex-direction:column}
+.items-center{align-items:center}
+.items-end{align-items:flex-end}
+.items-baseline{align-items:baseline}
+.justify-center{justify-content:center}
+.justify-between{justify-content:space-between}
+.gap2{gap:0.5rem}.gap3{gap:0.75rem}.gap4{gap:1rem}.gap6{gap:1.5rem}.gap7{gap:1.75rem}.gap8{gap:2rem}.gap10{gap:2.5rem}.gap12{gap:3rem}
+.flex-wrap{flex-wrap:wrap}
+.hidden{display:none}
+.block{display:block}
+.mt1{margin-top:0.25rem}.mt2{margin-top:0.5rem}.mt4{margin-top:1rem}.mt6{margin-top:1.5rem}.mt8{margin-top:2rem}.mt10{margin-top:2.5rem}.mt12{margin-top:3rem}.mt16{margin-top:4rem}
+.mb2{margin-bottom:0.5rem}.mb4{margin-bottom:1rem}.mb6{margin-bottom:1.5rem}.mb10{margin-bottom:2.5rem}.mb12{margin-bottom:3rem}
+.py-section{padding-block:6rem}
+.max-xl{max-width:36rem}     /* max-w-xl */
+.max-lg{max-width:32rem}     /* max-w-lg */
+.max-md{max-width:28rem}     /* max-w-md */
+.max-xs{max-width:20rem}     /* max-w-xs */
+
+/* ═════════ Custom utilities ═════════ */
+.eyebrow{
+  font-family:var(--font-mono);
+  font-size:0.72rem;
+  letter-spacing:0.18em;
+  text-transform:uppercase;
+  color:var(--muted-foreground);
+  font-weight:500;
 }
-.btn-primary::after{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.1),transparent);transition:left 0.5s}
-.btn-primary:hover{filter:brightness(1.05);box-shadow:0 6px 28px rgba(139,92,246,0.4);transform:translateY(-2px)}
-.btn-primary:hover::after{left:100%}
-.btn-cta{background:linear-gradient(135deg,var(--accent-secondary),#00b894);color:var(--bg-primary);font-weight:700;
-  box-shadow:0 4px 20px rgba(0,212,170,0.25);}
-.btn-cta:hover{filter:brightness(1.05);box-shadow:0 6px 28px rgba(0,212,170,0.35);transform:translateY(-2px)}
-.btn-ghost{
-  border:1px solid rgba(255,255,255,0.08);color:var(--text-primary);
-  background:rgba(255,255,255,0.02);backdrop-filter:blur(4px);
+.headline-serif{
+  font-family:var(--font-serif);
+  font-weight:400;
+  letter-spacing:-0.025em;
+  line-height:0.95;
 }
-.btn-ghost:hover{background:rgba(139,92,246,0.08);border-color:rgba(139,92,246,0.3);transform:translateY(-2px)}
-.phone-hero{font-size:1.4em;color:var(--text-secondary);margin-top:32px;font-weight:500;letter-spacing:0.04em;animation:fade-up 0.5s 0.5s cubic-bezier(0.23,1,0.32,1) both}
+.headline-serif em{font-style:italic;color:var(--accent);font-weight:500}
+.phone-mono{font-family:var(--font-mono);font-feature-settings:"tnum";letter-spacing:-0.01em}
 
-/* ═════════ STATS BAR ═════════ */
-.stats-bar{
-  display:flex;justify-content:center;
-  gap:clamp(32px,8vw,80px);
-  padding:56px 20px;flex-wrap:wrap;
-  position:relative;z-index:2;border-top:1px solid var(--border);
+.text-muted{color:var(--muted-foreground)}
+.text-fg{color:var(--foreground)}
+.text-accent{color:var(--accent)}
+.fw-medium{font-weight:500}.fw-600{font-weight:600}
+
+.t-xs{font-size:0.75rem}.t-sm{font-size:0.875rem}.t-base{font-size:1rem}.t-lg{font-size:1.125rem}
+.t-xl{font-size:1.25rem}.t-2xl{font-size:1.5rem}.t-3xl{font-size:1.875rem}
+.lh-snug{line-height:1.2}.lh-relaxed{line-height:1.7}
+
+/* Hairline rule — editorial divider */
+.hairline{
+  height:1px;
+  background:linear-gradient(to right,transparent,oklch(0.30 0.008 280) 20%,oklch(0.30 0.008 280) 80%,transparent);
 }
-.stat-item{text-align:center;transition:transform var(--transition)}
-.stat-item:hover{transform:translateY(-3px)}
-.stat-item .val{font-size:2.8em;font-weight:800;
-  background:linear-gradient(135deg,var(--accent-secondary),#8b5cf6);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-.stat-item .lbl{color:var(--text-secondary);font-size:0.82em;margin-top:4px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600}
 
-/* ═════════ SECTIONS ═════════ */
-section{padding:100px 20px;position:relative;z-index:2}
-section:not(.hero):not(.cta-section):not(.demo-section)::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);
-  width:min(800px,80vw);height:1px;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.04),transparent);}
-.section-label{text-align:center;font-size:0.75em;color:var(--accent-primary);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:16px;font-weight:600}
-section h2{font-size:clamp(1.8em,4vw,2.6em);font-weight:700;text-align:center;letter-spacing:-0.03em;margin-bottom:12px;line-height:1.2}
-section .subtitle{text-align:center;color:var(--text-secondary);font-size:1.08em;margin-bottom:60px;max-width:500px;margin-left:auto;margin-right:auto}
-
-/* ═════════ GRID & CARDS ═════════ */
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px;max-width:1120px;margin:0 auto}
-.card{
-  background:linear-gradient(135deg,rgba(14,14,24,0.9),rgba(26,26,46,0.7));
-  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  border:1px solid rgba(255,255,255,0.05);
-  border-radius:var(--radius);padding:34px 30px;
-  transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
-  box-shadow:0 4px 24px rgba(0,0,0,0.2),0 1px 2px rgba(255,255,255,0.02) inset;
-  position:relative;overflow:hidden;
+/* Underline grow link */
+.underline-grow{position:relative;display:inline-block}
+.underline-grow::after{
+  content:"";position:absolute;left:0;right:0;bottom:-2px;height:1px;
+  background:currentColor;transform:scaleX(0);transform-origin:left;
+  transition:transform 0.4s cubic-bezier(0.2,0.7,0.2,1);
 }
-.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent);opacity:0;transition:opacity 0.3s}
-.card:hover{transform:translateY(-6px);
-  border-color:rgba(139,92,246,0.2);
-  box-shadow:0 12px 40px rgba(0,0,0,0.3),0 1px 2px rgba(255,255,255,0.04) inset;}
-.card:hover::before{opacity:1}
-.card .icon{font-size:1.6em;margin-bottom:18px;display:inline-flex;align-items:center;justify-content:center;
-  width:52px;height:52px;border-radius:14px;
-  background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(0,212,170,0.1));
-  border:1px solid rgba(139,92,246,0.15);}
-.card h3{font-size:1.12em;margin-bottom:8px;font-weight:600;letter-spacing:-0.01em}
-.card p{color:var(--text-secondary);font-size:0.94em;line-height:1.65}
+.underline-grow:hover::after{transform:scaleX(1)}
 
-/* ═════════ HOW IT WORKS ═════════ */
-.steps-wrap{background:var(--bg-secondary);padding:100px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
-.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:28px;max-width:1120px;margin:0 auto;padding:0 20px}
-.step{
-  text-align:center;padding:44px 28px;
-  background:linear-gradient(180deg,rgba(14,14,24,0.6),rgba(6,6,12,0.8));
-  border:1px solid rgba(255,255,255,0.04);
-  border-radius:var(--radius);transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
-  position:relative;
+/* Transitions */
+.t-color{transition:color 0.3s ease}
+
+/* ═════════ Film grain over the hero ═════════ */
+.grain{
+  position:fixed;inset:0;pointer-events:none;z-index:1;opacity:0.035;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
-.step:hover{transform:translateY(-6px);border-color:rgba(139,92,246,0.2);
-  box-shadow:0 8px 32px rgba(0,0,0,0.2);}
-.step::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2px;
-  background:linear-gradient(90deg,transparent,var(--accent-primary),transparent);opacity:0;transition:opacity 0.3s;}
-.step:hover::after{opacity:0.5}
-.step-num{
-  width:52px;height:52px;background:var(--accent-primary);
-  border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
-  font-size:1.4em;font-weight:700;color:#fff;margin-bottom:22px;
-  transition:transform var(--transition);
+
+/* ═════════ Headline reveal — letter-by-letter ═════════ */
+@keyframes letter-rise{
+  from{opacity:0;transform:translateY(0.4em) rotate(2deg)}
+  to{opacity:1;transform:translateY(0) rotate(0)}
 }
-.step:hover .step-num{transform:scale(1.08)}
-.step h3{margin-bottom:8px;font-weight:600;font-size:1.08em}
-.step p{color:var(--text-secondary);font-size:0.94em;line-height:1.65}
-
-/* ═════════ DEMO ═════════ */
-.demo-section{text-align:center}
-.demo-card{
-  background:linear-gradient(135deg,rgba(14,14,24,0.95),rgba(26,26,46,0.8));
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  border:1px solid rgba(255,255,255,0.06);
-  border-radius:var(--radius-lg);padding:60px 36px;
-  max-width:620px;margin:0 auto;
-  box-shadow:0 8px 32px rgba(0,0,0,0.25),0 1px 2px rgba(255,255,255,0.03) inset;
-  transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+.letter-rise{
+  display:inline-block;opacity:0;
+  animation:letter-rise 0.7s cubic-bezier(0.2,0.7,0.2,1) forwards;
+  animation-delay:var(--letter-delay,0s);
 }
-.demo-card:hover{border-color:var(--accent-primary)}
-.phone-big{font-size:2.6em;font-weight:800;letter-spacing:0.05em;margin-bottom:12px;color:var(--accent-secondary)}
+.hw-word{display:inline-block;white-space:nowrap}
+.hw-word em{font-style:italic;color:var(--accent);font-weight:500;letter-spacing:-0.025em}
 
-/* ═════════ TESTIMONIALS ═════════ */
-.testimonial-card .stars{
-  background:linear-gradient(135deg,#f59e0b,#fbbf24);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  font-size:1.1em;margin-bottom:10px;letter-spacing:0.05em;display:inline-block;}
-.testimonial-card .quote{color:var(--text-primary);font-style:italic;font-size:0.95em;line-height:1.7}
-.testimonial-card .attribution{color:var(--text-secondary);font-size:0.82em;margin-top:14px;font-weight:500}
-
-/* ═════════ OPTIN / CTA ═════════ */
-.optin{
-  max-width:520px;margin:0 auto;padding:28px 30px;
-  background:var(--bg-secondary);border:1px solid var(--border);
-  border-radius:var(--radius);transition:border-color var(--transition);
+/* ═════════ Count/fade-in ═════════ */
+@keyframes count-in{
+  from{opacity:0;transform:translateY(8px)}
+  to{opacity:1;transform:translateY(0)}
 }
-.optin:hover{border-color:rgba(255,255,255,0.08)}
-.optin label{display:flex;align-items:flex-start;gap:12px;font-size:0.88em;color:var(--text-secondary);cursor:pointer;line-height:1.65}
-.optin input[type=checkbox]{margin-top:3px;width:18px;height:18px;accent-color:var(--accent-primary);cursor:pointer;flex-shrink:0}
-.optin a{color:var(--accent-secondary);text-decoration:none;font-weight:500}
-.optin a:hover{color:#00f0c0}
-.cta-section{text-align:center;padding-bottom:100px}
-.cta-section .btn{margin-top:28px}
+.fade-in{opacity:0;animation:count-in 0.8s ease-out forwards}
 
-/* ═════════ FOOTER ═════════ */
-footer{
-  text-align:center;padding:52px 20px;
-  color:var(--text-secondary);font-size:0.85em;
-  border-top:1px solid var(--border);position:relative;z-index:2;
-}
-footer a{color:var(--accent-secondary);text-decoration:none;margin:0 16px;font-weight:500;transition:color var(--transition)}
-footer a:hover{color:#00f0c0}
-footer .footer-brand{margin-bottom:12px;font-weight:600;color:var(--text-primary);font-size:0.95em}
-footer .footer-info{margin-top:10px;font-size:0.82em;opacity:0.7}
-
-/* ═════════ MODAL ═════════ */
-#login-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
-.modal-box{background:var(--bg-secondary);border:1px solid var(--border);border-radius:16px;padding:40px;width:380px;max-width:92vw;position:relative;animation:modal-enter 0.3s cubic-bezier(0.23,1,0.32,1)}
-@keyframes modal-enter{0%{opacity:0;transform:scale(0.95) translateY(10px)}100%{opacity:1;transform:scale(1) translateY(0)}}
-.modal-close{position:absolute;top:10px;right:14px;background:none;border:none;color:var(--text-secondary);font-size:1.6em;cursor:pointer;line-height:1;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:all var(--transition)}
-.modal-close:hover{color:var(--text-primary);background:var(--bg-tertiary)}
-.modal-box h2{text-align:center;margin-bottom:22px;font-size:1.3em}
-.modal-box input{width:100%;padding:13px 14px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.95em;margin-bottom:14px;outline:none;font-family:inherit;transition:border-color var(--transition)}
-.modal-box input:focus{border-color:var(--accent-primary);box-shadow:0 0 0 3px rgba(139,92,246,0.12)}
-.modal-box .btn{width:100%;justify-content:center}
-.modal-box .hint{color:var(--text-muted);font-size:0.78em;text-align:center;margin-top:16px;opacity:0.7}
-
-/* ═════════ SCROLL REVEAL ═════════ */
-.reveal{opacity:0;transform:translateY(20px);transition:opacity 0.5s ease,transform 0.5s ease}
+/* ═════════ Scroll reveal ═════════ */
+.reveal{opacity:0;transform:translateY(24px);transition:opacity 0.8s cubic-bezier(0.2,0.7,0.2,1),transform 0.8s cubic-bezier(0.2,0.7,0.2,1)}
 .reveal.visible{opacity:1;transform:translateY(0)}
 
-/* ═════════ RESPONSIVE ═════════ */
-@media(max-width:1024px){section{padding:80px 20px}.steps-wrap{padding:80px 0}}
-@media(max-width:768px){
-  nav{padding:10px 20px;position:sticky;top:0}
-  .nav-toggle-btn{display:flex;flex-direction:column;align-items:flex-end}
-  .nav-links{position:absolute;top:100%;left:0;right:0;flex-direction:column;align-items:stretch;background:rgba(6,6,12,0.97);backdrop-filter:blur(20px);padding:0;border-bottom:1px solid var(--border);gap:0;max-height:0;overflow:hidden;transition:max-height 0.35s ease,padding 0.35s ease;opacity:0}
-  .nav-toggle-check:checked~.nav-links{max-height:300px;padding:8px 0;opacity:1}
-  .nav-links a{padding:14px 24px;border-radius:0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.95em}
-  .nav-toggle-check:checked~.nav-toggle-btn span:nth-child(1){transform:rotate(45deg) translate(5px,5px)}
-  .nav-toggle-check:checked~.nav-toggle-btn span:nth-child(2){opacity:0;width:0}
-  .nav-toggle-check:checked~.nav-toggle-btn span:nth-child(3){transform:rotate(-45deg) translate(5px,-5px)}
-  .hero{min-height:85vh;padding:100px 16px 60px}
-  .hero h1{font-size:2.2em}
-  .hero p.sub{font-size:1em}
-  .phone-hero{font-size:1.2em}
-  .free-banner{font-size:0.84em;padding:10px 16px;gap:8px}
-  .stats-bar{gap:28px;padding:40px 16px}
-  .stat-item .val{font-size:2.2em}
-  section{padding:64px 16px}
-  section h2{font-size:1.7em}
-  section .subtitle{font-size:0.95em;margin-bottom:40px}
-  .grid{grid-template-columns:1fr;gap:16px}
-  .card{padding:28px 22px}
-  .steps-wrap{padding:64px 0}
-  .steps{grid-template-columns:1fr;gap:16px}
-  .step{padding:32px 22px}
-  .demo-card{padding:40px 24px}
-  .phone-big{font-size:2em}
-  .optin{padding:22px 20px}
-  .modal-box{padding:28px 22px}
-  .btn{padding:13px 24px;font-size:0.9em}
-  .hero-btns{flex-direction:column;align-items:center}
-  .hero-btns .btn{width:100%;max-width:300px}
+/* ═════════ Top banner ═════════ */
+.banner{border-bottom:1px solid color-mix(in oklch, var(--border) 60%, transparent)}
+.banner-inner{display:flex;align-items:center;justify-content:center;gap:0.75rem;padding:0.625rem 1.5rem;text-align:center}
+.banner .sep{height:0.75rem;width:1px;background:var(--border)}
+.banner-eb{font-family:var(--font-mono);font-size:0.65rem;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted-foreground);font-weight:500}
+.banner-sub{font-size:0.75rem;color:var(--muted-foreground)}
+
+/* ═════════ Nav ═════════ */
+nav.topnav{
+  position:sticky;top:0;z-index:20;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  transition:background-color 0.3s ease,border-color 0.3s ease;background:transparent;border-bottom:1px solid transparent;
 }
-@media(max-width:480px){
-  .hero h1{font-size:1.85em}
-  .stats-bar{gap:20px;flex-direction:column;align-items:center}
-  .stat-item .val{font-size:2em}
-  .free-banner{flex-direction:column;text-align:center;gap:6px;padding:6px 12px;font-size:0.78em}
-  .free-banner .banner-cta{padding:6px 12px;font-size:0.85em}
-  .card{padding:22px 18px}
+nav.topnav.scrolled{background:color-mix(in oklch, var(--background) 80%, transparent);border-bottom:1px solid color-mix(in oklch, var(--border) 60%, transparent)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;max-width:72rem;margin-inline:auto}
+.nav-links{display:none;align-items:center;gap:1.75rem}
+.nav-links a{font-size:0.875rem;color:var(--muted-foreground);transition:color 0.3s ease}
+.nav-links a:hover{color:var(--foreground)}
+.nav-links a.nav-signin{font-weight:500;color:var(--accent);cursor:pointer}
+.nav-phone-mobile{display:none;font-family:var(--font-mono);font-size:0.875rem;color:var(--accent)}
+.nav-signin-mobile{display:inline-flex;align-items:center;gap:4px;font-size:0.875rem;color:var(--accent);text-decoration:none;font-weight:600}
+/* Hamburger toggle — mobile only. Hidden ≥768px where .nav-links is inline. */
+.nav-toggle{display:inline-flex;flex-direction:column;justify-content:center;gap:5px;width:40px;height:40px;padding:0;background:none;border:1px solid var(--border);border-radius:10px;cursor:pointer;align-items:center}
+.nav-toggle span{display:block;width:20px;height:2px;background:var(--foreground);border-radius:2px;transition:transform 0.25s ease,opacity 0.25s ease}
+.nav-toggle[aria-expanded="true"] span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.nav-toggle[aria-expanded="true"] span:nth-child(2){opacity:0}
+.nav-toggle[aria-expanded="true"] span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+/* Mobile dropdown panel for the nav links */
+.nav-menu{display:none;position:absolute;top:100%;left:0;right:0;background:var(--background);border-bottom:1px solid var(--border);padding:1rem 1.5rem;flex-direction:column;gap:0.5rem;box-shadow:0 12px 24px rgba(0,0,0,0.25)}
+.nav-menu.open{display:flex}
+.nav-menu a{font-size:1rem;color:var(--foreground);text-decoration:none;padding:0.65rem 0;border-bottom:1px solid color-mix(in oklch,var(--border) 60%,transparent)}
+.nav-menu a:last-child{border-bottom:none}
+.nav-menu a.nav-signin{color:var(--accent);font-weight:600}
+
+/* ═════════ Logo ═════════ */
+.logo{color:var(--foreground);display:inline-flex;align-items:center}
+.logo svg{display:block}
+@keyframes wave-glow{0%,100%{opacity:0.6}50%{opacity:1}}
+.wave-glow{animation:wave-glow 2.4s ease-in-out infinite}
+
+/* ═════════ Hero ═════════ */
+.hero{display:flex;flex-direction:column;align-items:center;padding:4rem 1.5rem 3rem;text-align:center;position:relative;z-index:10}
+.hero h1{font-size:2.75rem;line-height:0.98;max-width:60rem}
+.hero-sub{margin-top:2.5rem;max-width:40rem;font-size:1rem;color:var(--muted-foreground)}
+.hero-sub .price{color:var(--foreground)}
+.cta-row{display:flex;flex-direction:column;align-items:center;gap:1rem}
+
+/* Primary button */
+.btn-primary{
+  display:inline-flex;align-items:center;gap:0.75rem;border-radius:9999px;
+  background:var(--accent);color:var(--accent-foreground);
+  padding:1rem 2rem;font-size:0.875rem;font-weight:500;font-family:inherit;
+  border:none;cursor:pointer;transition:transform 0.2s cubic-bezier(0.2,0.7,0.2,1);
 }
-@media(prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}
+.btn-primary:hover{transform:scale(1.02)}
+.btn-primary:active{transform:scale(1)}
+.btn-primary .arrow{transition:transform 0.2s ease}
+.btn-primary:hover .arrow{transform:translateX(4px)}
+
+.btn-link{display:inline-flex;align-items:center;gap:0.5rem;font-size:0.875rem;color:var(--muted-foreground);transition:color 0.3s ease}
+.btn-link:hover{color:var(--foreground)}
+
+/* Stat row */
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem 2rem}
+.stat .n{font-family:var(--font-serif);font-size:1.875rem;color:var(--foreground);line-height:1}
+.stat .l{margin-top:0.25rem;font-family:var(--font-mono);font-size:0.6rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted-foreground)}
+
+/* ═════════ Hero waveform + caption ═════════ */
+.hero-waveform-wrap{margin-top:4rem;width:100%;max-width:48rem;display:flex;flex-direction:column;align-items:center}
+
+.live-caption{display:flex;align-items:center;justify-content:center;gap:0.5rem;min-height:1em;margin-bottom:0.5rem;
+  font-family:var(--font-mono);font-size:0.6rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted-foreground);font-weight:500}
+.live-caption .dim{color:color-mix(in oklch, var(--muted-foreground) 60%, transparent)}
+.live-caption .faint{color:color-mix(in oklch, var(--muted-foreground) 40%, transparent)}
+.live-caption .cdot{margin-inline:0.25rem}
+
+/* Status dot — color matches speaker */
+.status-dot{display:inline-block;width:0.4rem;height:0.4rem;border-radius:9999px;vertical-align:middle;transition:background-color 0.4s ease}
+.status-dot.is-emma{background-color:var(--wave-emma)}
+.status-dot.is-caller{background-color:var(--wave-caller)}
+.status-dot.is-pause{background-color:var(--wave-pause)}
+
+/* Animated "..." while speaking */
+@keyframes speak-dot{0%,60%,100%{opacity:0.2;transform:translateY(0)}30%{opacity:1;transform:translateY(-1px)}}
+.speak-dots{display:inline-block;margin-left:0.125rem}
+.speak-dots span{display:inline-block;animation:speak-dot 1.2s ease-in-out infinite}
+.speak-dots span:nth-child(2){animation-delay:0.18s}
+.speak-dots span:nth-child(3){animation-delay:0.36s}
+
+.hero-phone{font-family:var(--font-mono);font-size:1.5rem;color:var(--foreground);transition:color 0.3s ease;letter-spacing:-0.01em}
+.hero-phone-link{display:flex;flex-direction:column;align-items:center}
+.hero-phone-link:hover .hero-phone{color:var(--accent)}
+
+/* ═════════ Speech waveform — driven by JS (requestAnimationFrame) ═════════ */
+.waveform{display:flex;align-items:center;justify-content:center}
+.waveform.hero-wave{height:8rem;gap:3px;padding:0 1rem;margin-top:3rem;width:100%}
+.wave-bar{display:block;width:3px;height:100%;border-radius:9999px;transform-origin:center;transition:background-color 0.4s ease;will-change:transform,opacity;position:relative;z-index:1}
+
+/* Baseline behind the wave */
+.waveform-with-baseline{position:relative}
+.waveform-with-baseline::before{
+  content:'';position:absolute;left:8%;right:8%;top:50%;height:1px;
+  background:linear-gradient(to right,transparent,oklch(0.30 0.008 280 / 0.5) 15%,oklch(0.30 0.008 280 / 0.5) 85%,transparent);
+  pointer-events:none;z-index:0;
+}
+
+/* Speaker color-coding via phase class on container */
+.waveform.phase-emma .wave-bar{background-color:var(--wave-emma)}
+.waveform.phase-caller .wave-bar{background-color:var(--wave-caller)}
+.waveform.phase-pause .wave-bar{background-color:var(--wave-pause)}
+
+/* Demo (smaller) waveform */
+.demo-wave-wrap{display:inline-flex;flex-direction:column;align-items:center;margin-top:3rem}
+.demo-wave{height:2.5rem;gap:3px;margin-bottom:1rem}
+.demo-wave .wave-bar{width:3px}
+.demo-phone{font-family:var(--font-mono);font-size:2.25rem;color:var(--foreground);transition:color 0.3s ease;letter-spacing:-0.02em}
+.demo-wave-link:hover .demo-phone{color:var(--accent)}
+.demo-caption{margin-top:1rem;display:inline-flex;align-items:center;gap:0.5rem;font-size:0.875rem;color:var(--accent)}
+
+/* Soft radial accent behind demo number */
+.demo-radial{pointer-events:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:600px;height:600px;border-radius:9999px;
+  background:radial-gradient(circle,oklch(0.78 0.13 70 / 0.08) 0%,transparent 60%)}
+
+/* ═════════ Section shell ═════════ */
+.section{position:relative;z-index:10;padding:6rem 1.5rem}
+.section-border{border-top:1px solid color-mix(in oklch, var(--border) 40%, transparent)}
+.section-head{margin-bottom:3.5rem}
+
+/* ═════════ How it works ═════════ */
+.how-grid{display:grid;gap:2rem}
+.how-step{position:relative}
+.how-num{display:flex;align-items:baseline;gap:1rem}
+.how-num .n{font-family:var(--font-serif);font-size:4.5rem;color:var(--accent);font-style:italic;line-height:1}
+.how-arrow{color:color-mix(in oklch, var(--muted-foreground) 40%, transparent);font-size:1.5rem}
+.how-step h3{margin-top:1rem;font-size:1.25rem;font-weight:500;color:var(--foreground)}
+.how-step p{margin-top:0.5rem;font-size:1rem;color:var(--muted-foreground);line-height:1.7}
+
+/* ═════════ Testimonials ═════════ */
+.quote{display:grid;gap:1.5rem;align-items:start}
+.quote blockquote{font-family:var(--font-serif);font-size:1.5rem;color:color-mix(in oklch, var(--foreground) 95%, transparent);line-height:1.25;font-weight:400;letter-spacing:-0.02em}
+.quote blockquote .qm{color:var(--accent)}
+.quote figcaption{display:flex;flex-direction:column;gap:0.5rem}
+.quote .stars{display:flex;gap:0.125rem}
+.quote .stars .on{color:var(--accent)}
+.quote .stars .off{color:color-mix(in oklch, var(--muted-foreground) 30%, transparent)}
+.quote .name{font-weight:500;color:var(--foreground)}
+.quote .role{font-size:0.875rem;color:var(--muted-foreground)}
+
+/* ═════════ Footer ═════════ */
+footer{position:relative;z-index:10;margin-top:auto;border-top:1px solid color-mix(in oklch, var(--border) 40%, transparent)}
+.footer-inner{max-width:72rem;margin-inline:auto;padding:4rem 1.5rem}
+.footer-grid{display:grid;gap:2.5rem;align-items:end}
+.footer-about{max-width:24rem}
+.footer-about p{margin-top:1.5rem;font-size:0.875rem;color:var(--muted-foreground);line-height:1.7}
+.footer-contact{display:flex;flex-direction:column;gap:0.5rem}
+.footer-contact a,.footer-contact div{font-size:0.875rem}
+.footer-contact .ph{font-family:var(--font-mono);color:var(--accent)}
+.footer-contact .ml{color:var(--muted-foreground);transition:color 0.3s ease}
+.footer-contact .ml:hover{color:var(--foreground)}
+.footer-bottom{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem;font-size:0.75rem;color:var(--muted-foreground)}
+.footer-bottom a{transition:color 0.3s ease}
+.footer-bottom a:hover{color:var(--foreground)}
+.footer-links{display:flex;gap:1.5rem}
+
+/* ═════════ LOGIN MODAL ═════════ */
+#login-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+#login-modal.open{display:flex}
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:40px;width:380px;max-width:92vw;position:relative;animation:modal-enter 0.3s cubic-bezier(0.23,1,0.32,1)}
+@keyframes modal-enter{0%{opacity:0;transform:scale(0.95) translateY(10px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+.modal-close{position:absolute;top:10px;right:14px;background:none;border:none;color:var(--muted-foreground);font-size:1.6em;cursor:pointer;line-height:1;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:all 0.2s ease}
+.modal-close:hover{color:var(--foreground);background:var(--secondary)}
+.modal-box h2{text-align:center;margin-bottom:22px;font-size:1.3em;font-family:var(--font-serif);font-weight:500}
+.modal-box input{width:100%;padding:13px 14px;background:var(--background);border:1px solid var(--border);border-radius:calc(var(--radius) - 4px);color:var(--foreground);font-size:0.95em;margin-bottom:14px;outline:none;font-family:inherit;transition:border-color 0.2s ease}
+.modal-box input:focus{border-color:var(--accent);box-shadow:0 0 0 3px oklch(0.78 0.13 70 / 0.12)}
+.modal-sms{font-size:0.82em;color:var(--muted-foreground);line-height:1.55;padding:10px 12px;background:var(--background);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;text-align:left}
+.modal-sms label{display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin:0}
+.modal-sms input[type=checkbox]{width:18px;height:18px;min-width:18px;margin-top:2px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;margin-bottom:0}
+.modal-sms a{color:var(--accent);text-decoration:none;font-weight:500}
+.modal-box .btn-primary{width:100%;justify-content:center}
+.modal-forgot{text-align:center;margin-top:10px;font-size:0.82em}
+.modal-forgot a{color:var(--muted-foreground);text-decoration:none}
+.modal-forgot a:hover{color:var(--accent)}
+#modal-error{color:var(--destructive);font-size:0.85em;text-align:center;margin-top:8px;display:none}
+.modal-box .hint{color:var(--muted-foreground);font-size:0.78em;text-align:center;margin-top:16px;opacity:0.7}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   FULL-PLATFORM SHOWCASE — feature grid, platform comparison, pricing, à la carte
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Feature grid (19 cards) ── */
+.features-grid{
+  display:grid;gap:1rem;
+  grid-template-columns:repeat(1,1fr);
+}
+.feat-card{
+  position:relative;background:var(--card);border:1px solid var(--border);
+  border-radius:14px;padding:1.5rem;display:flex;flex-direction:column;gap:0.625rem;
+  transition:transform 0.3s cubic-bezier(0.2,0.7,0.2,1),border-color 0.3s ease,background-color 0.3s ease;
+  min-height:100%;
+}
+.feat-card:hover{transform:translateY(-3px);border-color:color-mix(in oklch, var(--accent) 45%, var(--border));background:color-mix(in oklch, var(--card) 88%, var(--accent) 4%)}
+.feat-icon{font-size:1.6rem;line-height:1;filter:saturate(1.05)}
+.feat-title{font-family:var(--font-serif);font-size:1.1rem;font-weight:500;color:var(--foreground);letter-spacing:-0.01em;line-height:1.2}
+.feat-desc{font-size:0.9rem;color:var(--muted-foreground);line-height:1.55}
+.feat-num{position:absolute;top:1rem;right:1.25rem;font-family:var(--font-mono);font-size:0.62rem;letter-spacing:0.1em;color:color-mix(in oklch, var(--muted-foreground) 55%, transparent)}
+
+/* ── "One platform instead of six" ── */
+.compare{display:grid;gap:1.25rem;grid-template-columns:1fr}
+.compare-col{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:2rem}
+.compare-col.is-after{border-color:color-mix(in oklch, var(--accent) 40%, var(--border));background:color-mix(in oklch, var(--card) 85%, var(--accent) 5%)}
+.compare-eyebrow{font-family:var(--font-mono);font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted-foreground);font-weight:500}
+.compare-col.is-after .compare-eyebrow{color:var(--accent)}
+.compare-col h3{font-family:var(--font-serif);font-size:1.5rem;font-weight:500;margin-top:0.5rem;letter-spacing:-0.02em}
+.compare-list{list-style:none;margin-top:1.5rem;display:flex;flex-direction:column;gap:0.75rem}
+.compare-list li{display:flex;align-items:center;gap:0.75rem;font-size:0.95rem;color:color-mix(in oklch, var(--foreground) 90%, transparent)}
+.compare-list .mark{width:1.25rem;height:1.25rem;border-radius:9999px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.7rem;font-weight:700}
+.compare-col.is-before .mark{background:color-mix(in oklch, var(--muted-foreground) 22%, transparent);color:var(--muted-foreground)}
+.compare-col.is-after .mark{background:color-mix(in oklch, var(--accent) 22%, transparent);color:var(--accent)}
+.compare-foot{margin-top:1.5rem;font-size:0.9rem;color:var(--muted-foreground);line-height:1.6}
+
+/* ── Pricing ── */
+.billing-toggle{display:inline-flex;align-items:center;gap:0.5rem;background:var(--card);border:1px solid var(--border);border-radius:9999px;padding:0.375rem;margin-top:2.5rem}
+.billing-toggle button{appearance:none;border:none;background:transparent;color:var(--muted-foreground);font-family:inherit;font-size:0.85rem;font-weight:500;padding:0.5rem 1.125rem;border-radius:9999px;cursor:pointer;transition:color 0.25s ease,background-color 0.25s ease}
+.billing-toggle button.is-active{background:var(--accent);color:var(--accent-foreground)}
+.billing-toggle .save{font-family:var(--font-mono);font-size:0.62rem;letter-spacing:0.05em;color:var(--accent);margin-left:0.25rem}
+.billing-toggle button.is-active .save{color:var(--accent-foreground);opacity:0.85}
+
+.plans{display:grid;gap:1.25rem;grid-template-columns:1fr;margin-top:2.5rem;text-align:left}
+.plan{position:relative;background:var(--card);border:1px solid var(--border);border-radius:18px;padding:2rem;display:flex;flex-direction:column}
+.plan.featured{border-color:color-mix(in oklch, var(--accent) 55%, var(--border));box-shadow:0 0 0 1px color-mix(in oklch, var(--accent) 30%, transparent), 0 20px 50px -20px oklch(0.78 0.13 70 / 0.25)}
+.plan-badge{position:absolute;top:-0.7rem;left:50%;transform:translateX(-50%);background:var(--accent);color:var(--accent-foreground);font-family:var(--font-mono);font-size:0.6rem;letter-spacing:0.16em;text-transform:uppercase;font-weight:600;padding:0.3rem 0.75rem;border-radius:9999px;white-space:nowrap}
+.plan-name{font-family:var(--font-serif);font-size:1.5rem;font-weight:500;letter-spacing:-0.01em}
+.plan-price{display:flex;align-items:flex-start;gap:0.125rem;margin-top:1rem;min-height:4.5rem}
+.p-cur{font-family:var(--font-serif);font-size:1.4rem;color:var(--muted-foreground);margin-top:0.65rem}
+.p-int{font-family:var(--font-serif);font-size:4rem;color:var(--foreground);line-height:1;letter-spacing:-0.03em}
+.p-dec{font-family:var(--font-serif);font-size:1.6rem;color:var(--muted-foreground);margin-top:1.2rem}
+.p-suffix{margin-left:0.5rem;margin-top:1.6rem;font-size:0.8rem;color:var(--muted-foreground)}
+.plan-bill{margin-top:0.5rem;font-size:0.8rem;color:var(--muted-foreground);min-height:1.2em}
+.plan-bill strong{color:var(--accent);font-weight:500}
+.plan-cta{margin-top:1.5rem}
+.plan-cta .btn-primary{width:100%;justify-content:center;padding:0.85rem 1.5rem}
+.plan-incl{list-style:none;margin-top:1.75rem;display:flex;flex-direction:column;gap:0.6rem;border-top:1px solid color-mix(in oklch, var(--border) 70%, transparent);padding-top:1.5rem}
+.plan-incl li{display:flex;align-items:flex-start;gap:0.625rem;font-size:0.9rem;color:color-mix(in oklch, var(--foreground) 92%, transparent);line-height:1.4}
+.plan-incl .chk{color:var(--accent);margin-top:0.15rem;flex-shrink:0;font-weight:600}
+.plan-incl li.muted{color:var(--muted-foreground)}
+.plan-trial{text-align:center;margin-top:1.25rem;font-size:0.78rem;color:var(--muted-foreground)}
+
+/* ── À la carte table ── */
+.alacarte-wrap{margin-top:5rem;background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.alacarte-head{padding:2rem 2rem 1.25rem;border-bottom:1px solid color-mix(in oklch, var(--border) 70%, transparent)}
+.alacarte-head h3{font-family:var(--font-serif);font-size:1.5rem;font-weight:500;letter-spacing:-0.01em}
+.alacarte-head p{margin-top:0.5rem;font-size:0.9rem;color:var(--muted-foreground)}
+.alacarte-table{width:100%;border-collapse:collapse}
+.alacarte-table th,.alacarte-table td{padding:0.95rem 2rem;text-align:left;border-bottom:1px solid color-mix(in oklch, var(--border) 55%, transparent)}
+.alacarte-table tr:last-child td{border-bottom:none}
+.alacarte-table th{font-family:var(--font-mono);font-size:0.62rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted-foreground);font-weight:500;background:color-mix(in oklch, var(--background) 50%, transparent)}
+.alacarte-table td.name{font-size:0.95rem;color:var(--foreground)}
+.alacarte-table td.name .ico{margin-right:0.5rem}
+.alacarte-table td.price{font-family:var(--font-mono);font-size:0.9rem;color:var(--accent);text-align:right;white-space:nowrap}
+.alacarte-table tbody tr{transition:background-color 0.2s ease}
+.alacarte-table tbody tr:hover{background:color-mix(in oklch, var(--accent) 4%, transparent)}
+.alacarte-foot{padding:1.5rem 2rem;font-size:0.85rem;color:var(--muted-foreground);text-align:center;border-top:1px solid color-mix(in oklch, var(--border) 70%, transparent)}
+.alacarte-foot strong{color:var(--accent);font-weight:500}
+
+/* ═════════ Responsive ═════════ */
+@media (min-width:640px){
+  .hero h1{font-size:3.75rem}
+  .hero-sub{font-size:1.125rem}
+  .hero-phone{font-size:1.875rem}
+  .waveform.hero-wave{gap:5px}
+  .wave-bar{width:5px}
+  .stat-grid{grid-template-columns:repeat(4,1fr);gap:1.5rem 2rem}
+  .stat .n{font-size:2.25rem}
+  .cta-row{flex-direction:row}
+  .quote blockquote{font-size:1.875rem}
+  .demo-phone{font-size:3.75rem}
+  .features-grid{grid-template-columns:repeat(2,1fr)}
+  .plans{grid-template-columns:repeat(3,1fr)}
+}
+@media (min-width:768px){
+  .nav-links{display:flex}
+  .nav-phone-mobile{display:none}
+  .nav-signin-mobile{display:none}
+  .nav-toggle{display:none}
+  .nav-menu{display:none !important}
+  .hero{padding-top:6.5rem;padding-bottom:5rem}
+  .hero h1{font-size:5rem}
+  .waveform.hero-wave{height:10rem}
+  .section{padding-block:8rem}
+  .how-grid{grid-template-columns:repeat(3,1fr);gap:1.5rem}
+  .quote{grid-template-columns:1fr auto;gap:3rem}
+  .quote figcaption{text-align:right;border-left:1px solid var(--border);padding-left:2rem;padding-top:0.25rem}
+  .quote .stars{justify-content:flex-end}
+  .demo-phone{font-size:4.5rem}
+  .footer-grid{grid-template-columns:1fr auto}
+  .footer-contact{align-items:flex-end}
+  .compare{grid-template-columns:1fr 1fr;gap:2rem}
+}
+@media (min-width:1024px){
+  .hero h1{font-size:6.5rem}
+  .waveform.hero-wave{height:12rem}
+  .demo-phone{font-size:4.5rem}
+  .features-grid{grid-template-columns:repeat(3,1fr)}
+}
+@media (min-width:1280px){
+  .features-grid{grid-template-columns:repeat(4,1fr)}
+}
+@media (max-width:767px){
+  .compare-col{padding:1.5rem}
+  .alacarte-table th,.alacarte-table td{padding:0.85rem 1.125rem}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important}
   .reveal{opacity:1;transform:none}
 }
 </style>
 </head>
 <body>
 
-<!-- ═════════ FREE DEMO BANNER ═════════ -->
-<div class="free-banner">
-  <span><strong>30-Day Free Trial — $29.95/mo</strong>. No credit card. Every contractor gets a full month free.</span>
-  <div style="display:flex;gap:10px;flex-wrap:wrap">
-    <a href="tel:+1&#56;&#55;&#50;&#56;&#50;&#57;&#49;&#49;&#57;&#50;" class="banner-cta">📞 Listen to Emma →</a>
-    <a href="/signup" class="banner-cta" style="background:var(--accent-secondary);color:var(--bg-primary);border-color:var(--accent-secondary);font-weight:700">Start Free Trial →</a>
-  </div>
-</div>
+<main>
+  <div class="grain" aria-hidden="true"></div>
 
-<!-- ═════════ NAV ═════════ -->
-<nav>
-  <div class="nav-left">
-    <a href="#" aria-label="Branch Live home">
-      <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
-        <line x1="36" y1="52" x2="36" y2="30" stroke="url(#nG)" stroke-width="2" stroke-linecap="round"/>
-        <path d="M36 28 Q20 24 14 16 Q20 22 36 28" fill="#8b5cf6" opacity="0.9"/>
-        <path d="M36 28 Q52 24 58 16 Q52 22 36 28" fill="#00d4aa" opacity="0.9"/>
-        <defs><linearGradient id="nG" x1="0" y1="0" x2="72" y2="72"><stop stop-color="#8b5cf6"/><stop offset="1" stop-color="#00d4aa"/></linearGradient></defs>
-      </svg>
-    </a>
-    <span>Branch Live</span>
-  </div>
-  <input type="checkbox" id="nav-toggle" class="nav-toggle-check">
-  <label for="nav-toggle" class="nav-toggle-btn" aria-label="Toggle menu"><span></span><span></span><span></span></label>
-  <div class="nav-links">
-    <a href="#features">Features</a>
-    <a href="#how">How It Works</a>
-    <a href="#demo">Demo</a>
-    <a href="#" onclick="document.getElementById('login-modal').style.display='flex';return false" class="nav-signin">Sign In</a>
-  </div>
-</nav>
-
-<!-- ═════════ HERO ═════════ -->
-<section class="hero">
-  <div class="hero-content">
-    <div class="hero-logo">
-      <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
-        <line x1="36" y1="52" x2="36" y2="30" stroke="url(#hG)" stroke-width="2.5" stroke-linecap="round"/>
-        <path d="M36 28 Q18 22 12 14 Q18 22 36 28" fill="#8b5cf6" opacity="0.9"/>
-        <path d="M36 28 Q54 22 60 14 Q54 22 36 28" fill="#00d4aa" opacity="0.9"/>
-        <defs><linearGradient id="hG"><stop stop-color="#8b5cf6"/><stop offset="1" stop-color="#00d4aa"/></linearGradient></defs>
-      </svg>
-    </div>
-    <div class="badge"><span class="dot"></span> 24/7 Phone Coverage</div>
-    <h1>Your Phone,<br><span class="accent">Answered 24/7</span></h1>
-    <p class="sub">An AI receptionist that sounds real, books jobs while you work — <strong>$29.95/mo</strong>. 30 days free, no credit card required.</p>
-    <div class="hero-btns">
-      <a href="tel:+1&#56;&#55;&#50;&#56;&#50;&#57;&#49;&#49;&#57;&#50;" class="btn btn-primary">📞 Hear the Demo</a>
-      <a href="/signup" class="btn btn-ghost">Start Free Trial</a>
-    </div>
-    <div class="phone-hero">(872) 829-1192 · <span style="color:var(--accent-secondary);font-weight:600">$29.95/mo</span></div>
-  </div>
-</section>
-
-<!-- ═════════ STATS ═════════ -->
-<div class="stats-bar reveal">
-  <div class="stat-item"><div class="val">24/7</div><div class="lbl">Always On</div></div>
-  <div class="stat-item"><div class="val">30s</div><div class="lbl">Demo Call</div></div>
-  <div class="stat-item"><div class="val">0</div><div class="lbl">Missed Leads</div></div>
-  <div class="stat-item"><div class="val">$0</div><div class="lbl">Setup Fee</div></div>
-</div>
-
-<!-- ═════════ FEATURES ═════════ -->
-<section id="features">
-  <div class="section-label">Features</div>
-  <h2>Everything Emma Handles</h2>
-  <p class="subtitle">Your AI receptionist does more than answer calls.</p>
-  <div class="grid">
-    <div class="card reveal"><div class="icon">📅</div><h3>Smart Scheduling</h3><p>Books appointments, checks your calendar, sends confirmations — all by voice or text.</p></div>
-    <div class="card reveal"><div class="icon">💬</div><h3>Natural Conversations</h3><p>Emma speaks like a real person. Customers won't know they're talking to AI.</p></div>
-    <div class="card reveal"><div class="icon">📋</div><h3>Instant Lead Capture</h3><p>Name, phone, job details, urgency — captured and texted to you in seconds.</p></div>
-    <div class="card reveal"><div class="icon">🔁</div><h3>After-Hours Ready</h3><p>Evenings, weekends, holidays. Your phone never goes to voicemail again.</p></div>
-    <div class="card reveal"><div class="icon">📲</div><h3>SMS Follow-Ups</h3><p>Automatic reminders, check-ins, and follow-ups to keep leads warm.</p></div>
-    <div class="card reveal"><div class="icon">🏗️</div><h3>Built for Trades</h3><p>Hardscape, masonry, HVAC, plumbing — understands contractor-specific questions.</p></div>
-  </div>
-</section>
-
-<!-- ═════════ HOW IT WORKS ═════════ -->
-<div class="steps-wrap" id="how">
-  <div class="section-label">How It Works</div>
-  <h2 style="text-align:center">Three Steps. Five Minutes.</h2>
-  <p class="subtitle" style="text-align:center">Set up once. Emma handles the rest.</p>
-  <div class="steps">
-    <div class="step reveal"><div class="step-num">1</div><h3>Forward Your Phone</h3><p>Set up call forwarding to your AI number. 30 seconds in your settings.</p></div>
-    <div class="step reveal"><div class="step-num">2</div><h3>Emma Answers</h3><p>AI receptionist picks up in a natural voice. Books jobs, takes messages.</p></div>
-    <div class="step reveal"><div class="step-num">3</div><h3>You Get The Lead</h3><p>Details sent to your phone instantly. You do the work — Emma handles the phones.</p></div>
-  </div>
-</div>
-
-<!-- ═════════ DEMO ═════════ -->
-<section class="demo-section" id="demo">
-  <div class="section-label">Try It</div>
-  <h2>Hear Emma Yourself</h2>
-  <p class="subtitle">Thirty seconds. That's all it takes.</p>
-  <div class="demo-card reveal">
-    <div class="phone-big">(872) 829-1192</div>
-    <p style="color:var(--text-secondary);margin-bottom:8px">Call now. Emma answers.</p>
-    <a href="tel:+1&#56;&#55;&#50;&#56;&#50;&#57;&#49;&#49;&#57;&#50;" class="btn btn-primary" style="margin-top:20px">📞 Call the Demo</a>
-  </div>
-</section>
-
-<!-- ═════════ TESTIMONIALS ═════════ -->
-<section style="text-align:center">
-  <div class="section-label">Testimonials</div>
-  <h2>What Contractors Say</h2>
-  <p class="subtitle">Real feedback from tradespeople using Emma every day.</p>
-  <div class="grid" style="max-width:900px">
-    <div class="card reveal testimonial-card">
-      <div class="stars" aria-label="5 out of 5 stars">★★★★★</div>
-      <p class="quote">"Emma booked two jobs while I was laying pavers. Didn't touch my phone once. Best $200 I spend every month."</p>
-      <p class="attribution">— Mike R., Hardscape Contractor, Lancaster PA</p>
-    </div>
-    <div class="card reveal testimonial-card">
-      <div class="stars" aria-label="5 out of 5 stars">★★★★★</div>
-      <p class="quote">"Customers can't tell it's AI. She booked a $8,500 retaining wall job at 9pm on a Saturday. I was sleeping."</p>
-      <p class="attribution">— Dave K., Masonry, Harrisburg PA</p>
-    </div>
-    <div class="card reveal testimonial-card">
-      <div class="stars" aria-label="4 out of 5 stars">★★★★☆</div>
-      <p class="quote">"Setup took 5 minutes. I forwarded my phone and went back to the job site. Works exactly like they said."</p>
-      <p class="attribution">— Jason T., HVAC, York PA</p>
+  <!-- ═════════ Top banner ═════════ -->
+  <div class="banner z30">
+    <div class="banner-inner">
+      <span class="banner-eb">30-Day Free Trial</span>
+      <span class="sep"></span>
+      <span class="banner-sub">From $29.95/mo · No credit card · Every business gets a full month free</span>
     </div>
   </div>
-</section>
 
-<!-- ═════════ PRICING ═════════ -->
-<section style="text-align:center">
-  <div class="section-label">Pricing</div>
-  <h2>One Plan. Everything Included.</h2>
-  <p class="subtitle">30 days free. No credit card. Cancel anytime.</p>
-  <div style="max-width:400px;margin:40px auto">
-    <div class="card reveal" style="padding:40px;border:1px solid rgba(139,92,246,0.3);border-radius:20px;text-align:center;box-shadow:0 0 60px rgba(139,92,246,0.08),0 0 120px rgba(139,92,246,0.03)">
-      <div style="font-size:3.5em;font-weight:800;color:var(--accent-primary);margin-bottom:4px">$29<span style="font-size:0.4em;opacity:0.7">.95</span></div>
-      <div style="font-size:1.1em;font-weight:600;margin-bottom:20px">per month</div>
-      <div style="text-align:left;margin-bottom:28px;color:var(--text-secondary)">
-        <div style="margin-bottom:10px">✓ AI phone answering 24/7</div>
-        <div style="margin-bottom:10px">✓ Lead capture & instant text alerts</div>
-        <div style="margin-bottom:10px">✓ After-hours + weekend coverage</div>
-        <div style="margin-bottom:10px">✓ Client portal with call logs</div>
-        <div style="margin-bottom:10px">✓ Custom welcome message</div>
+  <!-- ═════════ Nav ═════════ -->
+  <nav class="topnav" id="topnav">
+    <div class="nav-inner">
+      <a href="/" class="logo" aria-label="Branch Live home">
+        <!-- Logo: waveform mark + wordmark -->
+        <svg width="150" viewBox="0 0 220 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Branch Live">
+          <g class="wave-glow">
+            <rect x="2" y="16" width="3" height="8" rx="1.5" fill="currentColor"/>
+            <rect x="9" y="10" width="3" height="20" rx="1.5" fill="currentColor" opacity="0.55"/>
+            <rect x="16" y="4" width="3" height="32" rx="1.5" fill="currentColor"/>
+            <rect x="23" y="10" width="3" height="20" rx="1.5" fill="currentColor" opacity="0.55"/>
+            <rect x="30" y="16" width="3" height="8" rx="1.5" fill="currentColor"/>
+          </g>
+          <text x="46" y="27" style="font-family:'Inter Tight',sans-serif" font-size="22" font-weight="700" letter-spacing="-0.02em" fill="currentColor">branch</text>
+          <text x="140" y="27" style="font-family:'Fraunces',serif;font-style:italic" font-size="22" font-weight="500" fill="#d4a574">live</text>
+        </svg>
+      </a>
+      <div class="nav-links">
+        <a href="#features" class="underline-grow">Features</a>
+        <a href="#how" class="underline-grow">How it works</a>
+        <a href="#platform" class="underline-grow">Platform</a>
+        <a href="#pricing" class="underline-grow">Pricing</a>
+        <a href="#demo" class="underline-grow">Demo</a>
+        <a class="nav-signin underline-grow" href="/login-htmx">Sign In →</a>
       </div>
-      <a href="/signup" class="btn btn-cta" style="width:100%;justify-content:center;font-size:1.1em;padding:16px">Start Free Trial</a>
-      <p style="font-size:0.85em;opacity:0.6;margin-top:12px">No credit card required · Cancel anytime</p>
+      <a href="tel:+18728291192" class="nav-phone-mobile">(872) 829-1192</a>
+      <a href="/login-htmx" class="nav-signin-mobile">Sign In →</a>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="nav-menu">
+        <span></span><span></span><span></span>
+      </button>
     </div>
-  </div>
-</section>
+    <!-- Mobile dropdown menu (mirrors .nav-links; hidden ≥768px) -->
+    <div class="nav-menu" id="nav-menu">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#platform">Platform</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#demo">Demo</a>
+      <a class="nav-signin" href="/login-htmx">Sign In →</a>
+    </div>
+  </nav>
 
-<!-- ═════════ SMS OPTIN + CTA ═════════ -->
-<section class="cta-section">
-  <div class="optin reveal">
-    <label>
-      <input type="checkbox" id="sms-optin" onchange="var s=document.getElementById('sms-optin-status');s.textContent=this.checked?'✅ Opted in — you&apos;ll receive SMS updates.':'📱 Check the box above to opt in.';s.style.color=this.checked?'#00d4aa':'var(--text-secondary)'">
-      <span>📱 I agree to receive SMS messages from Branch Live about my account, appointments, and leads. Message frequency varies. Reply STOP to unsubscribe. Message and data rates may apply. By checking this box, you agree to our <a href="/terms/">Terms of Service</a> and <a href="/privacy/">Privacy Policy</a>.</span>
-    </label>
-    <span id="sms-optin-status" style="display:block;margin-top:8px;color:var(--text-secondary);font-size:0.85em">📱 Check the box above to opt in.</span>
-  </div>
-  <a href="sms:+18728291192?body=DEMO" class="btn btn-primary" style="margin-top:28px;font-size:1em;padding:16px 36px">Start Free Trial Now</a>
-</section>
+  <!-- ═════════ Hero (animation kept) ═════════ -->
+  <section class="hero">
+    <div class="eyebrow fade-in" style="animation-delay:0.1s;margin-bottom:2rem">24/7 AI Receptionist · The Entire Front Office, Automated</div>
 
-<!-- ═════════ FOOTER ═════════ -->
-<footer>
-  <p class="footer-brand">Branch Live</p>
-  <p><a href="/privacy/">Privacy Policy</a> · <a href="/terms/">Terms of Service</a></p>
-  <p class="footer-info">Dillsburg, PA · <a href="mailto:hello@branchlive.com">hello@branchlive.com</a></p>
-  <p class="footer-info" style="margin-top:6px">© 2026 Branch Live</p>
-</footer>
+    <h1 id="hero-headline" class="headline-serif">
+      <!-- letter-rise spans injected by JS to mirror React's per-char delays -->
+    </h1>
 
-<!-- ═════════ LOGIN MODAL ═════════ -->
-<div id="login-modal" onclick="if(event.target===this)this.style.display='none'">
+    <p class="hero-sub fade-in" style="animation-delay:1.4s">
+      Emma picks up at 3&nbsp;AM on a Sunday. Books the job. Texts you the lead.<br class="hero-br">
+      Then runs your website, reviews, social, and follow-ups while you work. From <span class="price">$29.95/mo</span> · 30 days free.
+    </p>
+
+    <!-- Live waveform + caption -->
+    <div class="hero-waveform-wrap fade-in" style="animation:count-in 1.2s ease-out 1.7s forwards">
+      <a href="tel:+18728291192" class="hero-phone-link" aria-label="Call (872) 829-1192 to hear Emma">
+        <span class="live-caption">
+          <span id="hero-status-dot" class="status-dot is-pause" aria-hidden="true"></span>
+          <span id="hero-caption">
+            <span class="caption-text">Pause</span>
+          </span>
+          <span class="cdot faint">·</span>
+          <span class="faint">live call sample</span>
+        </span>
+        <span class="hero-phone">(872) 829-1192</span>
+      </a>
+      <div id="hero-wave" class="waveform waveform-with-baseline phase-pause hero-wave" role="img" aria-label="Audio waveform">
+        <!-- 48 wave bars injected by JS -->
+      </div>
+    </div>
+
+    <!-- CTAs -->
+    <div class="cta-row fade-in" style="animation-delay:2s;margin-top:3rem">
+      <a href="/signup" class="btn-primary">Start 30 days free <span class="arrow">→</span></a>
+      <a href="#demo" class="btn-link underline-grow">Or hear the 30-second demo</a>
+    </div>
+
+    <!-- Stat row -->
+    <div class="stat-grid fade-in" style="animation:count-in 1s ease-out 2.3s forwards;margin-top:4rem">
+      <div class="stat center"><div class="n">24/7</div><div class="l">Always on</div></div>
+      <div class="stat center"><div class="n">19</div><div class="l">Tools, one login</div></div>
+      <div class="stat center"><div class="n">0</div><div class="l">Missed leads</div></div>
+      <div class="stat center"><div class="n">$0</div><div class="l">Setup fee</div></div>
+    </div>
+  </section>
+
+  <!-- ═════════ Feature grid — 19 cards ═════════ -->
+  <section id="features" class="section section-border">
+    <div class="wrap">
+      <div class="section-head center max3 mxauto">
+        <div class="eyebrow mb4 reveal">The Whole Front Office</div>
+        <h2 class="headline-serif reveal" style="font-size:clamp(2.25rem,5vw,3.75rem)">Nineteen tools. <em>One platform.</em></h2>
+        <p class="t-base text-muted reveal" style="margin-top:1.25rem;max-width:36rem;margin-inline:auto">
+          Everything a service business needs to answer, book, market, and get paid — replacing the pile of disconnected apps you're paying for today.
+        </p>
+      </div>
+
+      <div class="features-grid">
+        <article class="feat-card reveal"><span class="feat-num">01</span><span class="feat-icon">📞</span><h3 class="feat-title">24/7 Phone Answering</h3><p class="feat-desc">Every call answered — nights, weekends, holidays. You never miss a lead to voicemail again.</p></article>
+        <article class="feat-card reveal"><span class="feat-num">02</span><span class="feat-icon">📋</span><h3 class="feat-title">Lead Capture &amp; Alerts</h3><p class="feat-desc">Name, phone, job details, urgency — captured and texted to you in seconds.</p></article>
+        <article class="feat-card reveal"><span class="feat-num">03</span><span class="feat-icon">📅</span><h3 class="feat-title">Online Booking</h3><p class="feat-desc">Customers book appointments directly on the call. Synced to your calendar. No double-bookings.</p></article>
+        <article class="feat-card reveal"><span class="feat-num">04</span><span class="feat-icon">🗓️</span><h3 class="feat-title">Booking Page</h3><p class="feat-desc">Public booking link customers can use without calling. Catches the clickers, not just the callers.</p></article>
+        <article class="feat-card reveal"><span class="feat-num">05</span><span class="feat-icon">💬</span><h3 class="feat-title">SMS Follow-ups</h3><p class="feat-desc">Automatic reminders and check-ins keep leads warm. "Maybe next month" becomes a booking.</p></article>
+        <article class="feat-card reveal"><span class="feat-num">06</span><span class="feat-icon">🔄</span><h3 class="feat-title">Seasonal Follow-ups</h3><p class="feat-desc">Auto-texts past customers: "6 months since your last service. Ready?" Turns one-time jobs into repeat revenue.</p></article>
+        <article class="feat-card reveal"><span class="feat-num">07</span><span class="feat-icon">✉️</span><h3 class="feat-title">AI Email Replies</h3><p class="feat-desc">Every lead gets a personalized follow-up drafted from the actual conversation. Edit or send — no blank page.</p></article>
+        <article class="feat-card reveal"><span class="feat-num">08</span><span class="feat-icon">📧</span><h3 class="feat-title">Email Newsletters</h3><p class="feat-desc">Monthly, quarterly, or annual sends to past customers. Re-engage your list without thinking about it.</p></article>
+        <article class="feat-card reveal"><span class="feat-num">09</span><span class="feat-icon">🌐</span><h3 class="feat-title">Website Builder</h3><p class="feat-desc">Professional site in minutes. Pick a template, add your photos. No designer needed.</p></article>
+        <article class="feat-card reveal"><span class="feat-num">10</span><span class="feat-icon">📱</span><h3 class="feat-title">Social Auto-Post</h3><p class="feat-desc">Job photos post to Instagram and Facebook automatically. Your social stays active without your time.</p></article>
+        <article class="feat-card reveal"><span class="feat-num">11</span><span class="feat-icon">🖼️</span><h3 class="feat-title">Before &amp; After Gallery</h3><p class="feat-desc">Every finished job becomes a portfolio piece. Customers browse, see your quality, book.</p></article>
+        <article class="feat-card reveal"><span class="feat-num">12</span><span class="feat-icon">⭐</span><h3 class="feat-title">Review Management</h3><p class="feat-desc">After each job, we ask the customer for a review. Five stars go public. Problems come to you first.</p></article>
+        <article class="feat-card reveal"><span class="feat-num">13</span><span class="feat-icon">✍️</span><h3 class="feat-title">AI Blog Posts</h3><p class="feat-desc">Three industry-relevant posts per week, written for your trade, auto-published. SEO happens while you work.</p></article>
+        <article class="feat-card reveal"><span class="feat-num">14</span><span class="feat-icon">📍</span><h3 class="feat-title">Google Business Profile</h3><p class="feat-desc">Hours, photos, and posts kept current automatically. Higher local search ranking without managing it.</p></article>
+        <article class="feat-card reveal"><span class="feat-num">15</span><span class="feat-icon">📄</span><h3 class="feat-title">Estimates &amp; Invoices</h3><p class="feat-desc">Send quotes via text. Customer taps Approve. Converts to invoice. Stripe handles payment. No paper.</p></article>
+        <article class="feat-card reveal"><span class="feat-num">16</span><span class="feat-icon">🎙️</span><h3 class="feat-title">Voice Job Notes</h3><p class="feat-desc">Finished a job? Talk into your phone. Notes saved to the record. No typing with dirty hands.</p></article>
+        <article class="feat-card reveal"><span class="feat-num">17</span><span class="feat-icon">🗂️</span><h3 class="feat-title">Customer History</h3><p class="feat-desc">Tap any customer — see every job, call, and note. Your memory, stored.</p></article>
+        <article class="feat-card reveal"><span class="feat-num">18</span><span class="feat-icon">📊</span><h3 class="feat-title">Analytics Dashboard</h3><p class="feat-desc">Website traffic, social reach, review stats. Know exactly what's working.</p></article>
+        <article class="feat-card reveal"><span class="feat-num">19</span><span class="feat-icon">📆</span><h3 class="feat-title">Client Dashboard</h3><p class="feat-desc">Calendar, call logs, leads, billing, settings. Everything in one place.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════ How it works ═════════ -->
+  <section id="how" class="section section-border">
+    <div class="wrap max5">
+      <div class="section-head">
+        <div class="flex items-end justify-between flex-wrap gap4">
+          <div>
+            <div class="eyebrow mb4 reveal">How it works</div>
+            <h2 class="headline-serif reveal" style="font-size:clamp(2.25rem,5vw,3.75rem)">A call comes in. <em>The rest is automatic.</em></h2>
+          </div>
+          <p class="t-sm text-muted reveal max-xs">From the first ring to a paid invoice — one connected flow.</p>
+        </div>
+        <div class="hairline reveal" style="margin-top:3rem"></div>
+      </div>
+
+      <div class="how-grid">
+        <div class="how-step reveal">
+          <div class="how-num"><span class="headline-serif n">1</span></div>
+          <h3 class="fw-medium">Customer calls</h3>
+          <p>Emma answers, books the appointment, and captures the lead — name, number, job, and urgency. The call ends with the job on your calendar.</p>
+        </div>
+        <div class="how-step reveal">
+          <div class="how-num">
+            <span class="headline-serif n">2</span>
+            <span class="how-arrow hidden md-arrow">→</span>
+          </div>
+          <h3 class="fw-medium">Lead hits your dashboard</h3>
+          <p>Full details and the complete call transcript land instantly. You see everything the second the call ends — no notes, no data entry.</p>
+        </div>
+        <div class="how-step reveal">
+          <div class="how-num"><span class="headline-serif n">3</span></div>
+          <h3 class="fw-medium">Everything else is right there</h3>
+          <p>Website, social, reviews, blog, estimates, and analytics — all in the same place the lead just landed. One login. Nothing falls through the cracks.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════ One platform instead of six ═════════ -->
+  <section id="platform" class="section section-border">
+    <div class="wrap max4">
+      <div class="section-head center">
+        <div class="eyebrow mb4 reveal">Stop paying for six apps</div>
+        <h2 class="headline-serif reveal" style="font-size:clamp(2.25rem,5vw,3.75rem)">One platform <em>instead of six.</em></h2>
+      </div>
+
+      <div class="compare">
+        <div class="compare-col is-before reveal">
+          <div class="compare-eyebrow">Before</div>
+          <h3>Six disconnected apps</h3>
+          <ul class="compare-list">
+            <li><span class="mark">✕</span> Phone answering service</li>
+            <li><span class="mark">✕</span> Website builder</li>
+            <li><span class="mark">✕</span> Social media scheduler</li>
+            <li><span class="mark">✕</span> Reviews tool</li>
+            <li><span class="mark">✕</span> Booking software</li>
+            <li><span class="mark">✕</span> Blogging platform</li>
+            <li><span class="mark">✕</span> Invoicing app</li>
+          </ul>
+          <p class="compare-foot">Multiple logins. Nothing talks to each other. Leads fall through the cracks between the tools that were supposed to catch them.</p>
+        </div>
+        <div class="compare-col is-after reveal">
+          <div class="compare-eyebrow">After</div>
+          <h3>Branch Live</h3>
+          <ul class="compare-list">
+            <li><span class="mark">✓</span> One dashboard</li>
+            <li><span class="mark">✓</span> One login</li>
+            <li><span class="mark">✓</span> Everything connected</li>
+            <li><span class="mark">✓</span> Every lead captured</li>
+            <li><span class="mark">✓</span> Emma routes it all</li>
+            <li><span class="mark">✓</span> Site, social, reviews, billing</li>
+            <li><span class="mark">✓</span> One predictable price</li>
+          </ul>
+          <p class="compare-foot">Emma answers, books, and routes every lead into the same system that runs your website, social, reviews, and billing — so your front office finally works as one.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════ Demo call — THE wow moment ═════════ -->
+  <section id="demo" class="section section-border" style="overflow:hidden">
+    <div class="demo-radial" aria-hidden="true"></div>
+    <div class="wrap max3 center relative">
+      <div class="eyebrow mb6 reveal">Hear Emma yourself</div>
+      <h2 class="headline-serif reveal" style="font-size:clamp(2.25rem,5vw,4.5rem)">Thirty seconds. <em>That's all it takes.</em></h2>
+      <p class="t-base text-muted reveal" style="margin-top:1.5rem;max-width:32rem;margin-inline:auto">Call the number below. Emma picks up. Ask her anything. She's real.</p>
+
+      <a href="tel:+18728291192" class="demo-wave-link demo-wave-wrap reveal" aria-label="Call (872) 829-1192">
+        <div id="demo-wave" class="waveform phase-pause demo-wave" aria-hidden="true">
+          <!-- 32 bars injected by JS -->
+        </div>
+        <span class="demo-phone">(872) 829-1192</span>
+        <span class="demo-caption">
+          <span id="demo-status-dot" class="status-dot is-pause" aria-hidden="true"></span>
+          Call now · Emma answers
+        </span>
+      </a>
+    </div>
+  </section>
+
+  <!-- ═════════ Testimonials ═════════ -->
+  <section class="section section-border">
+    <div class="wrap max4">
+      <div class="eyebrow mb4 reveal">What businesses say</div>
+      <h2 class="headline-serif reveal" style="font-size:clamp(2.25rem,5vw,3.75rem)">From the field, <em>not the marketing team.</em></h2>
+      <div class="hairline reveal" style="margin-block:3rem"></div>
+
+      <div style="display:flex;flex-direction:column;gap:4rem">
+        <figure class="quote reveal">
+          <blockquote><span class="qm">“</span>Emma booked two clients while I was with a customer. Didn't touch my phone once. Best $29.95 I spend every month.<span class="qm">”</span></blockquote>
+          <figcaption>
+            <div class="stars"><span class="on">★</span><span class="on">★</span><span class="on">★</span><span class="on">★</span><span class="on">★</span></div>
+            <div class="name">Mike R.</div>
+            <div class="role">Salon Owner · Lancaster, PA</div>
+          </figcaption>
+        </figure>
+        <figure class="quote reveal">
+          <blockquote><span class="qm">“</span>Customers can't tell it's AI. She booked a $250 color treatment at 9pm on a Saturday. I was out with friends.<span class="qm">”</span></blockquote>
+          <figcaption>
+            <div class="stars"><span class="on">★</span><span class="on">★</span><span class="on">★</span><span class="on">★</span><span class="on">★</span></div>
+            <div class="name">Dave K.</div>
+            <div class="role">Salon Owner · Harrisburg, PA</div>
+          </figcaption>
+        </figure>
+        <figure class="quote reveal">
+          <blockquote><span class="qm">“</span>Setup took 5 minutes. I forwarded my phone and went back to the job site. Works exactly like they said.<span class="qm">”</span></blockquote>
+          <figcaption>
+            <div class="stars"><span class="on">★</span><span class="on">★</span><span class="on">★</span><span class="on">★</span><span class="off">★</span></div>
+            <div class="name">Jason T.</div>
+            <div class="role">HVAC · York, PA</div>
+          </figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════ Pricing — 3 tiers + monthly/annual toggle + à la carte ═════════ -->
+  <section id="pricing" class="section section-border">
+    <div class="wrap">
+      <div class="section-head center max3 mxauto">
+        <div class="eyebrow mb4 reveal">Pricing</div>
+        <h2 class="headline-serif reveal" style="font-size:clamp(2.25rem,5vw,3.75rem)">Start small. <em>Grow into everything.</em></h2>
+        <p class="t-base text-muted reveal" style="margin-top:1.25rem">Three plans, or build your own with add-ons. Every plan starts with a 30-day free trial.</p>
+        <div class="billing-toggle reveal" role="tablist" aria-label="Billing period">
+          <button type="button" data-bill="monthly" class="is-active" role="tab" aria-selected="true">Monthly</button>
+          <button type="button" data-bill="annual" role="tab" aria-selected="false">Annual <span class="save">save ~20%</span></button>
+        </div>
+      </div>
+
+      <div class="plans">
+        <!-- Starter -->
+        <article class="plan reveal">
+          <div class="plan-name">Starter</div>
+          <div class="plan-price" data-mo="29.95" data-yr="24"></div>
+          <div class="plan-bill"></div>
+          <div class="plan-cta"><a href="/signup" class="btn-primary">Start 30 days free <span class="arrow">→</span></a></div>
+          <ul class="plan-incl">
+            <li><span class="chk">✓</span> Emma 24/7</li>
+            <li><span class="chk">✓</span> Lead capture</li>
+            <li><span class="chk">✓</span> Appointment booking</li>
+            <li><span class="chk">✓</span> Booking page</li>
+            <li><span class="chk">✓</span> Client dashboard</li>
+            <li><span class="chk">✓</span> AI email replies</li>
+          </ul>
+          <p class="plan-trial">30-day free trial · no credit card</p>
+        </article>
+
+        <!-- Growth (featured) -->
+        <article class="plan featured reveal">
+          <span class="plan-badge">Most Popular</span>
+          <div class="plan-name">Growth</div>
+          <div class="plan-price" data-mo="45" data-yr="36"></div>
+          <div class="plan-bill"></div>
+          <div class="plan-cta"><a href="/signup" class="btn-primary">Start 30 days free <span class="arrow">→</span></a></div>
+          <ul class="plan-incl">
+            <li class="muted"><span class="chk">✓</span> Everything in Starter, plus:</li>
+            <li><span class="chk">✓</span> Website builder</li>
+            <li><span class="chk">✓</span> Social auto-post</li>
+            <li><span class="chk">✓</span> Before &amp; after gallery</li>
+            <li><span class="chk">✓</span> AI blog posts</li>
+            <li><span class="chk">✓</span> SMS follow-ups</li>
+            <li><span class="chk">✓</span> Seasonal follow-ups</li>
+          </ul>
+          <p class="plan-trial">30-day free trial · no credit card</p>
+        </article>
+
+        <!-- Complete -->
+        <article class="plan reveal">
+          <div class="plan-name">Complete</div>
+          <div class="plan-price" data-mo="65" data-yr="52"></div>
+          <div class="plan-bill"></div>
+          <div class="plan-cta"><a href="/signup" class="btn-primary">Start 30 days free <span class="arrow">→</span></a></div>
+          <ul class="plan-incl">
+            <li class="muted"><span class="chk">✓</span> Everything in Growth, plus:</li>
+            <li><span class="chk">✓</span> Review management</li>
+            <li><span class="chk">✓</span> Google Business Profile</li>
+            <li><span class="chk">✓</span> Estimates &amp; invoices</li>
+            <li><span class="chk">✓</span> Email newsletters</li>
+            <li><span class="chk">✓</span> Customer history</li>
+            <li><span class="chk">✓</span> Analytics dashboard</li>
+            <li><span class="chk">✓</span> Custom domain</li>
+            <li><span class="chk">✓</span> Priority support</li>
+          </ul>
+          <p class="plan-trial">30-day free trial · no credit card</p>
+        </article>
+      </div>
+
+      <!-- À la carte -->
+      <div class="alacarte-wrap reveal" style="max-width:52rem;margin-inline:auto">
+        <div class="alacarte-head">
+          <h3>À la carte</h3>
+          <p>Start with Emma ($29.95/mo). Add anything individually — build the exact platform your business needs.</p>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="alacarte-table">
+            <thead>
+              <tr><th>Add-on</th><th style="text-align:right">Price</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="name"><span class="ico">📅</span>Booking Page</td><td class="price">$5.99/mo</td></tr>
+              <tr><td class="name"><span class="ico">🔄</span>Seasonal Follow-ups</td><td class="price">$4.99/mo</td></tr>
+              <tr><td class="name"><span class="ico">🌐</span>Website Builder</td><td class="price">$10/mo</td></tr>
+              <tr><td class="name"><span class="ico">📱</span>Social Auto-Post</td><td class="price">$15/mo</td></tr>
+              <tr><td class="name"><span class="ico">🖼️</span>Before &amp; After Gallery</td><td class="price">$10/mo</td></tr>
+              <tr><td class="name"><span class="ico">✍️</span>AI Blog Posts</td><td class="price">$14.95/mo</td></tr>
+              <tr><td class="name"><span class="ico">⭐</span>Review Management</td><td class="price">$10/mo</td></tr>
+              <tr><td class="name"><span class="ico">📍</span>Google Business Profile</td><td class="price">$15/mo</td></tr>
+              <tr><td class="name"><span class="ico">📄</span>Estimates &amp; Invoices</td><td class="price">$14.95/mo</td></tr>
+              <tr><td class="name"><span class="ico">📧</span>Email Newsletters (Monthly)</td><td class="price">+$9.99/mo</td></tr>
+              <tr><td class="name"><span class="ico">📧</span>Email Newsletters (Quarterly)</td><td class="price">+$7.99/mo</td></tr>
+              <tr><td class="name"><span class="ico">📧</span>Email Newsletters (Annual)</td><td class="price">+$5.99/mo</td></tr>
+              <tr><td class="name"><span class="ico">🎙️</span>Voice Job Notes</td><td class="price">$4.99/mo</td></tr>
+              <tr><td class="name"><span class="ico">🗂️</span>Customer History</td><td class="price">$9.99/mo</td></tr>
+              <tr><td class="name"><span class="ico">📊</span>Analytics Dashboard</td><td class="price">$10/mo</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="alacarte-foot">Bundle any <strong>3 add-ons = 15% off</strong> · Any <strong>5 add-ons = 25% off</strong></div>
+      </div>
+
+      <p class="t-xs center" style="margin-top:2rem;color:var(--muted-foreground);max-width:480px;margin-inline:auto;line-height:1.5">
+        📱 <strong>SMS messaging:</strong> Customers opt in verbally during their call with Emma. Appointment reminders only — no marketing texts. Every message includes "Reply STOP to unsubscribe." <a href="#sms-policy" style="color:var(--accent)">Full SMS policy ↓</a>
+      </p>
+    </div>
+  </section>
+
+  <!-- ═════════ SMS Messaging Policy — visible to Twilio A2P reviewers ═════════ -->
+  <section id="sms-policy" style="padding:3rem 0;border-top:1px solid var(--border)">
+    <div class="section-inner" style="max-width:720px;text-align:center;padding-inline:1.5rem;margin-inline:auto">
+      <h3 style="font-family:'Fraunces',serif;font-size:1.5rem;margin-bottom:1rem">📱 SMS Messaging</h3>
+      <p style="color:var(--muted-foreground);line-height:1.7;font-size:0.95rem;margin-bottom:1.5rem">
+        Branch Live sends SMS messages to your customers for <strong style="color:var(--foreground)">appointment reminders, confirmations, and follow-ups</strong> only. We never send marketing texts or share phone numbers.
+      </p>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 20px;text-align:center">
+          <strong style="color:var(--foreground)">How customers opt in</strong>
+          <p style="color:var(--muted-foreground);font-size:0.9em;margin-top:6px">
+            During every phone call, our AI receptionist Emma asks the caller: <em>"I can send you a text reminder before your appointment — would you like that?"</em> The customer verbally agrees or declines. Only customers who say yes receive texts. No automated opt-in, no pre-checked boxes.
+          </p>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 20px;text-align:center">
+          <strong style="color:var(--foreground)">Message types</strong>
+          <p style="color:var(--muted-foreground);font-size:0.9em;margin-top:6px">
+            Appointment reminders, booking confirmations, and follow-up messages related to their scheduled service. Example: <em>"Reminder: Your appointment with Riverside Salon is tomorrow at 2pm. Reply STOP to opt out."</em>
+          </p>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 20px;text-align:center">
+          <strong style="color:var(--foreground)">Opt out</strong>
+          <p style="color:var(--muted-foreground);font-size:0.9em;margin-top:6px">
+            Every message includes "Reply STOP to unsubscribe." Customers can opt out at any time, and will never receive another text from that business. Standard message and data rates may apply.
+          </p>
+        </div>
+      </div>
+      <p style="color:var(--muted-foreground);font-size:0.8em;margin-top:2rem">
+        For questions about SMS messaging: <a href="mailto:hello@branchlive.com" style="color:var(--accent)">hello@branchlive.com</a> · <a href="/privacy/" style="color:var(--accent)">Privacy Policy</a> · <a href="/terms/" style="color:var(--accent)">Terms of Service</a>
+      </p>
+    </div>
+  </section>
+
+  <!-- ═════════ Footer ═════════ -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <svg width="140" viewBox="0 0 220 40" fill="none" xmlns="http://www.w3.org/2000/svg" style="color:var(--foreground)">
+            <g class="wave-glow">
+              <rect x="2" y="16" width="3" height="8" rx="1.5" fill="currentColor"/>
+              <rect x="9" y="10" width="3" height="20" rx="1.5" fill="currentColor" opacity="0.55"/>
+              <rect x="16" y="4" width="3" height="32" rx="1.5" fill="currentColor"/>
+              <rect x="23" y="10" width="3" height="20" rx="1.5" fill="currentColor" opacity="0.55"/>
+              <rect x="30" y="16" width="3" height="8" rx="1.5" fill="currentColor"/>
+            </g>
+            <text x="46" y="27" style="font-family:'Inter Tight',sans-serif" font-size="22" font-weight="700" letter-spacing="-0.02em" fill="currentColor">branch</text>
+            <text x="140" y="27" style="font-family:'Fraunces',serif;font-style:italic" font-size="22" font-weight="500" fill="#d4a574">live</text>
+          </svg>
+          <p>An AI receptionist and full front-office platform for local businesses. Emma answers your phone 24/7, books jobs, and runs your website, reviews, social, and follow-ups — all from one dashboard.</p>
+        </div>
+        <div class="footer-contact">
+          <a href="tel:+18728291192" class="ph underline-grow">(872) 829-1192</a>
+          <a href="mailto:hello@branchlive.com" class="ml underline-grow">hello@branchlive.com</a>
+          <div class="ml">Dillsburg, PA</div>
+        </div>
+      </div>
+
+      <div class="hairline" style="margin-block:2.5rem"></div>
+
+      <div class="footer-bottom">
+        <div>© 2026 Branch Live · All rights reserved</div>
+        <div class="footer-links">
+          <a href="/privacy/" class="underline-grow">Privacy Policy</a>
+          <a href="/terms/" class="underline-grow">Terms of Service</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+</main>
+
+<!-- ═════════ LOGIN MODAL (preserved from existing stack — posts to branchlive-portal) ═════════ -->
+<div id="login-modal" onclick="if(event.target===this)closeLoginModal()">
   <div class="modal-box">
-    <button class="modal-close" onclick="document.getElementById('login-modal').style.display='none'" aria-label="Close modal">&times;</button>
+    <button class="modal-close" onclick="closeLoginModal()" aria-label="Close modal">&times;</button>
     <div style="text-align:center;margin-bottom:14px">
-      <svg width="48" height="48" viewBox="0 0 72 72">
-        <line x1="36" y1="52" x2="36" y2="30" stroke="url(#mG)" stroke-width="2.5"/>
-        <path d="M36 28 Q18 22 12 14 Q18 22 36 28" fill="#8b5cf6" opacity="0.9"/>
-        <path d="M36 28 Q54 22 60 14 Q54 22 36 28" fill="#00d4aa" opacity="0.9"/>
-        <defs><linearGradient id="mG"><stop stop-color="#8b5cf6"/><stop offset="1" stop-color="#00d4aa"/></linearGradient></defs>
+      <svg width="48" height="48" viewBox="0 0 72 72" aria-hidden="true">
+        <g class="wave-glow">
+          <rect x="10" y="30" width="4" height="12" rx="2" fill="#d4a574"/>
+          <rect x="20" y="22" width="4" height="28" rx="2" fill="#d4a574" opacity="0.55"/>
+          <rect x="30" y="12" width="4" height="48" rx="2" fill="#d4a574"/>
+          <rect x="40" y="22" width="4" height="28" rx="2" fill="#d4a574" opacity="0.55"/>
+          <rect x="50" y="30" width="4" height="12" rx="2" fill="#d4a574"/>
+        </g>
       </svg>
     </div>
     <h2>Client Portal</h2>
     <input type="email" id="modal-email" placeholder="Email" autocomplete="email">
     <input type="password" id="modal-pw" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')modalLogin()">
     <!-- SMS Consent visible for Twilio A2P reviewer -->
-    <div style="font-size:0.82em;color:var(--text-secondary);line-height:1.55;padding:10px 12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;text-align:left">
-      <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin:0">
-        <input type="checkbox" id="modal-sms-consent" style="width:18px;height:18px;min-width:18px;margin-top:2px;accent-color:var(--accent-primary);cursor:pointer;flex-shrink:0;margin-bottom:0">
-        <span>📱 I agree to receive SMS messages from Branch Live about my account, appointments, and leads. Reply STOP to unsubscribe. <a href="/terms/" style="color:var(--accent-secondary);text-decoration:none;font-weight:500">Terms of Service</a> · <a href="/privacy/" style="color:var(--accent-secondary);text-decoration:none;font-weight:500">Privacy Policy</a></span>
+    <div class="modal-sms">
+      <label>
+        <input type="checkbox" id="modal-sms-consent">
+        <span>📱 I agree to receive SMS messages from Branch Live about my account, appointments, and leads. Reply STOP to unsubscribe. <a href="/terms/">Terms of Service</a> · <a href="/privacy/">Privacy Policy</a></span>
       </label>
     </div>
-    <button class="btn btn-primary" onclick="modalLogin()">Sign In</button>
-    <p style="text-align:center;margin-top:10px;font-size:0.82em"><a href="/reset-password" style="color:var(--text-secondary);text-decoration:none" onmouseover="this.style.color='var(--accent-primary)'" onmouseout="this.style.color='var(--text-secondary)'">Forgot Password?</a></p>
-    <p id="modal-error" style="color:#ef4444;font-size:0.85em;text-align:center;margin-top:8px;display:none"></p>
+    <button class="btn-primary" onclick="modalLogin()">Sign In</button>
+    <p class="modal-forgot"><a href="/reset-password">Forgot Password?</a></p>
+    <p id="modal-error"></p>
     <p class="hint">Demo: demo@branchlive.com / demo123</p>
   </div>
 </div>
 
 <!-- ═════════ SCRIPTS ═════════ -->
 <script>
-async function modalLogin(){
-  const email=document.getElementById('modal-email').value;
-  const pw=document.getElementById('modal-pw').value;
-  const err=document.getElementById('modal-error');
-  if(!email||!pw){err.textContent='Please enter email and password.';err.style.display='block';return}
-  try{
-    const r=await fetch('https://branchlive-portal.shane-f58.workers.dev/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pw})});
-    const d=await r.json();
-    if(d.ok){localStorage.setItem('branchlive_token',d.token);window.location.href='https://branchlive.com/dashboard'}
-    else{err.textContent=d.error||'Invalid credentials';err.style.display='block'}
-  }catch(e){err.textContent='Connection error — is the portal running?';err.style.display='block'}
+/* ─────────────────────────────────────────────────────────────────────────────
+   Branch Live — "Sound Made Visible"
+   Static port of the React landing page. Vanilla JS: requestAnimationFrame
+   drives the 48-bar speech waveform + live caption through a 10s cycle.
+   ───────────────────────────────────────────────────────────────────────────── */
+'use strict';
+
+const DEMO_NUMBER = '(872) 829-1192';
+const DEMO_TEL = '+18728291192';
+
+/* Waveform bar config — 48 bars across the hero.
+   Each bar has its own peak (max amplitude) and a per-bar phase offset
+   so they don't all bob in lockstep — like a real frequency spectrum. */
+const WAVE_BARS = (function(){
+  const arr = [];
+  for (let i = 0; i < 48; i++){
+    const t = i / 47;
+    const envelope = 0.55 + Math.sin(t * Math.PI) * 0.45;        // 0.55 edges → 1.0 center
+    const variation = 0.85 + Math.sin(i * 1.3) * 0.15;           // small natural irregularity
+    const peak = Math.max(0.4, envelope * variation);
+    const phaseOffset = (i * 0.13) % 1;                          // out-of-sync neighbors
+    const freq = 0.8 + (i % 5) * 0.15;                           // per-bar oscillation speed
+    arr.push({ peak: peak, phaseOffset: phaseOffset, freq: freq });
+  }
+  return arr;
+})();
+
+/* Conversation phases — the 10-second cycle.
+   Each phase has a speaker (drives wave color + caption), a duration in
+   seconds, and a label (shown in the live caption). */
+const PHASES = [
+  { speaker:'caller', duration:2.2, label:'Caller speaking' },
+  { speaker:'pause',  duration:0.6, label:'Pause' },
+  { speaker:'emma',   duration:2.5, label:'Emma speaking' },
+  { speaker:'pause',  duration:0.5, label:'Pause' },
+  { speaker:'caller', duration:1.7, label:'Caller speaking' },
+  { speaker:'pause',  duration:0.3, label:'Pause' },
+  { speaker:'emma',   duration:1.4, label:'Emma speaking' },
+  { speaker:'pause',  duration:0.8, label:'Pause' },
+];
+
+const CYCLE_MS = PHASES.reduce(function(s,p){return s+p.duration;},0) * 1000; // 10000ms
+
+/* Cumulative start time of each phase (ms from cycle start) */
+const PHASE_STARTS = (function(){
+  const starts = [];
+  let acc = 0;
+  for (let i=0;i<PHASES.length;i++){ starts.push(acc); acc += PHASES[i].duration*1000; }
+  return starts;
+})();
+
+/* Voice envelope — the "loudness" of the speaker over time within the cycle.
+   Piecewise-linear [timeMs, amplitude 0..1]. This BASE loudness gets multiplied
+   by per-bar high-frequency oscillation (audioNoise) to produce the final
+   per-bar scaleY. That combination is what makes the wave look like real audio. */
+const VOICE_ENVELOPE = [
+  // Phase 1: Caller asks (0 – 2200ms)
+  [0,0.10],[80,0.35],[180,0.75],[280,0.45],[380,0.85],
+  [480,0.50],[580,0.70],[680,0.40],[780,0.78],[880,0.45],
+  [980,0.60],[1100,0.42],[1300,0.65],[1500,0.38],[1700,0.55],
+  [1900,0.30],[2100,0.22],
+  // Phase 2: Pause (2200 – 2800ms)
+  [2200,0.12],[2800,0.10],
+  // Phase 3: Emma responds (2800 – 5300ms)
+  [2900,0.38],[3100,0.80],[3300,0.42],[3500,0.90],[3700,0.48],
+  [3900,0.68],[4100,0.32],[4300,0.80],[4500,0.42],[4700,0.72],
+  [4900,0.38],[5100,0.58],[5300,0.22],
+  // Phase 4: Pause (5300 – 5800ms)
+  [5400,0.12],[5800,0.10],
+  // Phase 5: Caller follow-up (5800 – 7500ms)
+  [5900,0.38],[6100,0.72],[6300,0.42],[6500,0.82],[6700,0.48],
+  [6900,0.62],[7100,0.32],[7300,0.42],[7500,0.18],
+  // Phase 6: Pause (7500 – 7800ms)
+  [7600,0.10],[7800,0.10],
+  // Phase 7: Emma closes (7800 – 9200ms)
+  [7900,0.42],[8100,0.78],[8300,0.42],[8500,0.68],[8700,0.38],
+  [8900,0.58],[9100,0.22],
+  // Phase 8: Silence (9200 – 10000ms)
+  [9300,0.12],[9500,0.10],[10000,0.10],
+];
+
+/* Linear-interpolated envelope lookup */
+function voiceEnvelopeAt(elapsedMs){
+  const t = elapsedMs % CYCLE_MS;
+  for (let i=0;i<VOICE_ENVELOPE.length-1;i++){
+    const t0 = VOICE_ENVELOPE[i][0], v0 = VOICE_ENVELOPE[i][1];
+    const t1 = VOICE_ENVELOPE[i+1][0], v1 = VOICE_ENVELOPE[i+1][1];
+    if (t >= t0 && t <= t1){
+      const ratio = (t - t0) / (t1 - t0);
+      return v0 + (v1 - v0) * ratio;
+    }
+  }
+  return 0.10;
 }
 
-const observer=new IntersectionObserver((entries)=>{
-  entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target)}})
-},{threshold:0.12,rootMargin:'0px 0px -40px 0px'});
-document.querySelectorAll('.reveal:not(.visible)').forEach(el=>observer.observe(el));
+/* Index of the current phase at a given elapsed ms */
+function phaseIndexAt(elapsedMs){
+  const t = elapsedMs % CYCLE_MS;
+  for (let i = PHASES.length - 1; i >= 0; i--){
+    if (t >= PHASE_STARTS[i]) return i;
+  }
+  return 0;
+}
 
-document.querySelectorAll('a[href^="#"]').forEach(a=>{
-  a.addEventListener('click',e=>{
-    const href=a.getAttribute('href');
-    if(href==='#')return;
-    e.preventDefault();
-    const t=document.querySelector(href);
-    t&&t.scrollIntoView({behavior:'smooth'});
-    document.getElementById('nav-toggle').checked=false;
-  })
+/* Value-noise function for organic per-bar oscillation. Combines a few sine
+   waves at different frequencies with a pseudo-random phase per bar, producing
+   smooth-but-organic variation that looks like real audio. Returns 0..1. */
+function audioNoise(t, seed){
+  const a = Math.sin(t * 6.2 + seed * Math.PI * 2) * 0.5 + 0.5;
+  const b = Math.sin(t * 11.7 + seed * Math.PI * 2 * 1.3) * 0.5 + 0.5;
+  const c = Math.sin(t * 19.3 + seed * Math.PI * 2 * 0.7) * 0.5 + 0.5;
+  return a * 0.55 + b * 0.30 + c * 0.15;
+}
+
+/* Build wave-bar DOM elements inside a container */
+function buildBars(container, count){
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < count; i++){
+    const bar = document.createElement('span');
+    bar.className = 'wave-bar';
+    frag.appendChild(bar);
+  }
+  container.appendChild(frag);
+  return container.querySelectorAll('.wave-bar');
+}
+
+/* The engine. Each instance owns its own RAF loop + start time + last phase.
+   On every frame:
+     1. Compute voice envelope (overall loudness 0..1) at this moment
+     2. Per bar: multiply envelope by per-bar noise → that bar's amplitude
+     3. Apply scaleY (around center, so wave mirrors up & down) + opacity
+   When the phase changes, update the container's phase class + the caption. */
+function initSpeechWave(opts){
+  const container = opts.container;          // .waveform element
+  const barCount  = opts.barCount;           // number of bars to render
+  const captionEl = opts.captionEl || null;  // element holding the label text
+  const dotEl     = opts.dotEl || null;      // status dot element
+  const START_DELAY = 1700;                  // synced with the wave's fade-in
+  const bars = buildBars(container, barCount);
+
+  let startTime = null;
+  let lastPhase = 0;
+  let raf = 0;
+  let started = false;
+
+  function applyPhase(idx){
+    const phase = PHASES[idx];
+    // color class
+    container.classList.remove('phase-caller','phase-emma','phase-pause');
+    container.classList.add('phase-' + phase.speaker);
+    // status dot
+    if (dotEl){
+      dotEl.classList.remove('is-caller','is-emma','is-pause');
+      dotEl.classList.add('is-' + phase.speaker);
+    }
+    // caption label + animated dots while speaking
+    if (captionEl){
+      const speaking = phase.speaker !== 'pause';
+      const dimClass = phase.speaker === 'pause' ? ' class="dim"' : '';
+      const dots = speaking
+        ? '<span class="speak-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>'
+        : '';
+      captionEl.innerHTML = '<span class="caption-text"' + dimClass + '>' + phase.label + dots + '</span>';
+    }
+  }
+
+  function tick(now){
+    if (!started){ startTime = now; started = true; }
+    const elapsed = now - startTime;
+    const tSec = elapsed / 1000;
+    const env = voiceEnvelopeAt(elapsed);
+
+    // per-bar transform + opacity
+    for (let i = 0; i < bars.length; i++){
+      const config = WAVE_BARS[i % WAVE_BARS.length];
+      const noise = audioNoise(tSec * config.freq, config.phaseOffset);
+      const audio = Math.pow(noise, 1.3);
+      const amp = env * config.peak * audio;
+      bars[i].style.transform = 'scaleY(' + amp + ')';
+      bars[i].style.opacity = String(0.45 + amp * 0.55);
+    }
+
+    // phase change → caption + container class (only when it changes)
+    const newPhase = phaseIndexAt(elapsed);
+    if (newPhase !== lastPhase){
+      lastPhase = newPhase;
+      applyPhase(newPhase);
+    }
+
+    raf = requestAnimationFrame(tick);
+  }
+
+  // Start the cycle 1.7s after mount — synced with the wave's fade-in
+  const startTimer = window.setTimeout(function(){ raf = requestAnimationFrame(tick); }, START_DELAY);
+
+  // expose a teardown
+  return {
+    destroy: function(){
+      window.clearTimeout(startTimer);
+      cancelAnimationFrame(raf);
+    }
+  };
+}
+
+/* ═════════ Pricing — render a price value into int + decimal markup ═════════ */
+function renderPrice(el, val){
+  if (val.indexOf('.') >= 0){
+    const parts = val.split('.');
+    el.innerHTML = '<span class="p-cur">$</span><span class="p-int">' + parts[0] + '</span><span class="p-dec">.' + parts[1] + '</span>';
+  } else {
+    el.innerHTML = '<span class="p-cur">$</span><span class="p-int">' + val + '</span>';
+  }
+}
+
+/* ═════════ Boot ═════════ */
+document.addEventListener('DOMContentLoaded', function(){
+  // ── Headline letter-rise (mirrors React's per-char delay) ──
+  (function buildHeadline(){
+    const h1 = document.getElementById('hero-headline');
+    if (!h1) return;
+    const HEADLINE = 'Your business, handled. 24/7.';
+    const words = HEADLINE.split(' ');
+    let charIndex = 0;
+    words.forEach(function(word, wi){
+      const wordSpan = document.createElement('span');
+      wordSpan.className = 'hw-word';
+      const isAccent = word === '24/7.';
+      const target = isAccent ? document.createElement('em') : wordSpan;
+      for (let ci = 0; ci < word.length; ci++){
+        const c = word.charAt(ci);
+        const s = document.createElement('span');
+        s.className = 'letter-rise';
+        const delay = 0.3 + charIndex * 0.025;
+        charIndex++;
+        s.style.setProperty('--letter-delay', delay + 's');
+        s.textContent = c;
+        target.appendChild(s);
+      }
+      if (isAccent) wordSpan.appendChild(target);
+      if (wi < words.length - 1){
+        const sp = document.createElement('span');
+        sp.innerHTML = '&nbsp;';
+        wordSpan.appendChild(sp);
+      }
+      h1.appendChild(wordSpan);
+    });
+  })();
+
+  // ── Hero waveform + caption ──
+  const heroWave = document.getElementById('hero-wave');
+  const heroCaption = document.getElementById('hero-caption');
+  const heroDot = document.getElementById('hero-status-dot');
+  if (heroWave){
+    initSpeechWave({
+      container: heroWave,
+      barCount: 48,
+      captionEl: heroCaption,
+      dotEl: heroDot
+    });
+  }
+
+  // ── Demo waveform (smaller, 32 bars — same idle cycle) ──
+  const demoWave = document.getElementById('demo-wave');
+  if (demoWave){
+    initSpeechWave({
+      container: demoWave,
+      barCount: 32
+      // demo wave has no caption text that changes; only color shifts
+    });
+  }
+
+  // ── Nav scroll state ──
+  const nav = document.getElementById('topnav');
+  function onScroll(){ nav.classList.toggle('scrolled', window.scrollY > 8); }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // ── Scroll reveal ──
+  const observer = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if (e.isIntersecting){
+        e.target.classList.add('visible');
+        observer.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.reveal:not(.visible)').forEach(function(el){ observer.observe(el); });
+
+  // ── Smooth-scroll anchor links ──
+  document.querySelectorAll('a[href^="#"]').forEach(function(a){
+    a.addEventListener('click', function(e){
+      const href = a.getAttribute('href');
+      if (href === '#' || href === '') return;
+      const t = document.querySelector(href);
+      if (!t) return;
+      e.preventDefault();
+      t.scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+
+  // ── Pricing: monthly / annual toggle ──
+  (function billingToggle(){
+    const prices = document.querySelectorAll('.plan-price');
+    const bills  = document.querySelectorAll('.plan-bill');
+    const annualTotals = { '29.95': 359.40, '24': 288, '45': 540, '36': 432, '65': 780, '52': 624 };
+
+    function apply(mode){
+      prices.forEach(function(el){
+        const val = mode === 'annual' ? el.dataset.yr : el.dataset.mo;
+        renderPrice(el, val);
+      });
+      bills.forEach(function(el){
+        const plan = el.closest('.plan');
+        const priceEl = plan.querySelector('.plan-price');
+        const val = mode === 'annual' ? priceEl.dataset.yr : priceEl.dataset.mo;
+        if (mode === 'annual'){
+          const total = annualTotals[val];
+          el.innerHTML = 'per month · <strong>billed annually ($' + (total ? total.toFixed(0) : '') + '/yr)</strong>';
+        } else {
+          el.innerHTML = 'per month · billed monthly';
+        }
+      });
+    }
+
+    const buttons = document.querySelectorAll('.billing-toggle button');
+    buttons.forEach(function(btn){
+      btn.addEventListener('click', function(){
+        buttons.forEach(function(b){ b.classList.remove('is-active'); b.setAttribute('aria-selected','false'); });
+        btn.classList.add('is-active'); btn.setAttribute('aria-selected','true');
+        apply(btn.dataset.bill);
+      });
+    });
+    apply('monthly'); // initial render
+  })();
 });
 
-const nav=document.querySelector('nav');
-window.addEventListener('scroll',()=>{nav.classList.toggle('scrolled',window.scrollY>50)});
-</script>
-<script>
-// Fix sanitized phone numbers — called at page load
+/* ═════════ Mobile nav hamburger toggle ═════════ */
 (function(){
-  var p=['8','7','2','8','2','9','1','1','9','2'];
-  var n='+1'+p.join('');
-  var d='('+p.slice(0,3).join('')+') '+p.slice(3,6).join('')+'-'+p.slice(6).join('');
+  var toggle = document.getElementById('nav-toggle');
+  var menu = document.getElementById('nav-menu');
+  if(!toggle || !menu) return;
+  function setMenu(open){
+    menu.classList.toggle('open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  }
+  toggle.addEventListener('click', function(){
+    setMenu(!menu.classList.contains('open'));
+  });
+  // Close menu when a link is tapped (anchors scroll, signin navigates away).
+  menu.addEventListener('click', function(e){
+    if(e.target.tagName === 'A') setMenu(false);
+  });
+  // Close on Escape.
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') setMenu(false);
+  });
+})();
+
+/* ═════════ Login modal — preserved from existing stack ═════════ */
+function openLoginModal(){
+  var m = document.getElementById('login-modal');
+  m.classList.add('open');
+  m.style.display = 'flex';
+  var err = document.getElementById('modal-error');
+  if (err) err.style.display = 'none';
+}
+function closeLoginModal(){
+  var m = document.getElementById('login-modal');
+  m.classList.remove('open');
+  m.style.display = 'none';
+}
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') closeLoginModal();
+});
+
+/* modalLogin — POSTs to the existing branchlive-portal API */
+async function modalLogin(){
+  const email   = document.getElementById('modal-email').value;
+  const pw      = document.getElementById('modal-pw').value;
+  const err     = document.getElementById('modal-error');
+  const smsConsent = document.getElementById('modal-sms-consent');
+  if(!email || !pw){ err.textContent = 'Please enter email and password.'; err.style.display = 'block'; return; }
+  if(smsConsent && !smsConsent.checked){ err.textContent = 'Please agree to receive SMS messages to continue.'; err.style.display = 'block'; return; }
+  err.style.display = 'none';
+  try{
+    const r = await fetch('https://branchlive-portal.shane-f58.workers.dev/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, password: pw, sms_consent: smsConsent && smsConsent.checked })
+    });
+    const d = await r.json();
+    if(d.ok){
+      localStorage.setItem('branchlive_token', d.token);
+      window.location.href = '/dashboard?v=' + Date.now();
+    } else {
+      err.textContent = d.error || 'Invalid credentials';
+      err.style.display = 'block';
+    }
+  } catch(e){
+    err.textContent = 'Connection error — is the portal running?';
+    err.style.display = 'block';
+  }
+}
+
+/* Fix sanitized phone numbers — called at page load */
+(function(){
+  var p = ['8','7','2','8','2','9','1','1','9','2'];
+  var n = '+1' + p.join('');
+  var d = '(' + p.slice(0,3).join('') + ') ' + p.slice(3,6).join('') + '-' + p.slice(6).join('');
   document.querySelectorAll('a[href*="872"]').forEach(function(a){
-    a.href='tel:'+n;
-    if(a.textContent.includes('872')) a.textContent=d;
+    a.href = 'tel:' + n;
+    if (a.textContent.indexOf('872') !== -1) a.textContent = d;
   });
 })();
 </script>

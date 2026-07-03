@@ -1,3 +1,8 @@
 /*
-  Content-Security-Policy: script-src 'self' 'unsafe-inline' 'unsafe-eval' *.branchlive.com *.branchlive.pages.dev
+  Content-Security-Policy: script-src 'self' 'unsafe-inline' *.branchlive.com *.branchlive.pages.dev static.cloudflareinsights.com
   ! Rocket-Loader
+
+/dashboard
+  Cache-Control: no-cache, no-store, must-revalidate
+/dashboard.html
+  Cache-Control: no-cache, no-store, must-revalidate

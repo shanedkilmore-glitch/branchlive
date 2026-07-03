@@ -8,8 +8,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--bg-primary:#06060c;--bg-secondary:#0e0e18;--bg-tertiary:#1a1a2e;--accent-primary:#8b5cf6;--accent-secondary:#00d4aa;--accent-danger:#ef4444;--text-primary:#f1f5f9;--text-secondary:#94a3b8;--text-muted:#475569;--border:#1e293b;/* Legacy aliases */--bg:var(--bg-primary);--panel:var(--bg-secondary);--brand:var(--accent-primary);--brand2:var(--accent-secondary);--text:var(--text-primary);--muted:var(--text-muted);--red:var(--accent-danger)}
-body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-.container{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:48px 40px;width:100%;max-width:440px}
+html{overflow-x:hidden}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;overflow-x:hidden}
+.container{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:48px 40px;width:100%;max-width:440px;margin:0 auto;position:relative}
 .logo{display:flex;align-items:center;gap:10px;margin-bottom:32px}
 .logo svg{width:40px;height:40px}
 h1{font-size:1.6em;margin-bottom:6px;text-align:center}
@@ -87,12 +88,41 @@ input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(139
 </div>
 
 <script>
+// Affiliate referral attribution — capture ?ref=CODE from the signup URL.
+const REF_CODE = new URLSearchParams(window.location.search).get('ref');
+if (REF_CODE) {
+  try {
+    // Best-effort: show "Referred by {code}" so the referred user sees attribution.
+    const banner = document.createElement('p');
+    banner.style.cssText = 'text-align:center;color:#8b5cf6;font-size:0.85em;margin:0 0 12px';
+    banner.textContent = '🤝 Referred by ' + REF_CODE;
+    const form = document.querySelector('form');
+    if (form) form.prepend(banner);
+  } catch (e) {}
+}
+// Team invite pre-fill — ?invite=TOKEN pre-fills + locks the email so the new
+// account is attached to the inviting business on submit.
+const INVITE_TOKEN = new URLSearchParams(window.location.search).get('invite');
+const INVITE_EMAIL = new URLSearchParams(window.location.search).get('email');
+if (INVITE_TOKEN) {
+  try {
+    const banner = document.createElement('p');
+    banner.style.cssText = 'text-align:center;color:#d4a574;font-size:0.85em;margin:0 0 12px';
+    banner.textContent = '👋 You\'ve been invited to join a team on Branch Live. Finish creating your account below.';
+    const form = document.querySelector('form');
+    if (form) form.prepend(banner);
+    if (INVITE_EMAIL) {
+      const emailEl = document.getElementById('email');
+      if (emailEl) { emailEl.value = INVITE_EMAIL; emailEl.readOnly = true; emailEl.style.opacity = '0.7'; }
+    }
+  } catch (e) {}
+}
 async function signup() {
   const btn = document.querySelector('.btn');
   const err = document.getElementById('error');
   const ok = document.getElementById('success');
   err.textContent = ''; ok.textContent = '';
-  
+
   const name = document.getElementById('name').value.trim();
   const company = document.getElementById('company').value.trim();
   const email = document.getElementById('email').value.trim();
@@ -117,7 +147,7 @@ async function signup() {
       method: 'POST',
       credentials: 'include',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({email, password, name, company, phone, sms_consent: true})
+      body: JSON.stringify({email, password, name, company, phone, sms_consent: true, ref: REF_CODE || undefined, invite: INVITE_TOKEN || undefined})
     });
     const d = await r.json();
     if (d.ok) {

@@ -1,0 +1,26 @@
+--- a/dashboard.html
++++ b/dashboard.html
+@@ -77,0 +77,3 @@
++}
++async function checkAuth(){
++  if(currentUser)return; // already logged in via auto-login
+@@ -77,0 +81,3 @@
++  document.getElementById('login-screen').classList.remove('hidden');
++  const tb=document.querySelector('.bottom-tab-bar');if(tb)tb.style.display='none';
++}
+@@ -1918,0 +1925,3 @@
++  window._speaking=true;btn.innerHTML='⏹ Stop';
++  window.speechSynthesis.speak(u);
++};
+@@ -1922 +1931,2 @@
+-  // Onboarding done — nothing to show
++  // Onboarding done — set initial refresh timestamp
++  document.getElementById('last-refresh').textContent = 'Last refreshed: ' + new Date().toLocaleString();
+@@ -1923,0 +1934,3 @@
++  }catch(e){ /* ignore */ }
++}
++</script>
+@@ -1926 +1939,2 @@
+-</body></html>
++<div id='last-refresh' style='font-size:0.75em;color:var(--muted);text-align:center;padding:12px;border-top:1px solid var(--border)'></div>
++</body></html>
