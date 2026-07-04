@@ -3201,7 +3201,10 @@ async function handleLeadStatusHtmx(request, env, uid, leadId) {
       'UPDATE leads SET status = ?, updated_at = ? WHERE id = ? AND user_id = ?'
     ).bind(status, nowISO(), leadId, uid).run();
     if (!res.meta || res.meta.changes === 0) return new Response('Lead not found', { status: 404 });
-    return Response.redirect('/p/leads/' + leadId, 302);
+    // PRG: 303 the browser back to the (now-updated) detail page. Must use an
+    // ABSOLUTE URL — Response.redirect() throws on relative paths in the
+    // Workers runtime (see adminRedirect). 303 not 302: this is a POST reply.
+    return adminRedirect(request, '/p/leads/' + leadId, 303);
   } catch (e) {
     console.error('Lead status htmx error:', e);
     return json({ ok: false, error: 'Could not update lead' });
@@ -5545,9 +5548,11 @@ ${photoBlock}
 --- USER PREFERENCES / STYLE NOTES ---
 ${escP(styleNotes) || '(no specific preferences — use your best design judgment for this industry)'}
 
---- DEPLOYMENT DATA LINKS ---
-- Make the primary CTA ("Book Online" / "Book Appointment") link to: /dashboard
-- Make phone links use: tel:${escP(phoneRaw)}`;
+--- DEPLOYMENT DATA LINKS (ABSOLUTELY REQUIRED) ---
+- EVERY "Book Appointment" / "Book Online" / "Schedule" button MUST link to: /book
+- EVERY "Call Us" / phone link MUST use: tel:${escP(phoneRaw)}
+- Do NOT link to /dashboard, /login, or any admin page — these are PUBLIC links for customers
+- The phone number ${escP(phoneRaw)} must appear in the header and footer`;
 
     // ── 6. Call DeepSeek (OpenAI-compatible chat completions).
     const llmRes = await fetch('https://api.deepseek.com/chat/completions', {
@@ -7711,6 +7716,18 @@ code,.mono{font-family:var(--font-mono);font-feature-settings:"tnum"}
 #bl-debug-toast{position:fixed;right:18px;bottom:74px;z-index:2147483001;background:var(--bg-card);border:1px solid var(--border-soft);color:var(--cream);font-family:var(--font-mono);font-size:.72rem;padding:7px 12px;border-radius:8px;box-shadow:0 8px 24px -10px rgba(0,0,0,.8);opacity:0;transform:translateY(6px);transition:opacity .2s ease,transform .2s ease;pointer-events:none;max-width:280px}
 #bl-debug-toast.show{opacity:1;transform:translateY(0)}
 
+/* ── Capture lightbox. Shows the captured PNG full-screen (instead of a
+   silent auto-download) with Copy / Download / Close. z-index sits ABOVE
+   the debug FABs so the overlay covers them. #06060c backdrop at 92%
+   opacity, image capped at 90vw/80vh with a 2px amber border, fade-in. */
+#bl-lightbox{position:fixed;inset:0;z-index:2147483100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:rgba(6,6,12,.92);animation:blLbFade .18s ease}
+@keyframes blLbFade{from{opacity:0}to{opacity:1}}
+#bl-lightbox img{max-width:90vw;max-height:80vh;border:2px solid #d4a574;border-radius:6px;box-shadow:0 20px 60px -20px rgba(0,0,0,.9);object-fit:contain;cursor:zoom-in}
+.bl-lb-bar{display:flex;gap:10px;align-items:center}
+.bl-lb-btn{display:inline-flex;align-items:center;gap:7px;padding:10px 16px;border-radius:10px;font-family:var(--font-mono);font-size:.78rem;font-weight:600;letter-spacing:.02em;cursor:pointer;border:1px solid var(--border-soft);background:var(--bg-card);color:var(--cream);box-shadow:0 8px 24px -12px rgba(0,0,0,.8);transition:filter .2s ease,transform .2s ease,background .2s ease}
+.bl-lb-btn:hover{filter:brightness(1.15);transform:translateY(-1px)}
+.bl-lb-btn.primary{background:linear-gradient(135deg,var(--accent-bright),var(--accent));color:#1a1205;border-color:transparent}
+
 /* ── Scout — collapsible AI assistant panel. Lives on every signed-in /p/*
    page (gated on a .sidebar being present). Amber-monotone: #0a0a14 panel
    bg, left border, amber-tinted message accents. Collapsed by default to a
@@ -7852,6 +7869,19 @@ function switchBusiness(bid){var f=document.createElement('form');f.method='POST
       });
     }
     return copyText(text).then(function(){toast('✓ Copied text')});
+  }
+
+  // Copy ONLY an image blob to the clipboard (no download). Used by the
+  // capture lightbox Copy button. Returns a boolean promise: true if the
+  // image actually landed on the clipboard, false otherwise (clipboard
+  // image-write requires a fresh user gesture + ClipboardItem support, and
+  // the caller decides what to toast on failure).
+  function copyImageToClipboard(blob){
+    if(!blob||!window.ClipboardItem||!navigator.clipboard||!navigator.clipboard.write){
+      return Promise.resolve(false);
+    }
+    var items={};items[blob.type||'image/png']=blob;
+    return navigator.clipboard.write([new ClipboardItem(items)]).then(function(){return true;},function(){return false;});
   }
 
   // ── Annotation canvas overlay + drawing ──────────────────────────────
@@ -8023,6 +8053,9 @@ function switchBusiness(bid){var f=document.createElement('form');f.method='POST
         windowHeight:document.documentElement.scrollHeight,
         onclone:function(doc){
           var grainEl=doc.querySelector('.grain');if(grainEl)grainEl.remove();
+          var s=doc.createElement('style');s.textContent='::before,::after{display:none!important}';doc.head.appendChild(s);
+          var canvases=doc.querySelectorAll('canvas');for(var i=0;i<canvases.length;i++){canvases[i].remove();}
+          var all=doc.querySelectorAll('*');for(var i=0;i<all.length;i++){all[i].style.backgroundImage='none';}
           if(!src)return;
           var c=src.cloneNode(true);
           // Copy the painted bitmap (cloneNode does not carry canvas pixels).
@@ -8083,7 +8116,51 @@ function switchBusiness(bid){var f=document.createElement('form');f.method='POST
     });
   }
 
-  // Capture from Annotate mode: bake marks in, copy, then clear + exit.
+  // ── Capture lightbox ─────────────────────────────────────────────────
+  // Shows the captured PNG full-screen so the user can review it before
+  // choosing Copy / Download / Close (instead of silently auto-downloading).
+  // Closable via the Close button, a backdrop click, or Escape. holdBlob/name
+  // are captured in closure so the toolbar buttons work after the promise.
+  var lightboxEl=null;
+  function showLightbox(blob,name,info){
+    if(!blob){toast('No image to show');return;}
+    closeLightbox(); // never stack two overlays
+    lightboxEl=document.createElement('div');lightboxEl.id='bl-lightbox';
+    var img=document.createElement('img');
+    img.src=URL.createObjectURL(blob);
+    img.alt='Captured screenshot';
+    // Build the bottom toolbar: Copy (clipboard image), Download, Close.
+    var bar=document.createElement('div');bar.className='bl-lb-bar';
+    function mk(label,cls,fn){var b=document.createElement('button');b.type='button';b.className='bl-lb-btn'+(cls?' '+cls:'');b.innerHTML=label;b.addEventListener('click',fn);return b;}
+    var copyBtn=mk('📋 Copy','primary',function(){
+      copyImageToClipboard(blob).then(function(ok){
+        toast(ok?('✓ Copied to clipboard'+(name?(' · '+name):'')):'✓ Clipboard blocked — use Download');
+      });
+    });
+    var dlBtn=mk('⬇ Download','',function(){var ok=downloadBlob(blob,name);toast(ok?('✓ Downloaded '+name):'✗ Download failed');});
+    var closeBtn=mk('✕ Close','',function(){closeLightbox();});
+    [copyBtn,dlBtn,closeBtn].forEach(function(b){bar.appendChild(b)});
+    lightboxEl.appendChild(img);lightboxEl.appendChild(bar);
+    document.body.appendChild(lightboxEl);
+    // Backdrop click closes (but clicks on the image/toolbar do not).
+    lightboxEl.addEventListener('click',function(e){if(e.target===lightboxEl)closeLightbox();});
+    // Escape closes. Registered on the capture phase with stopPropagation so
+    // it wins over the annotate mode-exit Escape handler (which would
+    // otherwise also fire and is irrelevant while the lightbox is up).
+    document.addEventListener('keydown',onLightboxKey,true);
+  }
+  function onLightboxKey(e){if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeLightbox();}}
+  function closeLightbox(){
+    document.removeEventListener('keydown',onLightboxKey,true);
+    if(!lightboxEl)return;
+    var img=lightboxEl.querySelector('img');
+    if(img&&img.src){try{URL.revokeObjectURL(img.src);}catch(e){}}
+    lightboxEl.remove();lightboxEl=null;
+  }
+
+  // Capture from Annotate mode: bake marks in, then show the lightbox so the
+  // user can review / copy / download. Falling back to copyRich (which also
+  // copies the text context) on capture failure keeps the old behavior.
   function captureFromAnnotate(){
     var info='Branch Live · Annotate\\n'
       +'URL: '+location.href+'\\n'
@@ -8096,7 +8173,7 @@ function switchBusiness(bid){var f=document.createElement('form');f.method='POST
     var name='branchlive-'+(p||'page')+'-'+ts+'-annotate.png';
     toast('Capturing...');
     captureAnnotated(info)
-      .then(function(blob){clearAnnos();exit();return copyRich(info,blob,name);})
+      .then(function(blob){clearAnnos();exit();showLightbox(blob,name,info);})
       .catch(function(err){
         // Surface the actual error so the failure is diagnosable without
         // devtools. err may be undefined if a step rejected with nothing.
@@ -8632,6 +8709,131 @@ function leadTemplateText(lead) {
   return `Hi ${name},\n\nThanks for reaching out! We received your request regarding: ${job}.\n\nWe'd love to schedule a time to discuss your project. Give us a call or reply to this email.\n\nBest regards,\nThe team`;
 }
 
+function renderTranscriptSummaryHtml(transcript, existingSummary, isLogPage) {
+  if (!transcript || !transcript.trim()) return '';
+
+  let points = [];
+  
+  // Try to use existingSummary first
+  if (existingSummary && existingSummary.trim() && !/^(?:AI call completed|Call from|No summary)/i.test(existingSummary.trim())) {
+    const cleanedSummary = existingSummary.trim();
+    // Split by newlines first
+    const lines = cleanedSummary.split(/\r?\n/);
+    for (let line of lines) {
+      line = line.trim();
+      if (!line) continue;
+      // Remove leading bullet characters/numbers like -, *, •, 1., 2., etc.
+      line = line.replace(/^[\s*\-•\d+\.\)]+\s*/, '');
+      if (line) {
+        points.push(line);
+      }
+    }
+    
+    // If we only got 1 or 2 items, maybe it was a single paragraph with multiple sentences.
+    // Let's split by sentences.
+    if (points.length < 3) {
+      const sentences = cleanedSummary.split(/[.!?]\s+/);
+      const tempPoints = [];
+      for (let s of sentences) {
+        s = s.trim();
+        if (!s) continue;
+        s = s.replace(/^[\s*\-•\d+\.\)]+\s*/, '');
+        // Restore trailing period if it was stripped by split
+        if (!/[.!?]$/.test(s)) {
+          s += '.';
+        }
+        if (s.length > 5) {
+          tempPoints.push(s);
+        }
+      }
+      if (tempPoints.length >= 3) {
+        points = tempPoints;
+      }
+    }
+  }
+
+  // Fallback to simple extraction from transcript if points count is not 3-5
+  if (points.length < 3 || points.length > 5) {
+    const extractedPoints = [];
+    const lines = transcript.split(/\r?\n/);
+    const sentences = [];
+    
+    for (let line of lines) {
+      line = line.trim();
+      if (!line) continue;
+      // Remove speaker prefix like "Emma:", "User:", "Caller:", "Assistant:", etc.
+      line = line.replace(/^(?:emma|user|caller|assistant|agent|customer|client|speaker\s*\d+)\s*:\s*/i, '');
+      
+      // Split line into sentences
+      const lineSentences = line.split(/[.!?]\s+/);
+      for (let s of lineSentences) {
+        s = s.trim();
+        if (!s) continue;
+        if (!/[.!?]$/.test(s)) {
+          s += '.';
+        }
+        if (s.length > 10) {
+          sentences.push(s);
+        }
+      }
+    }
+
+    // Regexp for key info: times, dates, prices, service names, customer names
+    const keyInfoRegex = /(\b\d{1,2}(?::\d{2})?\s*(?:am|pm|o'clock)\b|\b(?:morning|afternoon|evening|night|today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\b|\b\d{1,2}\/\d{1,2}\b|\$\d+|\b(?:dollars|cents|price|cost|quote|fee|charge|estimate|billing|pay)\b|\b(?:plumbing|leak|clog|repair|install|hvac|ac|heating|electrical|drain|pipe|water heater|maintenance|service|appointment|book)\b|\b(?:my name is|name is|this is)\b)/i;
+
+    // Filter sentences with key info
+    for (const s of sentences) {
+      if (keyInfoRegex.test(s)) {
+        if (!extractedPoints.includes(s)) {
+          extractedPoints.push(s);
+        }
+      }
+    }
+
+    // If we don't have enough key sentences, add other sentences from the transcript to fill
+    if (extractedPoints.length < 3) {
+      for (const s of sentences) {
+        if (!extractedPoints.includes(s)) {
+          extractedPoints.push(s);
+          if (extractedPoints.length >= 3) break;
+        }
+      }
+    }
+
+    // Keep between 3 and 5 points
+    points = extractedPoints.slice(0, 5);
+  }
+
+  // Ensure points has at least some content, and limit each point's length
+  points = points.map(p => {
+    let cleaned = p.trim();
+    if (cleaned.length > 200) {
+      cleaned = cleaned.slice(0, 197) + '...';
+    }
+    return cleaned;
+  }).filter(Boolean);
+
+  if (points.length === 0) return '';
+
+  const bulletItems = points.map(p => {
+    return `<li style="position:relative;padding-left:18px;margin-bottom:6px;color:var(--text-primary);list-style:none">
+  <span style="position:absolute;left:0;color:var(--accent-amber);font-weight:bold">&bull;</span>
+  ${htmxEsc(p)}
+</li>`;
+  }).join('');
+
+  const containerStyle = isLogPage
+    ? 'border-bottom:1px solid var(--border-soft);padding:12px 16px'
+    : 'margin-bottom:16px';
+
+  return `<div class="transcript-bullet-summary" style="${containerStyle}">
+  <h4 style="margin:0 0 8px 0;font-size:0.9rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Key Points</h4>
+  <ul style="list-style:none;padding:0;margin:0">
+    ${bulletItems}
+  </ul>
+</div>`;
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 // HTMX LEAD DETAIL (/p/leads/:id)
 // Full record for one lead: contact info, job, urgency, status, the call
@@ -8670,8 +8872,9 @@ async function handleLeadDetailHtmx(request, env, uid, leadId, ctx) {
   <div class="lci-meta"><span>${fmtDate(c.created_at)}</span> <span class="dot">·</span> <span class="mono">${dur}</span></div>
 </li>`;
     }).join('');
+    const leadSummary = calls.find(c => c.summary)?.summary || '';
     const transcript = lead.transcript
-      ? `<div class="card"><h3 style="margin-top:0">Call transcript</h3><div class="transcript">${htmxEsc(lead.transcript)}</div></div>`
+      ? `<div class="card"><h3 style="margin-top:0">Call transcript</h3>${renderTranscriptSummaryHtml(lead.transcript, leadSummary, false)}<div class="transcript">${htmxEsc(lead.transcript)}</div></div>`
       : '';
     const hasEmail = !!lead.caller_email;
     const hasPhone = !!lead.caller_phone;
@@ -8919,7 +9122,7 @@ async function handleCallsHtmx(request, env, uid, ctx) {
   <td>${htmxEsc((c.summary || '—').slice(0, 90))}${(c.summary || '').length > 90 ? '…' : ''}</td>
   <td class="mono" style="color:var(--text-muted)">${fmtDate(c.created_at)}</td>
 </tr>
-<tr class="call-row-body" id="call-${c.id}-body"><td colspan="4" style="padding:0;border:none"><div class="call-transcript">${leadBlock}${hasT ? '<div class="transcript" style="margin:0;border-radius:0">' + htmxEsc(c.transcript) + '</div>' : '<div class="note-box" style="margin:12px 16px">No transcript for this call.</div>'}</div></td></tr>`;
+<tr class="call-row-body" id="call-${c.id}-body"><td colspan="4" style="padding:0;border:none"><div class="call-transcript">${leadBlock}${hasT ? renderTranscriptSummaryHtml(c.transcript, c.summary, true) + '<div class="transcript" style="margin:0;border-radius:0">' + htmxEsc(c.transcript) + '</div>' : '<div class="note-box" style="margin:12px 16px">No transcript for this call.</div>'}</div></td></tr>`;
     }).join('');
     const body = `<div class="app">${sidebarNav('calls', undefined, ctx)}<div class="content">
 <span class="eyebrow">Call logs</span>
@@ -9153,6 +9356,86 @@ async function handleAppointmentDetailHtmx(request, env, uid, apptId, ctx) {
     const phoneLine = appt.customer_phone
       ? `<div class="kv"><span class="k">Phone</span><span class="v"><a class="mono" href="tel:${encodeURIComponent(appt.customer_phone)}" style="color:var(--accent-amber)">${htmxEsc(appt.customer_phone)}</a></span></div>`
       : '<div class="kv"><span class="k">Phone</span><span class="v">—</span></div>';
+
+    // ── Linked lead ──────────────────────────────────────────────────────
+    // Appointments have no lead_id FK; the only join keys are the customer's
+    // phone and/or name. Match either against the leads table (owner-scoped).
+    // Only attempt a lookup when there's something to match on so an empty
+    // name+phone appointment doesn't waste a query.
+    const aPhone = (appt.customer_phone || '').trim();
+    const aName = (appt.customer_name || '').trim();
+    let lead = null;
+    if (aPhone || aName) {
+      lead = await env.DB.prepare(
+        'SELECT * FROM leads WHERE user_id = ? AND (caller_phone = ? OR caller_name = ?) ORDER BY created_at DESC LIMIT 1'
+      ).bind(uid, aPhone, aName).first();
+    }
+    // Same call-history query the lead detail page uses (lead_id OR phone).
+    let leadSection = '';
+    if (lead) {
+      const calls = (await env.DB.prepare(
+        'SELECT id, caller_phone, duration_sec, summary, created_at FROM call_logs WHERE user_id = ? AND (lead_id = ? OR caller_phone = ?) ORDER BY created_at DESC LIMIT 20'
+      ).bind(uid, lead.id, lead.caller_phone || '').all()).results || [];
+      const lfmtDate = d => {
+        if (!d) return '—';
+        const date = new Date(d + 'Z');
+        if (isNaN(date.getTime())) return '—';
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ', ' + formatHour(date, timeFmt, '');
+      };
+      const callRows = calls.map(c => {
+        const dur = c.duration_sec ? Math.round(c.duration_sec / 60) + 'm ' + (c.duration_sec % 60) + 's' : '—';
+        return `<li class="lead-call-item">
+  <div class="lci-summary">${htmxEsc(c.summary || 'Call from ' + (c.caller_phone || 'unknown'))}</div>
+  <div class="lci-meta"><span>${lfmtDate(c.created_at)}</span> <span class="dot">·</span> <span class="mono">${dur}</span></div>
+</li>`;
+      }).join('');
+      leadSection = `
+<div class="card" style="margin-top:24px">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="avatar" style="width:42px;height:42px;font-size:1.05rem">${htmxEsc(initials(lead.caller_name))}</div>
+      <div>
+        <h3 style="margin:0">Linked lead · ${htmxEsc(lead.caller_name || 'Unknown caller')}</h3>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px">${urgencyBadge(lead.urgency)}${statusPill(lead.status)}</div>
+      </div>
+    </div>
+    <a class="btn-amber btn-sm" href="/p/leads/${lead.id}">View full lead →</a>
+  </div>
+  <div class="detail-grid">
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div class="card">
+        <h3 style="margin-top:0">Job details</h3>
+        <p style="color:var(--text-primary);line-height:1.7">${htmxEsc(lead.job_details || 'No job details captured for this lead.')}</p>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Call history</h3>
+        ${calls.length ? '<ul class="lead-call-list">' + callRows + '</ul>' : '<div class="note-box">No calls linked to this lead yet.</div>'}
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div class="card">
+        <h3 style="margin-top:0">Contact</h3>
+        <div class="kv"><span class="k">Phone</span><span class="v mono">${htmxEsc(lead.caller_phone || '—')}</span></div>
+        <div class="kv"><span class="k">Email</span><span class="v">${lead.caller_email ? htmxEsc(lead.caller_email) : '—'}</span></div>
+        <div class="kv"><span class="k">Lead captured</span><span class="v">${lfmtDate(lead.created_at)}</span></div>
+      </div>
+    </div>
+  </div>
+</div>`;
+    } else {
+      // No lead linked — surface it with a soft "create lead" note. There is
+      // no self-serve /p/leads/new page (leads arrive via Emma calls), so this
+      // is a plain note rather than a link to avoid pointing at a dead route.
+      leadSection = `
+<div class="card" style="margin-top:24px">
+  <h3 style="margin-top:0">Linked lead</h3>
+  <div class="empty-state" style="padding:32px 20px">
+    <div class="empty-icon">🗂️</div>
+    <div class="empty-title">No lead linked to this appointment</div>
+    <div class="empty-msg">Leads are created when Emma fields an inbound call. If this customer has called before, their lead will appear here automatically.</div>
+  </div>
+</div>`;
+    }
     const body = `<div class="app">${sidebarNav('calendar', undefined, ctx)}<div class="content">
 <a class="back-link" href="${backHref}">‹ Back to calendar</a>
 <span class="eyebrow">Appointment #${appt.id}</span>
@@ -9187,6 +9470,7 @@ ${viewOnly ? '<div class="vo-banner"><span class="vo-ico">👁</span>View only �
     </div>
   </div>
 </div>
+${leadSection}
 </div></div>`;
     return new Response(simpleShell('Appointment', body), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
@@ -9689,7 +9973,7 @@ async function handleOverviewHtmx(request, env, uid, ctx) {
     const actMeta = {
       lead:        { icon: '👤', verb: 'New lead', href: (r) => `/p/leads/${r.id}` },
       call:        { icon: '📞', verb: (r) => r.status === 'answered' ? 'Call answered' : 'Missed call', href: () => '/p/calls' },
-      appointment: { icon: '📅', verb: 'Appointment booked', href: () => '/p/calendar' },
+      appointment: { icon: '📅', verb: 'Appointment booked', href: (r) => '/p/calendar/' + r.id },
     };
     const feedRows = (activity.results || []).map(r => {
       const m = actMeta[r.type] || { icon: '•', verb: r.type, href: () => '/p/overview' };
@@ -15555,14 +15839,11 @@ export default {
           if (path === '/p/outreach') return handleOutreachHtmx(request, env, pCtx.bid, pCtx);
           if (path === '/p/analytics') return handleAnalyticsHtmx(request, env, pCtx.bid, pCtx);
           if (path === '/p/team') return handleTeamHtmx(request, env, pCtx);
-          // /p/leads/:id — list (GET) + status update (POST, manager+).
+          // /p/leads/:id — lead detail (GET). The status-update POST is handled
+          // in the POST section below (this whole block is GET-only).
           if (path.startsWith('/p/leads/')) {
             const leadId = parseInt(path.split('/')[3], 10);
             if (!leadId) return new Response(simpleShell('Not found', '<h1>404</h1><p style="color:#8b949e">Invalid lead.</p>'), { status: 404, headers: { 'Content-Type': 'text/html' } });
-            if (method === 'POST') {
-              if (!roleMeets(pCtx.role, 'manager')) return new Response(null, { status: 302, headers: { Location: '/p/leads/' + leadId } });
-              return handleLeadStatusHtmx(request, env, pCtx.bid, leadId);
-            }
             return handleLeadDetailHtmx(request, env, pCtx.bid, leadId, pCtx);
           }
           // /p/blog/:postslug — a business reading their own generated post
@@ -15612,6 +15893,23 @@ export default {
       // HTMX settings form submission (form-encoded POST → UPSERT + re-render).
       if (path === '/settings-htmx' && method === 'POST') {
         return handleSettingsHtmx(request, env);
+      }
+      // POST /p/leads/:id — lead status update from the detail-page form.
+      // The /p/* GET block above resolves the cookie session, but it is wrapped
+      // in `if (method === 'GET')`, so a browser form POST (no Bearer header)
+      // never reached it and instead fell through to the getUserId() (Bearer)
+      // gate, returning {"ok":false,"error":"Not logged in"}. Handle it here
+      // with cookie auth + the same role/business resolution as the GET pages.
+      if (path.startsWith('/p/leads/') && method === 'POST') {
+        const leadId = parseInt(path.split('/')[3], 10);
+        if (!leadId) return new Response('Not found', { status: 404 });
+        const lUid = await getUidFromSessionCookie(request, env);
+        if (!lUid) return json({ ok: false, error: 'Not logged in' }, { status: 401 });
+        const lCtx = await resolveContext(request, env, lUid);
+        if (!roleMeets(lCtx.role, 'manager')) {
+          return new Response(null, { status: 302, headers: { Location: '/p/leads/' + leadId } });
+        }
+        return handleLeadStatusHtmx(request, env, lCtx.bid, leadId);
       }
       // Cookie-authed Vapi toggle for the HTMX settings page (no Bearer token
       // available client-side). Reuse the same provision/deprovision cores.
