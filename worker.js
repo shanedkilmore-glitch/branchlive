@@ -813,16 +813,36 @@ function getTemplateForIndustry(industry) {
 // HELPERS
 // ═══════════════════════════════════════════════════════════════════════
 
+// CORS — only the production site + this Worker's own origin may call the
+// JSON API. The active request is captured per-fetch (synchronously, before
+// any await) so every json()/corsPreflight() call echoes back the matching
+// Origin with Vary. Workers run one request at a time on the isolate's single
+// thread, so a module-level var reassigned at fetch entry can't leak across
+// requests.
+const ALLOWED_CORS_ORIGINS = new Set([
+  'https://branchlive.com',
+  'https://www.branchlive.com',
+  'https://branchlive-portal.shane-f58.workers.dev',
+]);
+let _corsRequest = null;
+function setCorsRequest(request) { _corsRequest = request; }
+function allowedCorsOrigin() {
+  const origin = _corsRequest && _corsRequest.headers.get('Origin');
+  return origin && ALLOWED_CORS_ORIGINS.has(origin) ? origin : null;
+}
+
 function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    },
-  });
+  const origin = allowedCorsOrigin();
+  const headers = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+  };
+  if (origin) {
+    headers['Access-Control-Allow-Origin'] = origin;
+    headers['Vary'] = 'Origin';
+  }
+  return new Response(JSON.stringify(data), { status, headers });
 }
 
 function apiError(msg, status = 400) {
@@ -830,15 +850,17 @@ function apiError(msg, status = 400) {
 }
 
 function corsPreflight() {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-      'Access-Control-Max-Age': '86400',
-    },
-  });
+  const origin = allowedCorsOrigin();
+  const headers = {
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+    'Access-Control-Max-Age': '86400',
+  };
+  if (origin) {
+    headers['Access-Control-Allow-Origin'] = origin;
+    headers['Vary'] = 'Origin';
+  }
+  return new Response(null, { status: 204, headers });
 }
 
 function nowISO() {
@@ -918,6 +940,45 @@ const ADDONS = {
   social:  { column: 'addon_social',  label: 'Social Media',     icon: '📣', price: 9.95, priceId: null },
   blog:    { column: 'addon_blog',    label: 'AI Blog Posts',    icon: '✍️', price: 14.95, priceId: null },
   email:   { column: 'addon_email',   label: 'Email Autoresponder', icon: '✉️', price: 9.95, priceId: null },
+};
+
+// Growth Feature Preview pages — sales/preview interstitials served at
+// /p/growth/{website|blog|social} when an add-on is disabled. Each entry pairs
+// an explainer video (YouTube id TBD — rendered as a placeholder card when not
+// yet set) with benefit-driven sales copy. Headlines/sub/bullets are the
+// approved marketing copy; the addon key + price come from ADDONS above so
+// billing stays the single source of truth.
+const GROWTH_EXPLAINERS = {
+  website: {
+    youtubeId: 'TBD',
+    headline: 'Get a Premium Website That Automatically Books Clients 24/7',
+    sub: 'A beautiful, mobile-friendly site that showcases your projects and reviews — and turns visitors into booked appointments while you sleep.',
+    bullets: [
+      'Professionally designed site built automatically from your services, photos & reviews',
+      'Built-in online booking — clients schedule themselves, any time of day',
+      'Live in minutes; update it anytime from your dashboard',
+    ],
+  },
+  blog: {
+    youtubeId: 'TBD',
+    headline: 'Rank Higher on Google with Local Blog Articles Written for You',
+    sub: 'Fresh, SEO-friendly articles published to your site automatically — written around your industry and service area so local customers find you first.',
+    bullets: [
+      'New articles written & published for you every week — you do nothing',
+      'Local-SEO titles and topics tuned to your industry & service area',
+      'Live on your website with an email summary each time a post goes out',
+    ],
+  },
+  social: {
+    youtubeId: 'TBD',
+    headline: 'Keep Your Facebook & Instagram Pages Active on Autopilot',
+    sub: 'Turn your reviews, completed jobs, and services into ready-to-publish posts — then post them to Facebook & Instagram in one click.',
+    bullets: [
+      'Posts auto-written from your 5-star reviews, job photos & services',
+      'Publish to Facebook & Instagram in a single click',
+      'Review everything in draft mode first — nothing goes live without you',
+    ],
+  },
 };
 
 // Resolve the addon config with env-injected Stripe Price IDs (if present).
@@ -1820,6 +1881,29 @@ async function initDB(env) {
       ]);
     } catch(e) { console.error('user_roles table migration error:', e); }
 
+    // Estimates & Invoices — quote lifecycle (draft -> sent -> approved -> paid).
+    // items is a JSON array of {desc, qty, rate}; total is recomputed server-side
+    // on create so a tampered client payload can't set a wrong amount.
+    // stripe_payment_link holds the Payment Link URL created on approval (reused
+    // by the public "Resume Payment" CTA). lead_id optionally ties a quote to a
+    // CRM lead; on payment the linked lead flips to 'booked'.
+    try {
+      await env.DB.batch([
+        env.DB.prepare(`CREATE TABLE IF NOT EXISTS estimates (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          lead_id INTEGER,
+          title TEXT DEFAULT "",
+          items TEXT DEFAULT "[]",
+          total REAL DEFAULT 0.0,
+          status TEXT DEFAULT "draft",
+          stripe_payment_link TEXT DEFAULT "",
+          created_at TEXT DEFAULT (datetime('now'))
+        )`),
+        env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_estimates_user ON estimates(user_id, status)`),
+      ]);
+    } catch(e) { console.error('estimates table migration error:', e); }
+
     // Every account owner is an admin of their own business (idempotent
     // backfill). This guarantees legacy owners + the demo account keep full
     // access the moment the table exists — nothing is ever locked out.
@@ -1830,6 +1914,24 @@ async function initDB(env) {
          WHERE id NOT IN (SELECT user_id FROM user_roles WHERE user_id = business_id)`
       ).run();
     } catch(e) { console.error('user_roles owner backfill error:', e); }
+
+    // Rate-limiting ledger for auth-sensitive endpoints (login/signup/reset).
+    // Each row is one (ip, action) bucket keyed to a 15-minute window; a small
+    // cap stops brute-force/credential-stuffing without needing a KV binding.
+    try {
+      await env.DB.batch([
+        env.DB.prepare(`CREATE TABLE IF NOT EXISTS login_attempts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          ip TEXT NOT NULL,
+          action TEXT NOT NULL,
+          window TEXT NOT NULL,
+          attempts INTEGER DEFAULT 0,
+          updated_at TEXT DEFAULT (datetime('now')),
+          UNIQUE(ip, action, window)
+        )`),
+        env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_login_attempts_lookup ON login_attempts(ip, action, window)`),
+      ]);
+    } catch(e) { console.error('login_attempts table migration error:', e); }
 
     // Seed demo data if empty
     const userCount = await env.DB.prepare(
@@ -2307,11 +2409,52 @@ async function seedRiverside(env) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// RATE LIMITING (auth-sensitive endpoints)
+// ═══════════════════════════════════════════════════════════════════════
+// Per-IP, per-action counter stored in D1 (no KV binding available). Each
+// request increments the bucket for the current 15-minute window; once it
+// exceeds the cap we reject with 429. Returns true when the caller is allowed.
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const RATE_LIMIT_CAPS = { login: 10, signup: 6, reset: 5 };
+function clientIp(request) {
+  return (request.headers.get('cf-connecting-ip')
+    || request.headers.get('x-forwarded-for')
+    || 'unknown').split(',')[0].trim();
+}
+async function rateLimit(request, env, action) {
+  const cap = RATE_LIMIT_CAPS[action];
+  if (!cap) return true; // unknown action → don't block
+  const ip = clientIp(request);
+  const windowStart = new Date(Math.floor(Date.now() / RATE_LIMIT_WINDOW_MS) * RATE_LIMIT_WINDOW_MS).toISOString();
+  try {
+    // Upsert the bucket for this window, then read the resulting count.
+    await env.DB.prepare(
+      `INSERT INTO login_attempts (ip, action, window, attempts, updated_at)
+       VALUES (?, ?, ?, 1, ?)
+       ON CONFLICT(ip, action, window) DO UPDATE SET
+         attempts = attempts + 1,
+         updated_at = ?`
+    ).bind(ip, action, windowStart, nowISO(), nowISO()).run();
+    const row = await env.DB.prepare(
+      'SELECT attempts FROM login_attempts WHERE ip = ? AND action = ? AND window = ?'
+    ).bind(ip, action, windowStart).first();
+    const attempts = row ? row.attempts : 1;
+    return attempts <= cap;
+  } catch (e) {
+    // If the ledger is unavailable, fail open (availability over blocking).
+    console.error('Rate limit check error:', e);
+    return true;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // AUTH ENDPOINTS
 // ═══════════════════════════════════════════════════════════════════════
 
 async function handleLogin(request, env) {
   try {
+    const allowed = await rateLimit(request, env, 'login');
+    if (!allowed) return apiError('Too many attempts. Please try again later.', 429);
     const body = await request.json();
     const email = (body.email || '').trim().toLowerCase();
     const password = body.password || '';
@@ -2420,10 +2563,7 @@ function loginHtmxBody({ error, next }) {
         <label style="display:block;font-size:.78rem;font-family:var(--font-mono);letter-spacing:.04em;color:var(--text-muted);margin-bottom:7px;text-transform:uppercase">Password</label>
         <input type="password" name="password" required placeholder="••••••••" style="width:100%;box-sizing:border-box">
       </div>
-      <label style="display:flex;align-items:flex-start;gap:9px;font-size:.8em;color:var(--text-muted);line-height:1.5;padding:11px 13px;background:var(--bg-elev);border:1px solid var(--border);border-radius:10px;cursor:pointer;margin-top:2px">
-        <input type="checkbox" name="sms_consent" value="1" required style="width:18px;height:18px;min-width:18px;margin-top:2px;accent-color:var(--accent-amber);cursor:pointer;flex-shrink:0">
-        <span>📱 I agree to receive SMS messages from Branch Live about my account, appointments, and leads. Reply STOP to unsubscribe. <a href="/terms/" style="color:var(--accent-amber);font-weight:500">Terms</a> · <a href="/privacy/" style="color:var(--accent-amber);font-weight:500">Privacy</a></span>
-      </label>
+      <p style="font-size:.78em;color:var(--text-faint);text-align:center;margin-top:6px">By signing in you agree to our <a href="/terms/" style="color:var(--accent-amber)">Terms</a> and <a href="/privacy/" style="color:var(--accent-amber)">Privacy</a>.</p>
       <button type="submit" class="btn-amber" style="margin-top:6px;justify-content:center;padding:13px">Sign In →</button>
     </form>
     <p style="color:var(--text-faint);font-size:.85em;text-align:center;margin-top:24px">
@@ -2451,6 +2591,13 @@ async function handleLoginHtmx(request, env) {
   }
 
   // POST: parse form-encoded body, validate, create session, set cookie.
+  // Rate-limited via the same 'login' bucket as the JSON /api/login route.
+  const allowed = await rateLimit(request, env, 'login');
+  if (!allowed) {
+    return new Response(simpleShell('Sign In', loginHtmxBody({ error: 'Too many attempts. Please try again later.', next })), {
+      headers: { 'Content-Type': 'text/html' }, status: 429,
+    });
+  }
   let email = '', password = '', postedNext = next, smsConsent = false;
   try {
     const form = await request.formData();
@@ -2471,12 +2618,8 @@ async function handleLoginHtmx(request, env) {
     });
   }
 
-  // SMS consent gate (Twilio A2P 10DLC compliance — must be explicit).
-  if (!smsConsent) {
-    return new Response(simpleShell('Sign In', loginHtmxBody({ error: 'Please agree to receive SMS messages to continue.', next })), {
-      headers: { 'Content-Type': 'text/html' },
-    });
-  }
+  // SMS consent gate removed per audit — no longer required for login.
+  // (sms_consent is still captured per-business in Settings for reminders.)
 
   try {
     const row = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
@@ -2512,7 +2655,8 @@ async function handleLoginHtmx(request, env) {
 
 // GET /logout-htmx — clear the session cookie and show a logged-out page.
 async function handleLogoutHtmx(request, env) {
-  const cookie = `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+  const isHttps = new URL(request.url).protocol === 'https:';
+  const cookie = `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax${isHttps ? '; Secure' : ''}; Max-Age=0`;
   const body = `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px">
   <div style="text-align:center;max-width:380px">
     <div style="font-size:3rem;margin-bottom:16px">👋</div>
@@ -2551,9 +2695,9 @@ const NAV_ITEMS = {
   knowledge:{ key:'knowledge',href: '/p/knowledge',   label: 'Knowledge', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>' },
   gallery:  { key:'gallery',  href: '/p/gallery',     label: 'Gallery',   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>' },
   analytics:{ key:'analytics',href: '/p/analytics',   label: 'Analytics', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="4" y2="12"/><line x1="10" y1="20" x2="10" y2="4"/><line x1="16" y1="20" x2="16" y2="14"/><line x1="22" y1="20" x2="22" y2="8"/></svg>' },
-  website:  { key:'website',  href: '/p/website',     label: 'Website',    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>' },
-  blog:     { key:'blog',     href: '/p/blog',        label: 'Blog',      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>' },
-  social:   { key:'social',   href: '/p/social',      label: 'Social',    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-8-8 18-2-7-8-3z"/></svg>' },
+  website:  { key:'website',  href: '/p/growth/website',     label: 'Website',    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>' },
+  blog:     { key:'blog',     href: '/p/growth/blog',        label: 'Blog',      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>' },
+  social:   { key:'social',   href: '/p/growth/social',      label: 'Social',    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-8-8 18-2-7-8-3z"/></svg>' },
   billing:  { key:'billing',  href: '/p/billing',     label: 'Billing',   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>' },
   help:     { key:'help',     href: '/p/help',        label: 'Help',      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' },
   outreach: { key:'outreach', href: '/p/outreach',   label: 'Outreach',  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>' },
@@ -2567,7 +2711,7 @@ const NAV_ITEMS = {
 const NAV_GROUPS = [
   { name: 'Main',     keys: ['overview','calendar','knowledge','gallery'] },
   { name: 'Business', keys: ['leads','calls','analytics'] },
-  { name: 'Growth',   keys: ['website','blog','social','outreach'] },
+  { name: 'Growth',   keys: ['website','blog','social'] },
   { name: 'Account',  keys: ['billing','team','settings','help'] },
 ];
 
@@ -2771,6 +2915,7 @@ const VALID_ROLES = ['admin', 'manager', 'employee'];
 const ROUTE_MIN_ROLE = {
   '/p/settings':  'admin',
   '/p/billing':   'admin',
+  '/p/estimates': 'manager',
   '/p/help':      'employee',
   '/p/leads':     'manager',
   '/p/calls':     'manager',
@@ -3602,6 +3747,8 @@ async function handleMe(request, env, uid) {
 
 async function handleSignup(request, env) {
   try {
+    const allowed = await rateLimit(request, env, 'signup');
+    if (!allowed) return apiError('Too many attempts. Please try again later.', 429);
     const body = await request.json();
     const email = (body.email || '').trim().toLowerCase();
     const password = body.password || '';
@@ -3736,6 +3883,8 @@ async function handleSignup(request, env) {
 // POST /api/reset-password — if body has only email → generate token; if body has token+password → confirm reset
 async function handleResetPassword(request, env) {
   try {
+    const allowed = await rateLimit(request, env, 'reset');
+    if (!allowed) return apiError('Too many attempts. Please try again later.', 429);
     const body = await request.json();
     if (!body) return apiError('Request body is required');
 
@@ -4952,6 +5101,20 @@ async function handleStripeWebhook(request, env) {
     }
 
     if (type === 'checkout.session.completed') {
+      // Estimate payment (spec §5.2): a Payment Link checkout carries the
+      // estimate id in metadata. Flip the estimate to paid + link the CRM lead
+      // to 'booked', then we're done — these checkouts have no subscription.
+      const estMetaId = data && data.metadata && data.metadata.estimate_id;
+      if (estMetaId) {
+        try {
+          const est = await env.DB.prepare('SELECT id, lead_id FROM estimates WHERE id = ?').bind(parseInt(estMetaId, 10)).first();
+          if (est) {
+            await env.DB.prepare('UPDATE estimates SET status = ? WHERE id = ?').bind('paid', est.id).run();
+            await markEstimateLeadBooked(env, est);
+          }
+        } catch (e) { console.error('Estimate webhook paid error:', e.message); }
+        return json({ ok: true, received: true });
+      }
       const uid = await resolveUserId(data);
       if (uid) {
         await env.DB.prepare(
@@ -5166,6 +5329,27 @@ async function handleKnowledgeUpload(request, env, uid) {
 const PHOTO_TYPES = new Set(['before', 'during', 'after']);
 const PHOTO_MAX_BYTES = 300 * 1024;
 
+// Strict image validation: verify the file's magic bytes against a small
+// whitelist of safe raster formats and return the canonical MIME type, or null
+// if the bytes don't match a known signature. We never trust the client
+// Content-Type (it's trivially spoofable), so SVG/HTML/executables are
+// rejected regardless of the declared type.
+function detectImageMime(bytes) {
+  if (!bytes || bytes.length < 12) return null;
+  const b = bytes;
+  // JPEG: FF D8 FF
+  if (b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return 'image/jpeg';
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47
+      && b[4] === 0x0D && b[5] === 0x0A && b[6] === 0x1A && b[7] === 0x0A) return 'image/png';
+  // GIF: 47 49 46 38 (GIF8)
+  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) return 'image/gif';
+  // WebP: RIFF....WEBP
+  if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46
+      && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return 'image/webp';
+  return null;
+}
+
 async function handlePhotoUpload(request, env, uid) {
   try {
     const formData = await request.formData();
@@ -5182,7 +5366,9 @@ async function handlePhotoUpload(request, env, uid) {
     const leadId = parseInt(formData.get('lead_id'), 10) || null;
     const apptId = parseInt(formData.get('appointment_id'), 10) || null;
     const caption = String(formData.get('caption') || '').slice(0, 280);
-    const mime = (file.type && file.type.startsWith('image/')) ? file.type : 'image/jpeg';
+    // Validate the actual bytes — never trust the client-supplied Content-Type.
+    const mime = detectImageMime(new Uint8Array(bytes));
+    if (!mime) return apiError('Unsupported file type. Use JPEG, PNG, WebP, or GIF.');
     const u8 = new Uint8Array(bytes);
     let bin = '';
     for (let i = 0; i < u8.length; i += 0x8000) {
@@ -5239,7 +5425,9 @@ async function handlePhotoUploadHtmx(request, env, uid) {
     const rawType = String(formData.get('type') || 'after').toLowerCase().trim();
     const type = PHOTO_TYPES.has(rawType) ? rawType : 'after';
     const caption = String(formData.get('caption') || '').slice(0, 280);
-    const mime = (file.type && file.type.startsWith('image/')) ? file.type : 'image/jpeg';
+    // Validate the actual bytes — never trust the client-supplied Content-Type.
+    const mime = detectImageMime(new Uint8Array(bytes));
+    if (!mime) return json({ ok: false, error: 'Unsupported file type. Use JPEG, PNG, WebP, or GIF.' });
     const u8 = new Uint8Array(bytes);
     let bin = '';
     for (let i = 0; i < u8.length; i += 0x8000) {
@@ -5847,8 +6035,10 @@ async function handleReviewsSyncHtmx(request, env, uid) {
 // cron service (no auth beyond an optional shared secret). One failure never
 // aborts the batch; returns a per-account summary.
 async function handleReviewsSyncCron(request, env) {
+  // Fail-closed: CRON_SECRET must be configured and match. This endpoint fans
+  // out review syncs across every business, so it can't be left unauthenticated.
   const secret = request.headers.get('x-cron-secret');
-  if (env.CRON_SECRET && secret !== env.CRON_SECRET) {
+  if (!env.CRON_SECRET || secret !== env.CRON_SECRET) {
     return json({ ok: false, error: 'Unauthorized' }, 401);
   }
   try {
@@ -5965,6 +6155,9 @@ async function buildSiteData(env, uid, opts) {
     desc: s.service_description || '',
     welcome: s.welcome_message || '',
     phone: s.forwarding_number || '',
+    // Owner-set hero tagline (audit item #6). Empty string when unset; the
+    // template falls back to industry · area so existing sites are unchanged.
+    tagline: s.hero_tagline || '',
     email: s.gmail_email || '',
     instagram,
     facebook,
@@ -6089,10 +6282,19 @@ function siteSharedHtml(data, cfg) {
   const esc = htmxEsc;
   const telHref = data.phone
     ? `<a class="s-btn s-btn-call" href="tel:${esc(data.phone.replace(/[^0-9+]/g, ''))}">📞 Call ${esc(data.phone)}</a>` : '';
-  const bookUrl = 'https://branchlive-portal.shane-f58.workers.dev/dashboard';
+  const bookUrl = data.slug ? `/s/${data.slug}/book` : 'https://branchlive-portal.shane-f58.workers.dev/dashboard';
   const bookBtn = `<a class="s-btn s-btn-book" href="${bookUrl}">📅 Book Appointment</a>`;
   const heroHeadline = cfg.headline || data.name;
-  const heroSub = [data.industry, data.area ? '📍 ' + data.area : ''].filter(Boolean).join(' · ');
+  // Hero tagline (audit item #6): owner-set hook shown under the business name.
+  // Falls back to industry · area so existing sites keep their current sub-line.
+  const heroTagline = (data.tagline && data.tagline.trim())
+    ? data.tagline.trim().slice(0, 160)
+    : '';
+  const heroSub = heroTagline || [data.industry, data.area ? '📍 ' + data.area : ''].filter(Boolean).join(' · ');
+  // Mobile sticky CTA bar (audit item #5): fixed bottom rail on phones so the
+  // Call / Book actions never scroll out of reach. Shown ≤640px via CSS.
+  const callHref = data.phone ? `tel:${esc(data.phone.replace(/[^0-9+]/g, ''))}` : '';
+  const stickyCta = `<nav class="s-sticky" aria-label="Quick actions"><a class="s-sticky-btn s-sticky-call" ${callHref ? `href="${callHref}"` : 'aria-disabled="true"'}>📞 Call</a><a class="s-sticky-btn s-sticky-book" href="${bookUrl}">📅 Book Online</a></nav>`;
   // Services markup (shared shape; templates wrap it differently).
   const servicesInner = Object.keys(data.servicesByCat).length
     ? Object.entries(data.servicesByCat).map(([cat, items]) =>
@@ -6144,7 +6346,7 @@ function siteSharedHtml(data, cfg) {
   const reviewsHtml = data.reviews && data.reviews.length
     ? data.reviews.map(r => `<blockquote class="s-review"><p>“${esc(r.text || '')}”</p>${r.author ? `<cite>— ${esc(r.author)}</cite>` : ''}</blockquote>`).join('')
     : '<p class="s-placeholder">Reviews coming soon — check back!</p>';
-  return { esc, telHref, bookBtn, bookUrl, heroHeadline, heroSub, servicesInner, apptChips, galleryHtml, blogHtml, hoursHtml, bookingInner, serviceAreaHtml, socialLinksHtml, reviewsHtml, previewing: data.previewing || {} };
+  return { esc, telHref, bookBtn, bookUrl, heroHeadline, heroSub, heroTagline, stickyCta, servicesInner, apptChips, galleryHtml, blogHtml, hoursHtml, bookingInner, serviceAreaHtml, socialLinksHtml, reviewsHtml, previewing: data.previewing || {} };
 }
 
 // ── Template: Modern Clean ──
@@ -6303,6 +6505,458 @@ function renderSite(site, data, cfg, url) {
 // as a Branch Live page, not the business's half-built site.
 function siteNotFoundShell() {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Site not found — Branch Live</title><style>body{font-family:system-ui,sans-serif;background:#0d1117;color:#e6edf3;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center}.box{max-width:420px;padding:32px}a{color:#d4a574}</style></head><body><div class="box"><div style="font-size:3em;margin-bottom:12px">🌐</div><h1>Site not published</h1><p style="color:#8b949e;margin-top:8px">This page isn't live yet. If you're the owner, publish it from your Branch Live dashboard.</p><p style="margin-top:20px"><a href="https://branchlive.com/dashboard">← Back to Branch Live</a></p></div></body></html>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ESTIMATES & INVOICES — quotes via SMS, customer approves, Stripe handles
+// payment. Lifecycle: draft → sent → approved → paid. The estimates table is
+// created in initDB(); everything below assumes it exists.
+//   /p/estimates            — manager dashboard (list + create modal)
+//   /api/estimates          — POST create
+//   /api/estimates/:id/send — POST dispatch via sendSms(), draft→sent
+//   /s/{slug}/estimate/:id  — public client view + "Approve & pay" (GET)
+//   /api/estimates/:id/approve — POST creates a Stripe Payment Link, sent→approved
+//   stripe webhook          — checkout.session.completed → paid (+ lead→booked)
+// ═══════════════════════════════════════════════════════════════════════
+
+// Parse + validate the line-items JSON from a create payload. Each item must
+// carry a description; qty/rate default to 1/0. Returns { items, total } with
+// the total recomputed server-side so a tampered client can't set the amount.
+function parseEstimateItems(raw) {
+  let items = [];
+  try { items = Array.isArray(raw) ? raw : JSON.parse(raw || '[]'); } catch (e) { items = []; }
+  items = items
+    .map(it => ({
+      desc: String((it && it.desc) || '').trim(),
+      qty: Math.max(0, Number(it && it.qty) || 1),
+      rate: Math.max(0, Number(it && it.rate) || 0),
+    }))
+    .filter(it => it.desc);
+  if (!items.length) return null;
+  const total = items.reduce((sum, it) => sum + (it.qty * it.rate), 0);
+  return { items, total: Math.round(total * 100) / 100 };
+}
+
+// Render one dashboard table row for an estimate. Kept as its own helper so the
+// lead-detail panel can reuse the same markup shape. `pubUrl` is the public
+// /s/{slug}/estimate/{id} link (null when the business has no published slug).
+function estRowHtml(est, opts = {}) {
+  const esc = htmxEsc;
+  const customer = esc(est.customer_name || '—');
+  const total = '$' + Number(est.total || 0).toFixed(2);
+  const date = (est.created_at || '').slice(0, 10) || '—';
+  const pub = opts.pubUrl ? `${opts.pubUrl}/${est.id}` : null;
+  const titleCell = pub
+    ? `<a href="${esc(pub)}" target="_blank" rel="noopener">${esc(est.title || 'Untitled quote')}</a>`
+    : esc(est.title || 'Untitled quote');
+  const statusBadge = {
+    draft:    '<span class="status-pill" style="background:rgba(139,148,158,.18);color:var(--text-muted)">Draft</span>',
+    sent:     '<span class="status-pill pill-scheduled">Sent</span>',
+    approved: '<span class="status-pill pill-booked">Approved</span>',
+    paid:     '<span class="status-pill" style="background:rgba(63,185,80,.18);color:#7fd692">Paid</span>',
+  }[est.status] || '<span class="status-pill">—</span>';
+
+  // Action cell depends on status (spec §6). draft→Send SMS; sent→Resend/View;
+  // approved→View Link; paid→checkmark.
+  let actions;
+  if (est.status === 'draft') {
+    actions = `<button class="btn btn-ghost btn-sm" onclick="sendEst(${est.id},this)">Send SMS</button>`;
+  } else if (est.status === 'sent') {
+    actions = `<button class="btn btn-ghost btn-sm" onclick="sendEst(${est.id},this)">Resend SMS</button>`
+            + (pub ? ` <a class="btn btn-ghost btn-sm" href="${esc(pub)}" target="_blank" rel="noopener">View link</a>` : '');
+  } else if (est.status === 'approved') {
+    actions = pub ? `<a class="btn btn-ghost btn-sm" href="${esc(pub)}" target="_blank" rel="noopener">Resume payment</a>` : '—';
+  } else {
+    actions = '<span style="color:#7fd692">✓ Paid</span>';
+  }
+  return `<tr data-id="${est.id}">
+  <td style="white-space:nowrap;color:var(--text-muted)">${date}</td>
+  <td><strong style="color:var(--cream)">${titleCell}</strong></td>
+  <td>${customer}</td>
+  <td style="font-family:var(--font-mono);color:var(--accent-amber)">${total}</td>
+  <td>${statusBadge}</td>
+  <td style="white-space:nowrap">${actions}</td>
+</tr>`;
+}
+
+// ── Estimates dashboard: /p/estimates (manager) ──
+// Metrics cards (draft/sent/paid counts + value) + the quote table + a create
+// modal that picks a lead and assembles line items (client-side total).
+async function handleEstimatesHtmx(request, env, uid, ctx) {
+  try {
+    const [estimates, leads, site, settings] = await Promise.all([
+      env.DB.prepare('SELECT e.*, l.caller_name AS customer_name FROM estimates e LEFT JOIN leads l ON l.id = e.lead_id WHERE e.user_id = ? ORDER BY e.created_at DESC').bind(uid).all(),
+      env.DB.prepare("SELECT id, caller_name FROM leads WHERE user_id = ? AND status NOT IN ('closed','booked') ORDER BY updated_at DESC LIMIT 200").bind(uid).all(),
+      env.DB.prepare('SELECT slug, published FROM sites WHERE user_id = ?').bind(uid).first(),
+      env.DB.prepare('SELECT business_name FROM settings WHERE user_id = ?').bind(uid).first(),
+    ]);
+    const rows = (estimates.results || []);
+    const leadRows = (leads.results || []);
+    const pubUrl = (site && site.slug) ? `/s/${site.slug}/estimate` : null;
+    const businessName = (settings && settings.business_name) || 'your business';
+
+    // Metric cards.
+    const sumBy = status => rows.filter(r => r.status === status).reduce((s, r) => s + Number(r.total || 0), 0);
+    const metrics = [
+      { label: 'Draft',    n: rows.filter(r => r.status === 'draft').length,    val: sumBy('draft'),    tone: 'muted' },
+      { label: 'Sent',     n: rows.filter(r => r.status === 'sent').length,     val: sumBy('sent'),     tone: 'amber' },
+      { label: 'Approved', n: rows.filter(r => r.status === 'approved').length, val: sumBy('approved'), tone: 'amber' },
+      { label: 'Paid',     n: rows.filter(r => r.status === 'paid').length,     val: sumBy('paid'),     tone: 'green' },
+    ];
+    const metricCards = metrics.map(m => `<div class="metric-card">
+  <div class="metric-label">${m.label}</div>
+  <div class="metric-value" style="${m.tone === 'green' ? 'color:#7fd692' : m.tone === 'amber' ? 'color:var(--accent-amber)' : ''}">${m.n}</div>
+  <div class="metric-sub mono" style="color:var(--text-faint)">$${m.val.toFixed(2)}</div>
+</div>`).join('');
+
+    const tableBody = rows.length
+      ? rows.map(r => estRowHtml(r, { pubUrl })).join('')
+      : `<tr><td colspan="6" style="text-align:center;color:var(--text-faint);padding:32px">No quotes yet. Click <strong>New estimate</strong> to send your first one.</td></tr>`;
+
+    const leadOpts = leadRows.length
+      ? leadRows.map(l => `<option value="${l.id}">${htmxEsc(l.caller_name || ('Lead #' + l.id))}</option>`).join('')
+      : '<option value="">(no active leads — create one first)</option>';
+
+    const body = `<div class="app">${sidebarNav('estimates', undefined, ctx)}<div class="content" style="max-width:980px">
+<span class="eyebrow">Quotes & Invoices</span>
+<h1>Estimates</h1>
+<p class="sub">Send a quote via text. The customer taps Approve, it converts to an invoice, and Stripe handles payment — no paper.</p>
+
+<div class="metric-row" style="display:flex;gap:12px;flex-wrap:wrap;margin:22px 0">${metricCards}</div>
+
+<div style="display:flex;gap:10px;align-items:center;margin:0 0 12px">
+  <button class="btn" onclick="openEstModal()">+ New estimate</button>
+  <span id="est-fb" class="lead-action-fb" aria-live="polite"></span>
+</div>
+
+<table>
+  <thead><tr><th>Date</th><th>Title</th><th>Customer</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+  <tbody id="est-tbody">${tableBody}</tbody>
+</table>
+
+<!-- Create modal: lead picker + dynamic line items + live total. -->
+<div id="est-modal" class="modal-overlay" style="display:none">
+  <div class="modal-card" style="max-width:560px">
+    <h3 style="margin-top:0">New estimate ${businessName ? '<span style="color:var(--text-faint);font-weight:400;font-size:.85em">for ' + htmxEsc(businessName) + '</span>' : ''}</h3>
+    <label class="field-label">Customer (lead)</label>
+    <select id="est-lead" style="width:100%;box-sizing:border-box;margin-bottom:12px">${leadOpts}</select>
+    <label class="field-label">Title</label>
+    <input id="est-title" placeholder="e.g. Bathroom remodel — phase 1" style="width:100%;box-sizing:border-box;margin-bottom:14px">
+    <label class="field-label">Line items</label>
+    <table style="margin-bottom:8px">
+      <thead><tr><th style="text-align:left">Description</th><th>Qty</th><th>Rate</th><th>Amount</th><th></th></tr></thead>
+      <tbody id="est-items"></tbody>
+    </table>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="estAddRow()">+ Add line</button>
+      <span style="margin-left:auto;align-self:center;font-family:var(--font-mono)">Total: <strong id="est-total" style="color:var(--accent-amber)">$0.00</strong></span>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-ghost btn-sm" onclick="closeEstModal()">Cancel</button>
+      <button class="btn btn-sm" id="est-save" onclick="saveEst(this)">Create as draft</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.metric-card{flex:1;min-width:130px;background:var(--bg-elev,#161622);border:1px solid var(--border,#262636);border-radius:12px;padding:16px}
+.metric-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint)}
+.metric-value{font-size:1.8rem;font-weight:700;margin:4px 0}
+.metric-sub{font-size:.8rem}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal-card{background:var(--bg-elev,#161622);border:1px solid var(--border,#262636);border-radius:14px;padding:24px;width:100%;box-sizing:border-box}
+.field-label{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin-bottom:6px}
+#est-items input{width:100%;box-sizing:border-box}
+.est-amt{font-family:var(--font-mono);color:var(--accent-amber);white-space:nowrap}
+</style>
+
+<script>
+function setEstFb(ok,msg){var el=document.getElementById('est-fb');if(!el)return;el.textContent=(ok?'✓ ':'✗ ')+(msg||'');el.style.color=ok?'#7fd692':'var(--danger,#f87373)';}
+function estRecalc(){
+  var total=0;
+  document.querySelectorAll('#est-items .est-amt').forEach(function(c){
+    var row=c.closest('tr');var qty=parseFloat(row.querySelector('.est-qty').value)||0;var rate=parseFloat(row.querySelector('.est-rate').value)||0;
+    var amt=qty*rate;c.textContent='$'+amt.toFixed(2);total+=amt;
+  });
+  document.getElementById('est-total').textContent='$'+total.toFixed(2);
+}
+function estAddRow(desc,qty,rate){
+  var tb=document.getElementById('est-items');
+  var tr=document.createElement('tr');tr.style.borderTop='1px solid var(--border,#262636)';
+  tr.innerHTML='<td><input class="est-desc" placeholder="Service or material" value="'+(desc||'')+'"></td>'
+    +'<td style="width:60px"><input class="est-qty" type="number" min="0" step="1" style="width:54px" value="'+(qty==null?1:qty)+'"></td>'
+    +'<td style="width:80px"><input class="est-rate" type="number" min="0" step="0.01" style="width:74px" value="'+(rate==null?'':rate)+'"></td>'
+    +'<td><span class="est-amt">$0.00</span></td>'
+    +'<td style="width:30px"><button type="button" class="btn btn-ghost btn-sm" onclick="this.closest(\'tr\').remove();estRecalc();">×</button></td>';
+  tb.appendChild(tr);
+  tr.querySelectorAll('input').forEach(function(i){i.addEventListener('input',estRecalc);});
+  estRecalc();
+}
+function openEstModal(){document.getElementById('est-modal').style.display='flex';var tb=document.getElementById('est-items');tb.innerHTML='';estAddRow();}
+function closeEstModal(){document.getElementById('est-modal').style.display='none';}
+function saveEst(btn){
+  var leadId=parseInt(document.getElementById('est-lead').value,10)||null;
+  var title=document.getElementById('est-title').value.trim();
+  var items=[];document.querySelectorAll('#est-items tr').forEach(function(tr){
+    var desc=tr.querySelector('.est-desc').value.trim();if(!desc)return;
+    items.push({desc:desc,qty:parseFloat(tr.querySelector('.est-qty').value)||0,rate:parseFloat(tr.querySelector('.est-rate').value)||0});
+  });
+  if(!items.length){setEstFb(false,'Add at least one line item.');return;}
+  btn.disabled=true;var orig=btn.textContent;btn.textContent='Saving…';
+  fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lead_id:leadId,title:title,items:items})})
+    .then(function(r){return r.json();})
+    .then(function(d){if(d.ok){setEstFb(true,'Estimate #'+d.id+' created');closeEstModal();setTimeout(function(){location.reload();},700);}
+      else{setEstFb(false,d.error||'Could not create');btn.disabled=false;btn.textContent=orig;}})
+    .catch(function(){setEstFb(false,'Connection error');btn.disabled=false;btn.textContent=orig;});
+}
+function sendEst(id,btn){
+  if(!confirm('Send this quote to the customer by SMS?'))return;
+  btn.disabled=true;var orig=btn.textContent;btn.textContent='Sending…';
+  fetch('/api/estimates/'+id+'/send',{method:'POST'})
+    .then(function(r){return r.json();})
+    .then(function(d){if(d.ok){setEstFb(true,d.message||'SMS sent');setTimeout(function(){location.reload();},900);}
+      else{setEstFb(false,d.error||'Could not send');btn.disabled=false;btn.textContent=orig;}})
+    .catch(function(){setEstFb(false,'Connection error');btn.disabled=false;btn.textContent=orig;});
+}
+</script>
+</div></div>`;
+    return new Response(simpleShell('Estimates', body), { headers: { 'Content-Type': 'text/html' } });
+  } catch (e) {
+    console.error('Estimates dashboard error:', e);
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load estimates.</p>'), { status: 500, headers: { 'Content-Type': 'text/html' } });
+  }
+}
+
+// POST /api/estimates — create a draft quote. Total is recomputed server-side
+// (parseEstimateItems) so a tampered payload can't set the amount.
+async function handleEstimateCreate(request, env, uid) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const parsed = parseEstimateItems(body.items);
+    if (!parsed) return json({ ok: false, error: 'Add at least one line item with a description.' }, 400);
+    const title = String(body.title || '').trim().slice(0, 200);
+    const leadId = body.lead_id ? parseInt(body.lead_id, 10) : null;
+    // If a lead was selected, confirm it belongs to this account.
+    if (leadId) {
+      const lead = await env.DB.prepare('SELECT id FROM leads WHERE id = ? AND user_id = ?').bind(leadId, uid).first();
+      if (!lead) return json({ ok: false, error: 'That lead was not found in your account.' }, 400);
+    }
+    const res = await env.DB.prepare(
+      'INSERT INTO estimates (user_id, lead_id, title, items, total, status) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind(uid, leadId, title, JSON.stringify(parsed.items), parsed.total, 'draft').run();
+    return json({ ok: true, id: res.meta.last_row_id });
+  } catch (e) {
+    console.error('Estimate create error:', e);
+    return json({ ok: false, error: 'Could not create estimate' }, 500);
+  }
+}
+
+// POST /api/estimates/:id/send — dispatch the quote to the customer via SMS.
+// Resolves the linked lead's phone + name, the business slug/name, formats the
+// spec §3 SMS body, and on a successful send flips draft→sent. Resending a
+// quote that's already sent/approved is allowed (status stays as-is once paid).
+async function handleEstimateSend(request, env, uid, estId) {
+  try {
+    const est = await env.DB.prepare('SELECT * FROM estimates WHERE id = ? AND user_id = ?').bind(estId, uid).first();
+    if (!est) return json({ ok: false, error: 'Estimate not found' }, 404);
+    if (est.status === 'paid') return json({ ok: false, error: 'This quote is already paid.' }, 400);
+
+    const [lead, site, settings] = await Promise.all([
+      est.lead_id ? env.DB.prepare('SELECT caller_name, caller_phone FROM leads WHERE id = ? AND user_id = ?').bind(est.lead_id, uid).first() : Promise.resolve(null),
+      env.DB.prepare('SELECT slug FROM sites WHERE user_id = ?').bind(uid).first(),
+      env.DB.prepare('SELECT business_name FROM settings WHERE user_id = ?').bind(uid).first(),
+    ]);
+    const phone = lead && lead.caller_phone;
+    if (!phone) return json({ ok: false, error: 'No phone number on the linked lead. Add one first.' }, 400);
+    if (!site || !site.slug) return json({ ok: false, error: 'Publish your website first — the quote needs a public link.' }, 400);
+
+    const origin = new URL(request.url).origin;
+    const custName = (lead && lead.caller_name) ? lead.caller_name.split(/\s+/)[0] : 'there';
+    const bizName = (settings && settings.business_name) || 'us';
+    const link = `${origin}/s/${site.slug}/estimate/${est.id}`;
+    const message = `Hi ${custName}, this is ${bizName}. Here is your quote for ${est.title || 'your project'}: ${link} Tap to review and approve.`;
+
+    const sent = await sendSms(env, { to: phone, body: message });
+    if (!sent) return json({ ok: false, error: 'SMS could not be sent. Check your Twilio configuration.' }, 500);
+
+    if (est.status === 'draft') {
+      await env.DB.prepare('UPDATE estimates SET status = ? WHERE id = ? AND user_id = ?').bind('sent', est.id, uid).run();
+    }
+    return json({ ok: true, message: `Quote sent to ${phone}`, status: est.status === 'draft' ? 'sent' : est.status });
+  } catch (e) {
+    console.error('Estimate send error:', e);
+    return json({ ok: false, error: 'Could not send estimate' }, 500);
+  }
+}
+
+// POST /api/estimates/:id/approve — customer approved on the public page.
+// Creates a one-off Stripe Price + Payment Link (metadata: estimate_id) and
+// flips the estimate to 'approved'. Demo mode (no Stripe) marks it 'paid'
+// directly with a success URL. Returns the URL the client should redirect to.
+async function handleEstimateApprove(request, env, uid, estId) {
+  try {
+    const est = await env.DB.prepare('SELECT * FROM estimates WHERE id = ?').bind(estId).first();
+    if (!est) return json({ ok: false, error: 'Estimate not found' }, 404);
+    if (est.status === 'paid') return json({ ok: false, error: 'This quote is already paid.' }, 400);
+    const origin = new URL(request.url).origin;
+
+    // Demo mode (spec §5.1): no Stripe → mark paid + return a success URL.
+    if (!stripeConfigured(env)) {
+      await env.DB.prepare('UPDATE estimates SET status = ? WHERE id = ?').bind('paid', est.id).run();
+      await markEstimateLeadBooked(env, est);
+      const [site] = await Promise.all([env.DB.prepare('SELECT slug FROM sites WHERE user_id = ?').bind(est.user_id).first()]);
+      const slug = site && site.slug;
+      const demoUrl = slug ? `${origin}/s/${slug}/estimate/${est.id}?demo_success=true` : null;
+      return json({ ok: true, demo: true, redirectUrl: demoUrl, message: 'Demo mode — marked as paid.' });
+    }
+
+    // Real Stripe flow: inline product → price → payment link (spec §5).
+    const totalCents = Math.round(Number(est.total || 0) * 100);
+    const product = await stripeRequest(env, '/v1/products', {
+      method: 'POST', form: stripeEncode({ name: `Estimate #${est.id}` + (est.title ? ` — ${est.title}` : '') }),
+    });
+    if (!product.ok) return json({ ok: false, error: product.error || 'Could not create product' }, 500);
+    const price = await stripeRequest(env, '/v1/prices', {
+      method: 'POST', form: stripeEncode({ product: product.data.id, unit_amount: totalCents, currency: 'usd' }),
+    });
+    if (!price.ok) return json({ ok: false, error: price.error || 'Could not create price' }, 500);
+
+    const successUrl = `${origin}/s/__est_done__`;
+    const link = await stripeRequest(env, '/v1/payment_links', {
+      method: 'POST', form: stripeEncode({
+        'line_items[0][price]': price.data.id,
+        'line_items[0][quantity]': 1,
+        metadata: { estimate_id: String(est.id) },
+        after_completion: { type: 'redirect', redirect: { url: successUrl } },
+      }),
+    });
+    if (!link.ok) return json({ ok: false, error: link.error || 'Could not create payment link' }, 500);
+
+    await env.DB.prepare('UPDATE estimates SET status = ?, stripe_payment_link = ? WHERE id = ?')
+      .bind('approved', link.data.url, est.id).run();
+    return json({ ok: true, redirectUrl: link.data.url });
+  } catch (e) {
+    console.error('Estimate approve error:', e);
+    return json({ ok: false, error: 'Could not process approval' }, 500);
+  }
+}
+
+// On payment, flip any linked CRM lead to 'booked'. Best-effort; never throws.
+async function markEstimateLeadBooked(env, est) {
+  try {
+    if (!est || !est.lead_id) return;
+    await env.DB.prepare("UPDATE leads SET status = 'booked', updated_at = datetime('now') WHERE id = ?").bind(est.lead_id).run();
+  } catch (e) { console.error('markEstimateLeadBooked error:', e.message); }
+}
+
+// GET /s/{slug}/estimate/{id} — public, login-free client view. The customer
+// reviews line items and approves+pays. Branded to match the business's site
+// shell (dark amber). Honors ?demo_success=true (spec §5.1).
+async function handlePublicEstimate(request, env, slug, estId) {
+  try {
+    const est = await env.DB.prepare(
+      'SELECT e.*, l.caller_name AS customer_name FROM estimates e LEFT JOIN leads l ON l.id = e.lead_id WHERE e.id = ?'
+    ).bind(estId).first();
+    if (!est) return new Response(estimateNotFoundShell(), { status: 404, headers: { 'Content-Type': 'text/html' } });
+
+    // Verify the estimate belongs to the slug's business (slug ↔ user_id).
+    const site = await env.DB.prepare('SELECT user_id, slug FROM sites WHERE slug = ?').bind(slug).first();
+    if (!site || site.user_id !== est.user_id) {
+      return new Response(estimateNotFoundShell(), { status: 404, headers: { 'Content-Type': 'text/html' } });
+    }
+    const [settings] = await Promise.all([env.DB.prepare('SELECT business_name FROM settings WHERE user_id = ?').bind(est.user_id).first()]);
+    const bizName = (settings && settings.business_name) || 'Branch Live';
+
+    let items = [];
+    try { items = JSON.parse(est.items || '[]'); } catch (e) { items = []; }
+    const total = Number(est.total || 0).toFixed(2);
+
+    const statusBadge = {
+      draft:    '<span class="est-badge">Draft</span>',
+      sent:     '<span class="est-badge est-badge-amber">Sent — awaiting your approval</span>',
+      approved: '<span class="est-badge est-badge-amber">Approved — payment pending</span>',
+      paid:     '<span class="est-badge est-badge-green">✓ Paid</span>',
+    }[est.status] || '<span class="est-badge">—</span>';
+
+    const itemRows = items.map(it => `<tr>
+  <td>${htmxEsc(it.desc)}</td>
+  <td style="text-align:center">${Number(it.qty || 1)}</td>
+  <td style="text-align:right">$${Number(it.rate || 0).toFixed(2)}</td>
+  <td style="text-align:right;font-family:monospace">$${(Number(it.qty || 1) * Number(it.rate || 0)).toFixed(2)}</td>
+</tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:#8b949e">No line items</td></tr>';
+
+    // CTA per status (spec §4).
+    let cta;
+    if (est.status === 'sent') {
+      cta = `<button class="est-btn" id="approve-btn" onclick="approveEst(${est.id})">Approve & Pay $${total}</button>`;
+    } else if (est.status === 'approved') {
+      cta = est.stripe_payment_link
+        ? `<a class="est-btn" href="${htmxEsc(est.stripe_payment_link)}">Resume Payment →</a>`
+        : '<div class="est-note">Payment is being processed. Check back shortly.</div>';
+    } else if (est.status === 'paid') {
+      cta = '<div class="est-success">✓ Paid — thank you for your business!</div>';
+    } else {
+      cta = '<div class="est-note">This quote hasn\'t been sent yet.</div>';
+    }
+
+    const demoBanner = new URL(request.url).searchParams.get('demo_success') === 'true'
+      ? '<div class="est-success" style="margin-bottom:18px">✓ Demo payment complete — this quote is marked paid.</div>'
+      : '';
+
+    const html = `<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${htmxEsc(est.title || 'Quote')} — ${htmxEsc(bizName)}</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0d0d18;color:#e6dccb;margin:0;padding:24px;line-height:1.6}
+.wrap{max-width:620px;margin:0 auto}.hd{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(212,165,116,.25);padding-bottom:16px;margin-bottom:24px}
+.biz{font-size:1.2rem;font-weight:700;color:#e6dccb}.sub{color:#8b949e;font-size:.85rem}
+h1{font-size:1.4rem;margin:0 0 6px}.est-table{width:100%;border-collapse:collapse;margin:18px 0;font-size:.95rem}
+.est-table th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:#8b949e;border-bottom:1px solid rgba(212,165,116,.2);padding:8px 6px}
+.est-table td{padding:10px 6px;border-bottom:1px solid rgba(212,165,116,.1)}
+.tot{display:flex;justify-content:space-between;font-size:1.25rem;font-weight:700;padding:14px 0;border-top:2px solid rgba(212,165,116,.3);margin-top:8px}
+.tot .v{color:#d4a574;font-family:monospace}
+.est-badge{display:inline-block;padding:4px 12px;border-radius:6px;font-size:.78rem;background:rgba(139,148,158,.18);color:#8b949e}.est-badge-amber{background:rgba(212,165,116,.18);color:#d4a574}.est-badge-green{background:rgba(63,185,80,.18);color:#7fd692}
+.est-btn{display:inline-block;background:#d4a574;color:#0d0d18;border:0;padding:14px 28px;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none;margin-top:8px}
+.est-btn:hover{opacity:.92}.est-btn:disabled{opacity:.5;cursor:wait}
+.est-note{color:#8b949e;font-style:italic;margin-top:8px}
+.est-success{background:rgba(63,185,80,.12);border:1px solid rgba(63,185,80,.3);color:#7fd692;padding:14px 18px;border-radius:10px;font-weight:600;margin-top:8px}
+.foot{margin-top:28px;padding-top:16px;border-top:1px solid rgba(212,165,116,.15);color:#6e7681;font-size:.78rem;text-align:center}
+</style></head><body><div class="wrap">
+<div class="hd"><div><div class="biz">${htmxEsc(bizName)}</div><div class="sub">Quote #${est.id}</div></div>${statusBadge}</div>
+${demoBanner}
+<h1>${htmxEsc(est.title || 'Project quote')}</h1>
+${est.customer_name ? `<div class="sub">Prepared for ${htmxEsc(est.customer_name)}</div>` : ''}
+<table class="est-table"><thead><tr><th>Description</th><th style="text-align:center">Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr></thead>
+<tbody>${itemRows}</tbody></table>
+<div class="tot"><span>Total</span><span class="v">$${total}</span></div>
+<div id="est-cta">${cta}</div>
+<div id="est-msg"></div>
+<div class="foot">Powered by Branch Live · Questions? Reply to the text you received.</div>
+</div>
+<script>
+function setMsg(html){var m=document.getElementById('est-msg');m.innerHTML=html;}
+async function approveEst(id){
+  var btn=document.getElementById('approve-btn');if(btn){btn.disabled=true;btn.textContent='Processing…';}
+  setMsg('<div class="est-note">Opening secure payment…</div>');
+  try{
+    var r=await fetch('/api/estimates/'+id+'/approve',{method:'POST'});
+    var d=await r.json();
+    if(d.ok&&d.redirectUrl){window.location.href=d.redirectUrl;}
+    else if(d.ok&&d.demo){setMsg('<div class="est-success">✓ '+(d.message||'Done')+'</div>');setTimeout(function(){location.reload();},1200);}
+    else{setMsg('<div class="est-note">⚠ '+(d.error||'Could not process. Call us to pay by phone.')+'</div>');if(btn){btn.disabled=false;btn.textContent='Approve & Pay';}}
+  }catch(e){setMsg('<div class="est-note">⚠ Connection error. Please try again.</div>');if(btn){btn.disabled=false;btn.textContent='Approve & Pay';}}
+}
+</script>
+</body></html>`;
+    return new Response(html, { headers: { 'Content-Type': 'text/html' } });
+  } catch (e) {
+    console.error('Public estimate error:', e);
+    return new Response(estimateNotFoundShell(), { status: 500, headers: { 'Content-Type': 'text/html' } });
+  }
+}
+
+function estimateNotFoundShell() {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Quote not found</title><style>body{font-family:system-ui,sans-serif;background:#0d0d18;color:#e6dccb;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center}.box{max-width:420px;padding:32px}a{color:#d4a574}</style></head><body><div class="box"><div style="font-size:3em;margin-bottom:12px">📄</div><h1>Quote not found</h1><p style="color:#8b949e;margin-top:8px">This quote may have been removed or the link is incorrect.</p></div></body></html>`;
 }
 
 async function handlePublicSite(request, env, slug) {
@@ -7279,7 +7933,10 @@ npx wrangler secret put TEXTMAGIC_API_KEY</pre>
 // dashboard). This baseline has no shared htmxShell, so pages render their own
 // full document to stay independent.
 function simpleShell(title, body) {
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} — Branch Live</title>
+  // Escape the title — it can flow from DB content (e.g. a blog post title in
+  // the admin editor), so an unescaped value would allow HTML/JS injection.
+  const escTitle = String(title == null ? '' : title).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escTitle} — Branch Live</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230e0e18'/%3E%3Cg fill='%23d4a574'%3E%3Crect x='5' y='14' width='2' height='4' rx='1'/%3E%3Crect x='9' y='10' width='2' height='12' rx='1'/%3E%3Crect x='13' y='6' width='2' height='20' rx='1'/%3E%3Crect x='17' y='10' width='2' height='12' rx='1'/%3E%3Crect x='21' y='14' width='2' height='4' rx='1'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -8853,6 +9510,11 @@ async function handleLeadDetailHtmx(request, env, uid, leadId, ctx) {
     const calls = (await env.DB.prepare(
       'SELECT id, caller_phone, duration_sec, summary, created_at FROM call_logs WHERE user_id = ? AND (lead_id = ? OR caller_phone = ?) ORDER BY created_at DESC LIMIT 20'
     ).bind(uid, leadId, lead.caller_phone || '').all()).results || [];
+    // Quotes tied to this lead (spec §7).
+    const [leadEstimates, leadSite] = await Promise.all([
+      env.DB.prepare('SELECT id, title, total, status, created_at FROM estimates WHERE user_id = ? AND lead_id = ? ORDER BY created_at DESC').bind(uid, leadId).all(),
+      env.DB.prepare('SELECT slug FROM sites WHERE user_id = ?').bind(uid).first(),
+    ]);
     const timeFmt = await getTimeFormat(env, uid);
     // "Mon, Jan 2, 2024" + clock honoring the account's time_format.
     const fmtDate = d => {
@@ -8947,6 +9609,21 @@ async function handleLeadDetailHtmx(request, env, uid, leadId, ctx) {
         </select>
         <button type="submit" class="btn-amber btn-sm">Save status</button>
       </form>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Quotes</h3>
+      ${(leadEstimates.results || []).length
+        ? '<table style="width:100%;font-size:.88rem"><thead><tr><th style="text-align:left">Date</th><th style="text-align:left">Title</th><th>Total</th><th>Status</th></tr></thead><tbody>'
+          + (leadEstimates.results).map(qe => {
+            const d = (qe.created_at || '').slice(0, 10) || '—';
+            const pub = (leadSite && leadSite.slug) ? `/s/${leadSite.slug}/estimate/${qe.id}` : null;
+            const title = pub ? `<a href="${pub}" target="_blank" rel="noopener">${htmxEsc(qe.title || 'Untitled')}</a>` : htmxEsc(qe.title || 'Untitled');
+            const badge = { draft:'Draft', sent:'Sent', approved:'Approved', paid:'Paid' }[qe.status] || qe.status;
+            const badgeColor = qe.status === 'paid' ? '#7fd692' : (qe.status === 'approved' || qe.status === 'sent' ? 'var(--accent-amber)' : 'var(--text-muted)');
+            return `<tr><td style="color:var(--text-muted);white-space:nowrap">${d}</td><td>${title}</td><td style="font-family:var(--font-mono);color:var(--accent-amber)">$${Number(qe.total||0).toFixed(2)}</td><td style="color:${badgeColor}">${badge}</td></tr>`;
+          }).join('') + '</tbody></table>'
+        : '<div class="note-box">No quotes sent to this lead yet.</div>'}
+      <a class="btn btn-ghost btn-sm" href="/p/estimates" style="margin-top:12px">+ Create estimate</a>
     </div>
   </div>
 </div>
@@ -11349,6 +12026,8 @@ async function handleTeamRevoke(request, env, ctx) {
 async function handleTeamSwitch(request, env) {
   const uid = await getUidFromSessionCookie(request, env);
   if (!uid) return new Response(null, { status: 302, headers: { Location: '/login-htmx' } });
+  const isHttps = new URL(request.url).protocol === 'https:';
+  const secureFlag = isHttps ? '; Secure' : '';
   let bid;
   try {
     const f = await request.formData();
@@ -11360,12 +12039,12 @@ async function handleTeamSwitch(request, env) {
       'SELECT user_id FROM user_roles WHERE user_id = ? AND business_id = ?'
     ).bind(uid, bid).first();
     if (member) {
-      const cookie = `bl_business_id=${bid}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000`;
+      const cookie = `bl_business_id=${bid}; Path=/; HttpOnly; SameSite=Lax${secureFlag}; Max-Age=31536000`;
       return new Response(null, { status: 302, headers: { Location: '/p/overview', 'Set-Cookie': cookie } });
     }
   }
   // Invalid switch → clear the cookie + go to overview.
-  const clear = 'bl_business_id=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0';
+  const clear = `bl_business_id=; Path=/; HttpOnly; SameSite=Lax${secureFlag}; Max-Age=0`;
   return new Response(null, { status: 302, headers: { Location: '/p/overview', 'Set-Cookie': clear } });
 }
 
@@ -11389,7 +12068,7 @@ async function handleLeadsExport(request, env, uid) {
       headers: {
         'Content-Type': 'text/csv',
         'Content-Disposition': 'attachment; filename="leads.csv"',
-        'Access-Control-Allow-Origin': '*',
+        ...(allowedCorsOrigin() ? { 'Access-Control-Allow-Origin': allowedCorsOrigin(), 'Vary': 'Origin' } : {}),
       },
     });
   } catch (e) {
@@ -12032,12 +12711,12 @@ function extractLeadFromVapiCall(message) {
 // call): resolve the owner business, create a lead, and log the call. All
 // other event types are acknowledged with 200 and otherwise ignored.
 async function handleVapiWebhook(request, env) {
-  // Validate the shared secret Vapi sends on every webhook.
-  if (env.VAPI_WEBHOOK_SECRET) {
-    const sent = request.headers.get('x-vapi-secret');
-    if (sent !== env.VAPI_WEBHOOK_SECRET) {
-      return apiError('Unauthorized', 401);
-    }
+  // Validate the shared secret Vapi sends on every webhook. The secret MUST be
+  // configured — if it's missing we reject (fail-closed) rather than silently
+  // accepting unauthenticated webhook posts.
+  const sent = request.headers.get('x-vapi-secret');
+  if (!env.VAPI_WEBHOOK_SECRET || sent !== env.VAPI_WEBHOOK_SECRET) {
+    return apiError('Unauthorized', 401);
   }
   let payload;
   try {
@@ -14128,8 +14807,10 @@ async function delOne(id){
 // publish it, skipping any business that already posted in the last 24h.
 // Optionally guarded by CRON_SECRET. One failure never aborts the batch.
 async function handleSocialAutopostCron(request, env) {
+  // Fail-closed: CRON_SECRET must be configured and match. Leaving this public
+  // would let anyone trigger outbound Facebook posts across every business.
   const secret = request.headers.get('x-cron-secret');
-  if (env.CRON_SECRET && secret !== env.CRON_SECRET) {
+  if (!env.CRON_SECRET || secret !== env.CRON_SECRET) {
     return json({ ok: false, error: 'Unauthorized' }, 401);
   }
   try {
@@ -14174,6 +14855,255 @@ async function handleSocialAutopostCron(request, env) {
   } catch (e) {
     console.error('Social autopost cron error:', e);
     return json({ ok: false, error: 'Autopost cron failed' }, 500);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// GROWTH FEATURE PREVIEWS — /p/growth/{website|blog|social}
+// Interstitial sales/preview pages shown when a Growth add-on is disabled.
+// Each renders an explainer video, benefit-driven copy, and a LIVE preview
+// mockup built from the business's OWN data (gallery, services, reviews),
+// plus a CTA that unlocks the add-on via the cookie-authed toggle and then
+// bounces to the full feature page.
+// ═══════════════════════════════════════════════════════════════════════
+
+// Standard service names per industry — used as a fallback when a business
+// hasn't added any services to their knowledge base yet, so the preview still
+// looks real for their trade. Kept intentionally short and generic.
+const INDUSTRY_SERVICES = {
+  plumbing:       ['Drain Cleaning', 'Water Heater Repair'],
+  hvac:           ['AC Tune-Up', 'Furnace Repair'],
+  electrical:     ['Panel Upgrade', 'Lighting Install'],
+  roofing:        ['Roof Inspection', 'Leak Repair'],
+  cleaning:       ['Deep Clean', 'Recurring Clean'],
+  landscaping:    ['Lawn Care', 'Hardscaping'],
+  'auto detail':  ['Full Detail', 'Ceramic Coating'],
+  salon:          ['Women\u2019s Cut', 'Balayage'],
+};
+
+// Render a Live Preview mockup card for one growth feature using the
+// business's own data. `d` is the shaped result from the D1 query in
+// handleGrowthPreview. Returns an HTML string. Falls back to amber
+// placeholders / industry-generic content when the business has no data yet
+// (per spec §4.2), so the preview never looks empty.
+function buildGrowthMockup(addonKey, d) {
+  const esc = htmxEsc;
+  const bizName = esc(d.businessName || 'your business');
+  const area = d.serviceArea || 'Your Area';
+  const industryRaw = (d.industry || '').trim();
+  const industry = industryRaw || 'home services';
+  // Two services: real ones if present, else industry-generic defaults.
+  const services = (d.services && d.services.length)
+    ? d.services.slice(0, 2)
+    : (INDUSTRY_SERVICES[industryRaw.toLowerCase()] || ['Quality Service', 'Free Estimate']).map(s => ({ item: s, price: null }));
+
+  if (addonKey === 'website') {
+    // Desktop browser frame → header + hero + services/photos grid.
+    const svcCells = services.map(s => `<div class="gp-svc"><span class="gp-svc-name">${esc(s.item)}</span>${s.price != null ? `<span class="gp-svc-price">$${Number(s.price).toFixed(0)}</span>` : ''}</div>`).join('');
+    const photoCells = (d.photos && d.photos.length)
+      ? d.photos.slice(0, 2).map(p => `<div class="gp-photo" style="background-image:url('${esc(p)}')"></div>`).join('')
+      : `<div class="gp-photo gp-photo-ph">📷</div><div class="gp-photo gp-photo-ph">📷</div>`;
+    return `<div class="gp-browser">
+  <div class="gp-browser-bar"><span></span><span></span><span></span><div class="gp-url">${bizName}.com</div></div>
+  <div class="gp-browser-body">
+    <div class="gp-site-head"><span class="gp-logo">${bizName}</span><span class="gp-nav">Services · Reviews · Book</span></div>
+    <div class="gp-hero"><div class="gp-hero-title">Premium Services in ${esc(area)}</div><div class="gp-hero-sub">${esc(industry)} · ${esc(area)}</div><div class="gp-hero-cta">📅 Book Appointment</div></div>
+    <div class="gp-grid">${svcCells}</div>
+    <div class="gp-grid gp-grid-photos">${photoCells}</div>
+  </div>
+</div>`;
+  }
+
+  if (addonKey === 'blog') {
+    // Clean reading layout simulating a published blog post.
+    const service = (services[0] && services[0].item) || (industryRaw || 'Service');
+    const title = `Why Quality ${esc(service)} Matters in ${esc(area)}`;
+    const lede = `Homeowners in ${esc(area)} trust the team at ${bizName} for reliable ${esc(industryRaw || 'home services')}.`;
+    const body = `When you're looking for ${esc(service).toLowerCase()} in ${esc(area)}, experience and reputation matter. Here's what to look for — and how ${bizName} delivers.`;
+    return `<div class="gp-blog">
+  <div class="gp-blog-meta">${esc(industry)} · ${esc(area)} · 4 min read</div>
+  <h2 class="gp-blog-title">${title}</h2>
+  <p class="gp-blog-lede">${lede}</p>
+  <p class="gp-blog-body">${body}</p>
+  <div class="gp-blog-more">▾ continue reading</div>
+</div>`;
+  }
+
+  // social — Facebook/Instagram-style card.
+  const review = d.review;
+  const photo = (d.photos && d.photos[0]) || null;
+  if (review || photo) {
+    const stars = '\u2605\u2605\u2605\u2605\u2605';
+    const caption = review
+      ? `Another 5-star review from our client! ${stars}<br><em>\u201C${esc(review.text)}\u201D</em> \u2014 ${esc(review.author)}`
+      : `Proud of our latest project in ${esc(area)}. ${stars}`;
+    return `<div class="gp-social">
+  <div class="gp-so-head"><div class="gp-so-avatar">${bizName.charAt(0).toUpperCase() || 'B'}</div><div><div class="gp-so-name">${bizName}</div><div class="gp-so-sub">${esc(industry)} · ${esc(area)}</div></div></div>
+  ${photo ? `<div class="gp-so-img" style="background-image:url('${esc(photo)}')"></div>` : ''}
+  <div class="gp-so-caption">${caption}</div>
+  <div class="gp-so-actions"><span>\u2665 Like</span><span>\uD83D\uDCAC Comment</span><span>\u2197 Share</span></div>
+</div>`;
+  }
+  // No review and no photo — Emma-style fallback caption + camera placeholder.
+  const service = (services[0] && services[0].item) || 'your service projects';
+  return `<div class="gp-social">
+  <div class="gp-so-head"><div class="gp-so-avatar">${bizName.charAt(0).toUpperCase() || 'B'}</div><div><div class="gp-so-name">${bizName}</div><div class="gp-so-sub">${esc(industry)} · ${esc(area)}</div></div></div>
+  <div class="gp-so-img gp-photo-ph">\uD83D\uDCF7</div>
+  <div class="gp-so-caption">No time to write updates? Emma drafts social posts for services like ${esc(service)} automatically.</div>
+  <div class="gp-so-actions"><span>\u2665 Like</span><span>\uD83D\uDCAC Comment</span><span>\u2197 Share</span></div>
+</div>`;
+}
+
+// Growth preview page controller. Loads the business's own data, renders the
+// explainer + live-preview layout, and wires the unlock CTA. On unlock the
+// cookie-authed add-on toggle flips the flag (and syncs Stripe if configured);
+// the client then bounces to /p/{slug} to load the fully-unlocked feature.
+async function handleGrowthPreview(request, env, uid, ctx, addonKey) {
+  try {
+    const explainer = GROWTH_EXPLAINERS[addonKey];
+    if (!explainer) {
+      return new Response(simpleShell('Not found', '<h1>404</h1><p style="color:var(--text-muted)">Unknown growth preview.</p>'), { status: 404, headers: { 'Content-Type': 'text/html' } });
+    }
+    const def = ADDONS[addonKey];
+    const price = Number(def.price).toFixed(2);
+
+    // Pull the business's own data (spec §4.1). All queries tolerate an empty
+    // result; the mockup fills in amber/industry fallbacks where data is thin.
+    const [settings, photosRow, servicesRow, reviewRow] = await Promise.all([
+      env.DB.prepare('SELECT business_name, industry, service_area FROM settings WHERE user_id = ?').bind(uid).first(),
+      env.DB.prepare('SELECT data FROM photos WHERE user_id = ? ORDER BY created_at DESC LIMIT 2').bind(uid).all(),
+      env.DB.prepare('SELECT item, price FROM knowledge WHERE user_id = ? ORDER BY id LIMIT 2').bind(uid).all(),
+      env.DB.prepare('SELECT author_name, rating, text FROM reviews WHERE user_id = ? AND rating >= 4 ORDER BY reviewed_at DESC LIMIT 1').bind(uid).first(),
+    ]);
+
+    const d = {
+      businessName: (settings && settings.business_name) || '',
+      industry:     (settings && settings.industry) || '',
+      serviceArea:  (settings && settings.service_area) || '',
+      photos:       (photosRow.results || []).map(p => p && p.data).filter(Boolean),
+      services:     (servicesRow.results || []).filter(Boolean),
+      review:       reviewRow ? { author: reviewRow.author_name, rating: reviewRow.rating, text: reviewRow.text } : null,
+    };
+
+    const mockup = buildGrowthMockup(addonKey, d);
+    const titleTag = { website: 'Premium Website', blog: 'AI Blog Posts', social: 'Social Auto-Posting' }[addonKey];
+
+    // Explainer video — real embed when a YouTube id is set, otherwise a styled
+    // placeholder card (ids are TBD per spec §3) so the layout never breaks.
+    const videoHtml = explainer.youtubeId && explainer.youtubeId !== 'TBD'
+      ? `<div class="gp-video"><iframe src="https://www.youtube.com/embed/${encodeURIComponent(explainer.youtubeId)}" title="${htmxEsc(explainer.headline)}" frameborder="0" allow="accelerated-decoder; autoplay; clipboard-write; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>`
+      : `<div class="gp-video gp-video-ph"><div class="gp-play">\u25B6</div><div class="gp-ph-label">Explainer video<br><span>coming soon</span></div></div>`;
+
+    const bullets = explainer.bullets.map(b => `<li>${htmxEsc(b)}</li>`).join('');
+
+    const body = `<div class="app">${sidebarNav(addonKey, undefined, ctx)}<div class="content" style="max-width:1040px">
+<span class="eyebrow">Growth Preview</span>
+<h1>${htmxEsc(explainer.headline)}</h1>
+<p class="sub" style="max-width:680px">${htmxEsc(explainer.sub)}</p>
+
+<div class="gp-layout">
+  <div class="gp-left">
+    ${videoHtml}
+    <ul class="gp-bullets">${bullets}</ul>
+    <div class="gp-cta">
+      <button class="btn" id="gp-unlock" onclick="gpUnlock(this)">Unlock ${htmxEsc(def.label)} — $${price}/mo</button>
+      <span class="gp-cta-note">Enable instantly · cancel anytime in Billing</span>
+    </div>
+    <div id="gp-msg" class="gp-msg"></div>
+  </div>
+  <div class="gp-right">
+    <div class="gp-live-badge">LIVE PREVIEW (Your Data)</div>
+    <div class="card glow gp-mockup">${mockup}</div>
+  </div>
+</div>
+
+<p class="sub" style="margin-top:24px;font-size:.82rem;color:var(--text-faint)">This preview uses your real services, photos, and reviews so you can see exactly what ${htmxEsc(def.label)} looks like for your business. Unlock it to publish and customize everything.</p>
+
+<style>
+.gp-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;margin-top:28px;align-items:start}
+@media(max-width:900px){.gp-layout{grid-template-columns:1fr}}
+.gp-left{display:flex;flex-direction:column;gap:18px}
+.gp-video{position:relative;width:100%;aspect-ratio:16/9;border-radius:12px;overflow:hidden;border:1px solid var(--accent-amber,#d4a574);background:#000}
+.gp-video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.gp-video-ph{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,rgba(212,165,116,.08),rgba(212,165,116,.16));border-style:dashed;color:var(--accent-amber,#d4a574)}
+.gp-play{width:60px;height:60px;border-radius:50%;background:var(--accent-amber,#d4a574);color:#0a0a14;display:flex;align-items:center;justify-content:center;font-size:1.5rem;padding-left:6px}
+.gp-ph-label{text-align:center;font-size:.85rem;line-height:1.5;color:var(--accent-amber,#d4a574)}
+.gp-ph-label span{font-size:.72rem;opacity:.7}
+.gp-bullets{list-style:none;padding:0;margin:0;color:var(--text-muted,#8b949e);font-size:.94rem;line-height:1.9}
+.gp-bullets li{padding-left:26px;position:relative}
+.gp-bullets li::before{content:'\u2713';position:absolute;left:0;color:var(--accent-amber,#d4a574);font-weight:700}
+.gp-cta{display:flex;flex-direction:column;gap:6px}
+.gp-cta-note{font-size:.8rem;color:var(--text-faint,#6e7681)}
+.gp-msg:empty{display:none}
+.gp-right{display:flex;flex-direction:column;gap:10px}
+.gp-live-badge{align-self:flex-start;border:1px solid var(--accent-amber,#d4a574);color:var(--accent-amber,#d4a574);padding:4px 12px;border-radius:6px;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.gp-mockup{padding:18px}
+/* website browser mockup */
+.gp-browser{border:1px solid rgba(212,165,116,.3);border-radius:8px;overflow:hidden;background:#0d0d18}
+.gp-browser-bar{display:flex;align-items:center;gap:6px;padding:8px 12px;background:rgba(212,165,116,.08);border-bottom:1px solid rgba(212,165,116,.2)}
+.gp-browser-bar span{width:9px;height:9px;border-radius:50%;background:rgba(212,165,116,.4)}
+.gp-url{margin-left:8px;font-family:var(--font-mono,monospace);font-size:.72rem;color:var(--text-faint,#6e7681);background:rgba(0,0,0,.3);padding:2px 10px;border-radius:4px}
+.gp-browser-body{padding:14px}
+.gp-site-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(212,165,116,.15);padding-bottom:10px;margin-bottom:14px}
+.gp-logo{font-weight:700;color:var(--cream,#e6dccb);font-size:.95rem}
+.gp-nav{font-size:.72rem;color:var(--text-faint,#6e7681)}
+.gp-hero{text-align:center;padding:14px 0}
+.gp-hero-title{font-size:1.1rem;font-weight:700;color:var(--cream,#e6dccb)}
+.gp-hero-sub{font-size:.78rem;color:var(--accent-amber,#d4a574);margin-top:4px}
+.gp-hero-cta{display:inline-block;margin-top:10px;background:var(--accent-amber,#d4a574);color:#0a0a14;font-size:.78rem;font-weight:700;padding:6px 14px;border-radius:6px}
+.gp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.gp-svc{background:rgba(212,165,116,.06);border:1px solid rgba(212,165,116,.15);border-radius:6px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center}
+.gp-svc-name{font-size:.82rem;color:var(--cream,#e6dccb)}
+.gp-svc-price{font-size:.78rem;color:var(--accent-amber,#d4a574);font-weight:600}
+.gp-grid-photos{margin-top:8px}
+.gp-photo{aspect-ratio:4/3;border-radius:6px;background-size:cover;background-position:center}
+.gp-photo-ph{display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(212,165,116,.1),rgba(212,165,116,.2));color:var(--accent-amber,#d4a574);font-size:1.4rem}
+/* blog mockup */
+.gp-blog{font-family:Georgia,serif;color:var(--cream,#e6dccb)}
+.gp-blog-meta{font-size:.72rem;color:var(--accent-amber,#d4a574);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.gp-blog-title{font-size:1.25rem;line-height:1.3;margin:0 0 12px;color:var(--cream,#e6dccb)}
+.gp-blog-lede{font-size:.92rem;color:var(--text-muted,#8b949e);margin:0 0 10px}
+.gp-blog-body{font-size:.88rem;color:var(--text-muted,#8b949e);margin:0 0 14px;line-height:1.7}
+.gp-blog-more{font-size:.78rem;color:var(--accent-amber,#d4a574)}
+/* social mockup */
+.gp-social{border:1px solid rgba(212,165,116,.25);border-radius:10px;overflow:hidden;background:#0d0d18}
+.gp-so-head{display:flex;align-items:center;gap:10px;padding:12px}
+.gp-so-avatar{width:38px;height:38px;border-radius:50%;background:var(--accent-amber,#d4a574);color:#0a0a14;display:flex;align-items:center;justify-content:center;font-weight:700}
+.gp-so-name{font-weight:600;font-size:.9rem;color:var(--cream,#e6dccb)}
+.gp-so-sub{font-size:.74rem;color:var(--text-faint,#6e7681)}
+.gp-so-img{width:100%;aspect-ratio:4/3;background-size:cover;background-position:center;background-color:rgba(212,165,116,.08)}
+.gp-so-img.gp-photo-ph{display:flex;align-items:center;justify-content:center;font-size:2rem}
+.gp-so-caption{padding:12px;font-size:.86rem;color:var(--cream,#e6dccb);line-height:1.6}
+.gp-so-caption em{color:var(--text-muted,#8b949e);font-style:italic}
+.gp-so-actions{display:flex;gap:18px;padding:8px 12px;border-top:1px solid rgba(212,165,116,.15);font-size:.8rem;color:var(--text-faint,#6e7681)}
+</style>
+
+<script>
+function gpSetMsg(html){var m=document.getElementById('gp-msg');m.innerHTML=html;}
+async function gpUnlock(btn){
+  if(!confirm('Add ${htmxEsc(def.label)} to your plan for $${price}/mo? You can manage it anytime in Billing.'))return;
+  btn.disabled=true;var orig=btn.textContent;btn.textContent='Enabling\u2026';
+  try{
+    var r=await fetch('/api/addon/unlock-htmx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({addon:'${htmxEsc(addonKey)}',enabled:true})});
+    var d=await r.json();
+    if(d.ok){
+      gpSetMsg('<div class="note-box" style="border-color:rgba(63,185,80,.3);color:#7fd692">\u2713 '+(d.message||'Add-on enabled!')+' Loading your full ${htmxEsc(titleTag)}\u2026</div>');
+      setTimeout(function(){window.location.href='/p/${htmxEsc(addonKey)}';},900);
+    }else{
+      gpSetMsg('<div class="note-box" style="border-color:rgba(248,113,113,.3);color:#f87373">\u2717 '+(d.error||'Could not enable.')+' Redirecting to Billing\u2026</div>');
+      setTimeout(function(){window.location.href='/p/billing';},1100);
+    }
+  }catch(e){
+    gpSetMsg('<div class="note-box" style="color:#f87373">\u2717 Connection error. Try again or visit Billing.</div>');
+    btn.disabled=false;btn.textContent=orig;
+  }
+}
+</script>
+</div></div>`;
+    return new Response(simpleShell(titleTag + ' — Preview', body), { headers: { 'Content-Type': 'text/html' } });
+  } catch (e) {
+    console.error('Growth preview error:', e);
+    return new Response(simpleShell('Error', '<h1>\u26A0\uFE0F Error</h1><p style="color:var(--danger)">Could not load this preview.</p>'), { status: 500, headers: { 'Content-Type': 'text/html' } });
   }
 }
 
@@ -14530,7 +15460,10 @@ function blogMarkdownToHtml(md) {
 // Standalone shell for public blog pages. Amber-monotone, Fraunces headings,
 // same font stack as the dashboard but a clean reading layout with no nav.
 function blogShell(title, body) {
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} — Branch Live</title>
+  // Escape the title — it comes from a DB blog post row, so unescaped output
+  // would allow HTML/JS injection via a crafted post title.
+  const escTitle = String(title == null ? '' : title).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escTitle} — Branch Live</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230e0e18'/%3E%3Cg fill='%23d4a574'%3E%3Crect x='5' y='14' width='2' height='4' rx='1'/%3E%3Crect x='9' y='10' width='2' height='12' rx='1'/%3E%3Crect x='13' y='6' width='2' height='20' rx='1'/%3E%3Crect x='17' y='10' width='2' height='12' rx='1'/%3E%3Crect x='21' y='14' width='2' height='4' rx='1'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -15304,6 +16237,8 @@ Notes:    Natural stone or concrete pavers. Free on-site estimate.
 
     case 'social-posts': return `<p class="hc-lead">Auto-generate engaging updates, connect your social channels, and schedule regular posts to keep your local audience active and informed.</p>
 
+<div class="hc-video-card"><div class="hc-card-t">📺 Watch: Social Posts</div><div class="hc-video-wrap"><iframe src="https://www.youtube.com/embed/e1SH-o-6qck" title="Social Posts" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div></div>
+
 <h2>Supported Platforms & Formats</h2>
 <p>The social media scheduler supports publishing to Facebook Pages and Instagram Business profiles. When creating image posts, make sure your assets meet these guidelines:</p>
 <ul>
@@ -15702,6 +16637,9 @@ async function handleHelpArticleHtmx(request, env, slug, ctx) {
 
 export default {
   async fetch(request, env, ctx) {
+    // Capture the request for origin-checked CORS headers (set before any
+    // await so the per-request value is stable for the whole invocation).
+    setCorsRequest(request);
     if (request.method === 'OPTIONS') {
       return corsPreflight();
     }
@@ -15723,8 +16661,12 @@ export default {
       return Response.redirect('https://branchlive.com/reset-password', 302);
     }
 
-    // ── Email diagnostic ──
+    // ── Email diagnostic (admin-only) ──
+    // Resolves the caller from the session cookie or Bearer token and requires
+    // uid === 1, so the public can't trigger outbound email.
     if (path === '/api/email-test' && method === 'GET') {
+      const diagUid = (await getUidFromSessionCookie(request, env)) || (await getUserId(request, env));
+      if (diagUid !== 1) return apiError('Unauthorized', 401);
       const testResult = await sendEmail(env, {
         to: 'demo@branchlive.com',
         subject: 'Email Test — Branch Live',
@@ -15749,6 +16691,10 @@ export default {
         if (cblogListMatch) return handleBusinessBlogList(env, cblogListMatch[1]);
         const cblogPostMatch = path.match(/^\/s\/([a-z0-9-]+)\/blog\/([a-z0-9-]+)$/);
         if (cblogPostMatch) return handleBusinessBlogPost(env, cblogPostMatch[1], cblogPostMatch[2]);
+        // Public client estimate view — login-free. Matched before the bare
+        // /s/{slug} so the longer path wins.
+        const estimateMatch = path.match(/^\/s\/([a-z0-9-]+)\/estimate\/(\d+)$/);
+        if (estimateMatch) return handlePublicEstimate(request, env, estimateMatch[1], parseInt(estimateMatch[2], 10));
         const siteMatch = path.match(/^\/s\/([a-z0-9-]+)$/);
         if (siteMatch) return handlePublicSite(request, env, siteMatch[1]);
         // Sitemap of all published business sites — submitted to search engines.
@@ -15833,11 +16779,34 @@ export default {
           }
           if (path === '/p/knowledge') return handleKnowledgeHtmx(request, env, pCtx.bid, pCtx);
           if (path === '/p/billing') return handleBillingHtmx(request, env, pCtx.bid, pCtx);
-          if (path === '/p/blog') return handleBusinessBlogHtmx(request, env, pCtx.bid, pCtx);
-          if (path === '/p/social') return handleSocialHtmx(request, env, pCtx.bid, pCtx);
-          if (path === '/p/website') return handleWebsiteBuilderHtmx(request, env, pCtx.bid, pCtx);
+          // ── Growth Feature Previews — interstitial sales/preview pages shown
+          // when a Growth add-on is disabled. The full feature pages below
+          // 302-redirect here until the add-on is unlocked.
+          if (path === '/p/growth/website') return handleGrowthPreview(request, env, pCtx.bid, pCtx, 'website');
+          if (path === '/p/growth/blog')    return handleGrowthPreview(request, env, pCtx.bid, pCtx, 'blog');
+          if (path === '/p/growth/social')  return handleGrowthPreview(request, env, pCtx.bid, pCtx, 'social');
+          // Blog: gated by addon_blog — redirect to the growth preview when off.
+          if (path === '/p/blog') {
+            const blogG = await env.DB.prepare('SELECT addon_blog FROM settings WHERE user_id = ?').bind(pCtx.bid).first();
+            if (!blogG || !blogG.addon_blog) return new Response(null, { status: 302, headers: { Location: '/p/growth/blog' } });
+            return handleBusinessBlogHtmx(request, env, pCtx.bid, pCtx);
+          }
+          // Social: gated by addon_social.
+          if (path === '/p/social') {
+            const socG = await env.DB.prepare('SELECT addon_social FROM settings WHERE user_id = ?').bind(pCtx.bid).first();
+            if (!socG || !socG.addon_social) return new Response(null, { status: 302, headers: { Location: '/p/growth/social' } });
+            return handleSocialHtmx(request, env, pCtx.bid, pCtx);
+          }
+          // Website: gated by addon_website. (Previously the builder always
+          // rendered; now it redirects to the growth preview until unlocked.)
+          if (path === '/p/website') {
+            const webG = await env.DB.prepare('SELECT addon_website FROM settings WHERE user_id = ?').bind(pCtx.bid).first();
+            if (!webG || !webG.addon_website) return new Response(null, { status: 302, headers: { Location: '/p/growth/website' } });
+            return handleWebsiteBuilderHtmx(request, env, pCtx.bid, pCtx);
+          }
           if (path === '/p/outreach') return handleOutreachHtmx(request, env, pCtx.bid, pCtx);
           if (path === '/p/analytics') return handleAnalyticsHtmx(request, env, pCtx.bid, pCtx);
+          if (path === '/p/estimates') return handleEstimatesHtmx(request, env, pCtx.bid, pCtx);
           if (path === '/p/team') return handleTeamHtmx(request, env, pCtx);
           // /p/leads/:id — lead detail (GET). The status-update POST is handled
           // in the POST section below (this whole block is GET-only).
@@ -16020,6 +16989,25 @@ export default {
         const fCtx = await resolveContext(request, env, fUid);
         if (!roleMeets(fCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
         return handleLeadFollowupSmsHtmx(request, env, fCtx.bid, parseInt(followupSmsMatch[1]));
+      }
+      // ── Estimates & Invoices — cookie-authed (the /p/estimates dashboard has
+      // no Bearer token). Create + send are manager-gated like the lead
+      // followups above. The public approve route is registered separately
+      // (login-free, validated by estimate id).
+      if (path === '/api/estimates' && method === 'POST') {
+        const eUid = await getUidFromSessionCookie(request, env);
+        if (!eUid) return json({ ok: false, error: 'Not logged in' });
+        const eCtx = await resolveContext(request, env, eUid);
+        if (!roleMeets(eCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
+        return handleEstimateCreate(request, env, eCtx.bid);
+      }
+      const estSendMatch = path.match(/^\/api\/estimates\/(\d+)\/send$/);
+      if (estSendMatch && method === 'POST') {
+        const eUid = await getUidFromSessionCookie(request, env);
+        if (!eUid) return json({ ok: false, error: 'Not logged in' });
+        const eCtx = await resolveContext(request, env, eUid);
+        if (!roleMeets(eCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
+        return handleEstimateSend(request, env, eCtx.bid, parseInt(estSendMatch[1], 10));
       }
       // AI email draft for the lead detail page — cookie-authed.
       const emailDraftMatch = path.match(/^\/api\/leads\/(\d+)\/email-draft-htmx$/);
@@ -16243,6 +17231,13 @@ export default {
       // Stripe webhook — public (no Bearer auth); verified by signature.
       if (path === '/api/stripe/webhook' && method === 'POST') {
         return handleStripeWebhook(request, env);
+      }
+      // Public estimate approval — called from the login-free client page
+      // (/s/{slug}/estimate/:id). No session; ownership is validated inside the
+      // handler via the estimate id + slug match.
+      const estApproveMatch = path.match(/^\/api\/estimates\/(\d+)\/approve$/);
+      if (estApproveMatch && method === 'POST') {
+        return handleEstimateApprove(request, env, null, parseInt(estApproveMatch[1], 10));
       }
       // Vapi call webhook — public; verified by x-vapi-secret header.
       if (path === '/api/vapi/call-webhook' && method === 'POST') {
