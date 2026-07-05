@@ -7,8 +7,16 @@
 ## Quick Reference
 - **Wiki:** `wiki/routes.md` `wiki/tables.md` `wiki/auth.md` `wiki/patterns.md`
 - **File:** `worker.js` (~12K lines) — all routes, handlers, DB, templates
-- **Deploy worker:** `npx wrangler deploy`
-- **Deploy pages:** `npx wrangler pages deploy . --project-name branchlive --branch main --commit-dirty`
+- **Deploy:** `./deploy.sh "what changed"` — deploys worker (+ pages if HTML changed) AND commits atomically.
+
+## 🔴 NON-NEGOTIABLE: DEPLOY = COMMIT. NEVER `git reset --hard` / `git checkout -- worker.js`
+Deployed-but-uncommitted work gets silently wiped by the next reset/checkout. This has
+destroyed the 7 video embeds, Scout sparkle, and caret fixes MULTIPLE times, forcing
+full re-do. Rules for EVERY agent (ZCode, Antigravity, Cursor, Hermes):
+1. **Always deploy via `./deploy.sh "msg"`** — it commits for you. Do not call bare `npx wrangler deploy` and walk away.
+2. **NEVER `git reset --hard` or `git checkout -- worker.js`** to fix a bad edit. Use `git diff` + a surgical Python replace to revert only the broken part.
+3. If you must revert a file: `git stash` first, so uncommitted deployed work is recoverable.
+4. Video embed IDs (unlisted, unrecoverable from the channel) live in the Hermes `branchlive` skill → `references/video-embeds-manifest.md`.
 
 ## Project
 - **Product:** AI receptionist (Emma) for service businesses — answers phones 24/7
