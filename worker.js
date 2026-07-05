@@ -3674,7 +3674,7 @@ async function handleSettingsHtmx(request, env) {
   // Outreach integration status (Apollo + TextMagic key presence). Drives the
   // status card on the settings page; both keys are wrangler secrets.
   const outreach = {
-    shown: true,
+    shown: false,
     apollo: !!env.APOLLO_API_KEY,
     textMagic: !!(env.TEXTMAGIC_USERNAME && env.TEXTMAGIC_API_KEY),
   };
@@ -9065,10 +9065,10 @@ function switchBusiness(bid){var f=document.createElement('form');f.method='POST
 
   // Build the DOM once.
   var tab=document.createElement('div');tab.id='scout-tab';
-  tab.innerHTML='<span class="scout-crab">🦀</span><span class="scout-tab-label">Scout</span>';
+  tab.innerHTML='<span class="scout-crab">✨</span><span class="scout-tab-label">Scout</span>';
   var panel=document.createElement('div');panel.id='scout-panel';
   panel.innerHTML='<div class="scout-head">'
-    +'<div><div class="scout-title"><span class="scout-crab">🦀</span> Scout</div>'
+    +'<div><div class="scout-title"><span class="scout-crab">✨</span> Scout</div>'
     +'<span class="scout-sub">Your Branch Live guide</span></div>'
     +'<button id="scout-close" aria-label="Collapse Scout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>'
     +'</div>'
@@ -9109,7 +9109,7 @@ function switchBusiness(bid){var f=document.createElement('form');f.method='POST
     panel.classList.add('open');
     if(!greeted){
       greeted=true;
-      addMsg('Hi! I am Scout 🦀 — your Branch Live guide. I see you are on the '+pageKeyClean+' page. Ask me anything about how to use your dashboard.','scout-ai');
+      addMsg('Hi! I am Scout ✨ — your Branch Live guide. I see you are on the '+pageKeyClean+' page. Ask me anything about how to use your dashboard.','scout-ai');
     }
     setTimeout(function(){inputEl.focus();},120);
   }
