@@ -2695,6 +2695,7 @@ const NAV_ITEMS = {
   knowledge:{ key:'knowledge',href: '/p/knowledge',   label: 'Knowledge', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>' },
   gallery:  { key:'gallery',  href: '/p/gallery',     label: 'Gallery',   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>' },
   analytics:{ key:'analytics',href: '/p/analytics',   label: 'Analytics', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="4" y2="12"/><line x1="10" y1="20" x2="10" y2="4"/><line x1="16" y1="20" x2="16" y2="14"/><line x1="22" y1="20" x2="22" y2="8"/></svg>' },
+  estimates:{ key:'estimates',href: '/p/estimates',  label: 'Estimates', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/></svg>' },
   website:  { key:'website',  href: '/p/growth/website',     label: 'Website',    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>' },
   blog:     { key:'blog',     href: '/p/growth/blog',        label: 'Blog',      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>' },
   social:   { key:'social',   href: '/p/growth/social',      label: 'Social',    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-8-8 18-2-7-8-3z"/></svg>' },
@@ -2710,7 +2711,7 @@ const NAV_ITEMS = {
 // access, and any group left empty is omitted entirely.
 const NAV_GROUPS = [
   { name: 'Main',     keys: ['overview','calendar','knowledge','gallery'] },
-  { name: 'Business', keys: ['leads','calls','analytics'] },
+  { name: 'Business', keys: ['leads','calls','analytics','estimates'] },
   { name: 'Growth',   keys: ['website','blog','social'] },
   { name: 'Account',  keys: ['billing','team','settings','help'] },
 ];
@@ -2765,7 +2766,7 @@ function sidebarNav(active, isAdmin, ctx) {
   const minRoleFor = {
     settings: 'admin', billing: 'admin', team: 'manager',
     leads: 'manager', calls: 'manager', website: 'manager',
-    analytics: 'manager', outreach: 'manager', blog: 'manager', social: 'manager',
+    analytics: 'manager', outreach: 'manager', blog: 'manager', social: 'manager', estimates: 'manager',
   };
   // Render a single nav link, applying the role gate + active state.
   const linkHtml = key => {
