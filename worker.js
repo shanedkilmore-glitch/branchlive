@@ -3318,8 +3318,8 @@ function settingsHtmxBody({ row, user, saved, outreach }) {
   <form method="POST" action="/settings-htmx">
     <div class="card">
       <h3 style="margin-top:0">Business profile${tip("The basics Emma uses when she answers calls and when customers book — your name, what you do, where you work, and how to reach you.")}</h3>
-      ${field('Business name', text('business_name', s.business_name, 'Acme Plumbing'))}
-      ${field('Industry', text('industry', s.industry, 'Plumbing'))}
+      ${field('Business name', text('business_name', s.business_name, 'Acme Services'))}
+      ${field('Industry', text('industry', s.industry, 'Services'))}
       ${field('Service area', text('service_area', s.service_area, 'Lancaster, PA'))}
       ${field('Forwarding number', text('forwarding_number', s.forwarding_number, '+1 (717) 555-0100'))}
       ${field('Service description', `<textarea name="service_description" rows="3" style="width:100%;box-sizing:border-box" placeholder="Brief description of services">${htmxEsc(s.service_description)}</textarea>`)}
@@ -5928,7 +5928,7 @@ const SITE_TEMPLATES = ['modern', 'warmcraft', 'boldimpact', 'softelegance', 'mi
 const SITE_TEMPLATE_META = {
   modern:      { label: 'Modern Clean',  blurb: 'White space, bold typography, hero image.', best: 'Professional services, real estate' },
   warmcraft:   { label: 'Warm Craft',    blurb: 'Earth tones, texture, before/after focus.', best: 'Remodeling, masonry, hardscape' },
-  boldimpact:  { label: 'Bold Impact',   blurb: 'Dark bg, high contrast, big statements.',  best: 'HVAC, plumbing, emergency services' },
+  boldimpact:  { label: 'Bold Impact',   blurb: 'Dark bg, high contrast, big statements.',  best: 'fitness studios, event venues, emergency services' },
   softelegance:{ label: 'Soft Elegance', blurb: 'Light, feminine, curved edges.',           best: 'Salons, estheticians, boutiques' },
   minimalgrid: { label: 'Minimal Grid',  blurb: 'Photo-forward, gallery-driven.',           best: 'Photographers, landscapers, designers' },
 };
@@ -6409,12 +6409,13 @@ function siteSharedHtml(data, cfg) {
     ? `<span class="s-chip">👍 Facebook</span>`
     : `<a class="s-chip" href="${esc(data.facebook)}" target="_blank" rel="noopener">👍 Facebook</a>`);
   const socialLinksHtml = socials.length ? `<div class="s-chips">${socials.join('')}</div>` : '';
-  // Reviews: render real/sample rows when present; "coming soon" placeholder
-  // when the section is on but empty AND not previewing (previewing injects
-  // samples so this branch only hits for real add-on owners with no reviews yet).
+  // Reviews: render real/sample rows when present; render nothing (empty
+  // string) when the section is on but empty AND not previewing (previewing
+  // injects samples so this branch only hits for real add-on owners with no
+  // reviews yet).
   const reviewsHtml = data.reviews && data.reviews.length
     ? data.reviews.map(r => `<blockquote class="s-review"><p>“${esc(r.text || '')}”</p>${r.author ? `<cite>— ${esc(r.author)}</cite>` : ''}</blockquote>`).join('')
-    : '<p class="s-placeholder">Reviews coming soon — check back!</p>';
+    : '';
   return { esc, telHref, bookBtn, bookUrl, heroHeadline, heroSub, heroTagline, stickyCta, servicesInner, apptChips, galleryHtml, blogHtml, hoursHtml, bookingInner, serviceAreaHtml, socialLinksHtml, reviewsHtml, previewing: data.previewing || {} };
 }
 
@@ -6547,7 +6548,7 @@ function tplMinimalGrid(data, cfg) {
     ? `<section class="mg-sec"><div class="mg-wrap"><h2>Social</h2>${h.socialLinksHtml}${h.previewing.social ? lockOverlay('social') : ''}</div></section>` : '';
   const contactSection = s('contact')
     ? `<section class="mg-sec mg-cta"><div class="mg-wrap"><h2>Contact</h2><div class="mg-ctas">${h.telHref}${h.bookBtn}</div></div></section>` : '';
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">${seoHead(data, cfg, cfg._url)}<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet"><style>:root{--accent:${cfg.accent}}*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Inter',sans-serif;color:#111;background:#fafafa;line-height:1.6;font-weight:400}.mg-wrap{max-width:960px;margin:0 auto;padding:0 28px}.mg-wrap-wide{max-width:1200px}.mg-hero{padding:80px 0 48px;text-align:center;border-bottom:1px solid #eee}.mg-hero h1{font-size:3.2em;font-weight:700;letter-spacing:-.03em}.mg-hero .mg-sub{color:#999;margin-top:10px;font-size:1em;text-transform:uppercase;letter-spacing:.15em;font-weight:500}.mg-ctas{margin-top:30px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap}.mg-btn{display:inline-block;padding:14px 30px;font-weight:500;text-decoration:none;font-size:.92em;transition:opacity .2s;border-radius:0}.mg-btn:hover{opacity:.7}.s-btn-call{background:#111;color:#fff}.s-btn-book{background:transparent;color:#111;border:1px solid #111}.mg-sec{padding:72px 0;border-bottom:1px solid #eee}.mg-sec h2{font-size:1.5em;font-weight:700;letter-spacing:-.02em;margin-bottom:24px;text-transform:uppercase}.s-lede,.mg p{color:#555;max-width:620px}.s-svc-group{margin-top:16px}.s-svc-group h3{font-size:.8em;text-transform:uppercase;letter-spacing:.12em;color:#999;border-bottom:1px solid #eee;padding-bottom:6px;margin-bottom:8px;font-weight:700}.s-svc-item{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid #f4f4f4}.s-svc-name{font-weight:500;color:#222}.s-svc-note{display:block;color:#999;font-size:.85em;font-weight:400}.s-svc-price{color:#111;font-weight:700;white-space:nowrap}.s-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.s-chip{background:#f0f0f0;color:#333;padding:6px 14px;font-size:.8em;font-weight:500;text-decoration:none}.mg-gallery-sec .s-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:4px;margin-top:0}.s-gal-item{margin:0}.s-gal-item img{width:100%;height:300px;object-fit:cover;display:block;filter:contrast(1.02)}.s-gal-item figcaption{font-size:.7em;color:#999;margin-top:5px;text-transform:uppercase;letter-spacing:.1em}.s-review{margin:18px 0;padding-left:16px;border-left:2px solid #111}.s-review p{color:#333;font-style:italic}.s-review cite{display:block;margin-top:6px;color:#999;font-size:.8em;font-style:normal;text-transform:uppercase;letter-spacing:.08em}.s-placeholder{color:#999;font-style:italic}.mg-cta{text-align:center}.mg-cta .s-btn-book{background:var(--accent);color:#fff;border-color:var(--accent)}footer{padding:30px 0;text-align:center;color:#999;font-size:.8em;text-transform:uppercase;letter-spacing:.1em}footer a{color:#111}@media(max-width:600px){.mg-hero h1{font-size:2.2em}.s-svc-item{flex-direction:column;gap:2px}.mg-gallery-sec .s-gallery{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}.mg-gallery-sec .s-gal-item img{height:180px}}</style></head><body><header class="mg-hero"><div class="mg-wrap"><h1>${h.esc(h.heroHeadline)}</h1>${h.heroSub ? `<div class="mg-sub">${h.esc(h.heroSub)}</div>` : ''}<div class="mg-ctas">${h.telHref}${h.bookBtn}</div></div></header><main>${servicesSection}${aboutSection}${gallerySection}${serviceAreaSection}${reviewsSection}${bookingSection}${blogSection}${socialSection}${contactSection}</main><footer>© ${new Date().getFullYear()} ${h.esc(data.name)} · Powered by Branch Live</footer></body></html>`;
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">${seoHead(data, cfg, cfg._url)}<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet"><style>:root{--accent:${cfg.accent}}*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Inter',sans-serif;color:#111;background:#fafafa;line-height:1.6;font-weight:400}.mg-wrap{max-width:960px;margin:0 auto;padding:0 28px}.mg-wrap-wide{max-width:1200px}.mg-hero{padding:80px 0 48px;text-align:center;border-bottom:1px solid #eee}.mg-hero h1{font-size:3.2em;font-weight:700;letter-spacing:-.03em}.mg-hero .mg-sub{color:#767676;margin-top:10px;font-size:1em;text-transform:uppercase;letter-spacing:.15em;font-weight:500}.mg-ctas{margin-top:30px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap}.mg-btn{display:inline-block;padding:14px 30px;font-weight:500;text-decoration:none;font-size:.92em;transition:opacity .2s;border-radius:0}.mg-btn:hover{opacity:.7}.s-btn-call{background:#111;color:#fff}.s-btn-book{background:transparent;color:#111;border:1px solid #111}.mg-sec{padding:72px 0;border-bottom:1px solid #eee}.mg-sec h2{font-size:1.5em;font-weight:700;letter-spacing:-.02em;margin-bottom:24px;text-transform:uppercase}.s-lede,.mg p{color:#555;max-width:620px}.s-svc-group{margin-top:16px}.s-svc-group h3{font-size:.8em;text-transform:uppercase;letter-spacing:.12em;color:#767676;border-bottom:1px solid #eee;padding-bottom:6px;margin-bottom:8px;font-weight:700}.s-svc-item{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid #f4f4f4}.s-svc-name{font-weight:500;color:#222}.s-svc-note{display:block;color:#767676;font-size:.85em;font-weight:400}.s-svc-price{color:#111;font-weight:700;white-space:nowrap}.s-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.s-chip{background:#f0f0f0;color:#333;padding:6px 14px;font-size:.8em;font-weight:500;text-decoration:none}.mg-gallery-sec .s-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:4px;margin-top:0}.s-gal-item{margin:0}.s-gal-item img{width:100%;height:300px;object-fit:cover;display:block;filter:contrast(1.02)}.s-gal-item figcaption{font-size:.7em;color:#767676;margin-top:5px;text-transform:uppercase;letter-spacing:.1em}.s-review{margin:18px 0;padding-left:16px;border-left:2px solid #111}.s-review p{color:#333;font-style:italic}.s-review cite{display:block;margin-top:6px;color:#767676;font-size:.8em;font-style:normal;text-transform:uppercase;letter-spacing:.08em}.s-placeholder{color:#767676;font-style:italic}.mg-cta{text-align:center}.mg-cta .s-btn-book{background:var(--accent);color:#fff;border-color:var(--accent)}footer{padding:30px 0;text-align:center;color:#767676;font-size:.8em;text-transform:uppercase;letter-spacing:.1em}footer a{color:#111}@media(max-width:600px){.mg-hero h1{font-size:2.2em}.s-svc-item{flex-direction:column;gap:2px}.mg-gallery-sec .s-gallery{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}.mg-gallery-sec .s-gal-item img{height:180px}}</style></head><body><header class="mg-hero"><div class="mg-wrap"><h1>${h.esc(h.heroHeadline)}</h1>${h.heroSub ? `<div class="mg-sub">${h.esc(h.heroSub)}</div>` : ''}<div class="mg-ctas">${h.telHref}${h.bookBtn}</div></div></header><main>${servicesSection}${aboutSection}${gallerySection}${serviceAreaSection}${reviewsSection}${bookingSection}${blogSection}${socialSection}${contactSection}</main><footer>© ${new Date().getFullYear()} ${h.esc(data.name)} · Powered by Branch Live</footer></body></html>`;
 }
 
 // Dispatch: normalize config → pick template renderer. `_url` and `_slug` are
@@ -9532,7 +9533,7 @@ function renderTranscriptSummaryHtml(transcript, existingSummary, isLogPage) {
     }
 
     // Regexp for key info: times, dates, prices, service names, customer names
-    const keyInfoRegex = /(\b\d{1,2}(?::\d{2})?\s*(?:am|pm|o'clock)\b|\b(?:morning|afternoon|evening|night|today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\b|\b\d{1,2}\/\d{1,2}\b|\$\d+|\b(?:dollars|cents|price|cost|quote|fee|charge|estimate|billing|pay)\b|\b(?:plumbing|leak|clog|repair|install|hvac|ac|heating|electrical|drain|pipe|water heater|maintenance|service|appointment|book)\b|\b(?:my name is|name is|this is)\b)/i;
+    const keyInfoRegex = /(\b\d{1,2}(?::\d{2})?\s*(?:am|pm|o'clock)\b|\b(?:morning|afternoon|evening|night|today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\b|\b\d{1,2}\/\d{1,2}\b|\$\d+|\b(?:dollars|cents|price|cost|quote|fee|charge|estimate|billing|pay)\b|\b(?:plumbing|leak|clog|repair|install|hvac|ac|heating|electrical|drain|pipe|water heater|maintenance|service|appointment|book|cut|color|style|booking|clean|shoot|session|showing|listing)\b|\b(?:my name is|name is|this is)\b)/i;
 
     // Filter sentences with key info
     for (const s of sentences) {
@@ -10599,7 +10600,7 @@ async function handleGalleryHtmx(request, env, uid, ctx) {
       after: photos.filter(p => p.type === 'after').length,
     };
     const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    const cards = photos.map(p => `<div class="g-item" data-type="${p.type || 'during'}" onclick="glightbox(this)"><img src="${p.data}" alt="${esc(p.caption || '')}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block"><span class="g-tag g-tag-${p.type || 'during'}">${p.type || 'during'}</span>${p.caption ? `<span class="g-cap">${esc(p.caption)}</span>` : ''}</div>`).join('');
+    const cards = photos.map(p => `<div class="g-item" data-type="${p.type || 'during'}" onclick="glightbox(this)"><img src="${p.data}" alt="${esc(p.caption || 'Portfolio image')}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block"><span class="g-tag g-tag-${p.type || 'during'}">${p.type || 'during'}</span>${p.caption ? `<span class="g-cap">${esc(p.caption)}</span>` : ''}</div>`).join('');
     const style = `<style>.g-tabs{display:flex;gap:8px;margin:18px 0 24px;flex-wrap:wrap}.g-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}.g-item{position:relative;aspect-ratio:1;overflow:hidden;border-radius:14px;border:1px solid var(--border);background:var(--bg-card);cursor:zoom-in;transition:transform .3s cubic-bezier(.2,.7,.2,1),box-shadow .3s ease}.g-item:hover{transform:translateY(-3px);box-shadow:0 12px 32px -10px rgba(0,0,0,.6)}.g-item:hover img{opacity:.9}.g-item img{transition:opacity .3s ease}.g-tag{position:absolute;top:8px;left:8px;padding:3px 9px;border-radius:9999px;font-size:.66rem;font-weight:600;text-transform:uppercase;font-family:var(--font-mono);letter-spacing:.04em;backdrop-filter:blur(4px)}.g-tag-before{background:rgba(212,165,116,.9);color:#1a1205}.g-tag-during{background:rgba(96,165,250,.9);color:#06121f}.g-tag-after{background:rgba(52,211,153,.9);color:#051a0c}.g-cap{position:absolute;left:0;right:0;bottom:0;padding:10px 12px;font-size:.78rem;color:var(--text-primary);background:linear-gradient(transparent,rgba(0,0,0,.85));line-height:1.3}.g-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center;z-index:100;padding:24px;cursor:zoom-out;backdrop-filter:blur(6px)}.g-lightbox img{max-width:90vw;max-height:85vh;border-radius:12px;box-shadow:0 24px 80px -20px rgba(0,0,0,.8)}</style>`;
     const body = `<div class="app">${sidebarNav('gallery', undefined, ctx)}<div class="content">
 <span class="eyebrow">Gallery</span>
@@ -13242,9 +13243,9 @@ function generateEmmaPrompt(data) {
     landscaping: 'landscaping', masonry: 'masonry and hardscape', hvac: 'HVAC',
     plumbing: 'plumbing', electrical: 'electrical', 'general-contracting': 'general contracting',
     'retail-supply': 'retail and supply', tow_truck: 'towing and roadside assistance',
-    real_estate: 'real estate', other: 'construction and trades',
+    real_estate: 'real estate', other: 'local service business',
   };
-  const industryName = industryDisplayNames[industry] || 'construction and trades';
+  const industryName = industryDisplayNames[industry] || 'local service business';
 
   const toneMap = {
     professional: 'professional, courteous, and knowledgeable',
@@ -16019,7 +16020,7 @@ async function blogUniqueSlug(env, base, exceptId) {
 // Each article ends with a "Still have questions?" box whose ≡ƒªÇ Ask Scout
 // button opens the Scout panel (rendered by sidebarNav's script) with the
 // question pre-filled.
-// ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+// =======================================================================
 
 // Collapsible nav sections -> ordered list of articles. Each article tuple is
 // [slug, title]; slugs index HELP_ARTICLES below. The default landing slug
@@ -16178,7 +16179,7 @@ function helpScoutBox(question) {
       <div class="hc-ask-d">Scout can walk you through it &mdash; it knows this page.</div>
     </div>
     <button type="button" class="btn btn-amber" data-scout-q="${q}" onclick="openScoutQuestion(this.getAttribute('data-scout-q'))">
-      <span aria-hidden="true">≡ƒªÇ</span> Ask Scout
+      <span aria-hidden="true">&#129408;</span> Ask Scout
     </button>
   </div>`;
 }
@@ -16525,7 +16526,7 @@ Notes:    Natural stone or concrete pavers. Free on-site estimate.
 </ol>
 
 <h2>SEO and Business Integration</h2>
-<p>For example, if you run a plumbing business in Phoenix, the AI blog generator can write articles like "Preparing Phoenix Pipes for Winter." Publishing these posts helps your microsite rank on search engines. Furthermore, Emma references published blog content when answering caller queries, making her conversations even more informative and natural.</p>
+<p>For example, if you run a day spa in Austin, the AI blog generator can write articles like &quot;5 Self-Care Rituals for a Texas Summer.&quot; Publishing these posts helps your microsite rank on search engines. Furthermore, Emma references published blog content when answering caller queries, making her conversations even more informative and natural.</p>
 
 <div class="hc-callout"><span class="hc-co-h">Manual Writing</span><p>You can also write articles from scratch. Click <strong>Create Blank Post</strong> in the Blog Manager, enter your text, and upload a header image.</p></div>`;
 
@@ -16871,7 +16872,7 @@ function helpLandingPane() {
   </article>`;
 }
 
-// ΓöÇΓöÇ Handlers ΓöÇΓöÇ
+// -- Handlers --
 // Both share the same two-column shell; the only difference is whether the
 // right pane shows the landing grid (no slug) or a single article.
 
@@ -16909,9 +16910,9 @@ async function handleHelpArticleHtmx(request, env, slug, ctx) {
   return new Response(simpleShell(HELP_ARTICLES[slug].title + ' — Help', body), { headers: { 'Content-Type': 'text/html' } });
 }
 
-// ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+// =======================================================================
 // ADMIN DASHBOARD &mdash; page handlers (/p/admin/*)
-// ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+// =======================================================================
 
 
 // ═══════════════════════════════════════════════════════════════════════
