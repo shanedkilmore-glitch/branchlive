@@ -3759,20 +3759,21 @@ async function handleSettingsHtmx(request, env) {
     // Returning from Stripe onboarding (?stripe=connected): re-fetch the
     // connected account and persist charges_enabled before reading the row,
     // so the Payments card reflects the just-completed setup immediately.
-    const sp = new URL(request.url).searchParams;
-    if (sp.get('stripe') === 'connected') {
-      try {
-        const st = await env.DB.prepare('SELECT stripe_account_id FROM settings WHERE user_id = ?').bind(uid).first();
-        const acctId = (st && st.stripe_account_id) || '';
-        if (acctId && stripeConfigured(env)) {
-          const acct = await stripeRequest(env, `/v1/accounts/${acctId}`, { method: 'GET' });
-          if (acct.ok && acct.data) {
-            await env.DB.prepare('UPDATE settings SET stripe_charges_enabled = ? WHERE user_id = ?')
-              .bind(acct.data.charges_enabled ? 1 : 0, uid).run();
-          }
+    // Refresh Stripe Connect status from Stripe whenever the business has a
+    // connected account that isn't fully enabled yet. NOTE: the custom domain
+    // drops query strings on this route (?x=y falls through to the Pages landing
+    // site), so we must NOT depend on ?stripe=connected — key off account state.
+    try {
+      const st = await env.DB.prepare('SELECT stripe_account_id, stripe_charges_enabled FROM settings WHERE user_id = ?').bind(uid).first();
+      const acctId = (st && st.stripe_account_id) || '';
+      if (acctId && stripeConfigured(env) && !st.stripe_charges_enabled) {
+        const acct = await stripeRequest(env, `/v1/accounts/${acctId}`, { method: 'GET' });
+        if (acct.ok && acct.data) {
+          await env.DB.prepare('UPDATE settings SET stripe_charges_enabled = ? WHERE user_id = ?')
+            .bind(acct.data.charges_enabled ? 1 : 0, uid).run();
         }
-      } catch (e) { console.error('Stripe status refresh on return failed:', e.message); }
-    }
+      }
+    } catch (e) { console.error('Stripe status refresh failed:', e.message); }
     const user = await env.DB.prepare('SELECT email FROM users WHERE id = ?').bind(uid).first();
     const row = await env.DB.prepare('SELECT * FROM settings WHERE user_id = ?').bind(uid).first();
     return new Response(simpleShell('Settings', settingsHtmxBody({ row, user, saved: request.method === 'POST', outreach })), {
@@ -12391,7 +12392,7 @@ async function handleStripeConnect(request, env) {
         account: acctId,
         type: 'account_onboarding',
         refresh_url: `${origin}/api/stripe/connect`,
-        return_url: `${origin}/settings-htmx?stripe=connected`,
+        return_url: `${origin}/settings-htmx`,
       }),
     });
     if (!link.ok || !link.data || !link.data.url) {
