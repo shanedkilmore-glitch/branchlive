@@ -24,8 +24,13 @@ AGENTS.md at the project root has additional context. Load it too.
 - **Stack:** Cloudflare Worker + Pages + D1 (SQLite)
 - **File:** `worker.js` (~13,600 lines) — all routes, handlers, DB, templates
 - **Demo:** demo@branchlive.com / demo123, user_id=1, business "Riverside Services" (Home & Beauty)
-- **Deploy worker:** `npx wrangler deploy`
-- **Deploy pages:** `npx wrangler pages deploy . --project-name branchlive --branch main --commit-dirty`
+- **Deploy:** `./deploy.sh "what changed"` — deploys worker (+ pages if HTML changed) AND commits in one step.
+
+## 🔴 DEPLOY = COMMIT. NEVER `git reset --hard` or `git checkout -- worker.js`
+Deployed-but-uncommitted work is silently destroyed by the next reset/checkout — this
+has wiped the video embeds, Scout sparkle, and caret fixes repeatedly. ALWAYS deploy via
+`./deploy.sh "msg"` (it commits for you). To revert a bad edit, use `git diff` + a surgical
+replace of ONLY the broken part — never a whole-file checkout/reset.
 
 ## What's Live
 - Landing: https://branchlive.com
