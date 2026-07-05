@@ -15937,7 +15937,7 @@ function helpMobileNav(activeSlug) {
     return `<optgroup label="${htmxEsc(sec.name)}">${groupOpts}</optgroup>`;
   }).join('');
   return `<div class="hc-mobile-nav"><select onchange="if(this.value)location.href='/p/help/'+this.value">
-    <option value="" disabled${!activeSlug ? ' selected' : ''}>Jump to an articleΓÇª</option>
+    <option value="" disabled${!activeSlug ? ' selected' : ''}>Jump to an article&hellip;</option>
     ${opts}
   </select></div>`;
 }
@@ -16587,7 +16587,7 @@ function helpLandingPane() {
       const leadMatch = body.match(/<p class="hc-lead">(.*?)<\/p>/s);
       let desc = leadMatch ? leadMatch[1] : title;
       desc = desc.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-      if (desc.length > 110) desc = desc.slice(0, 107).trimEnd() + 'ΓÇª';
+      if (desc.length > 110) desc = desc.slice(0, 107).trimEnd() + '&hellip;';
       return `<a class="hc-card" href="/p/help/${esc(slug)}"><div class="hc-card-t">${esc(title)}</div><div class="hc-card-d">${esc(desc)}</div></a>`;
     }).join('');
     return `<h2>${esc(sec.name)}</h2><div class="hc-cards">${cards}</div>`;
