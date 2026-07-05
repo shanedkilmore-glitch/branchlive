@@ -231,7 +231,21 @@ All tables live in Cloudflare D1. Migrations are idempotent (CREATE TABLE IF NOT
 | duration_sec | INTEGER | |
 | created_at | TEXT | |
 
+### estimates
+| Column | Type | Notes |
+|--------|------|-------|
+| id | INTEGER PK | AUTOINCREMENT |
+| user_id | INTEGER | NOT NULL — owner |
+| lead_id | INTEGER | linked lead (nullable) |
+| title | TEXT | quote title |
+| items | TEXT | JSON array of line items |
+| total | REAL | computed server-side |
+| status | TEXT | 'draft', 'sent', 'approved', 'paid' |
+| stripe_payment_link | TEXT | Stripe payment link URL |
+| created_at | TEXT | |
+
 ### Key indexes
 - idx_cblog_user ON business_blog_posts(user_id, published_at DESC)
 - idx_reviews_user ON reviews(user_id, reviewed_at DESC)
 - idx_sp_user ON social_posts(user_id, created_at DESC)
+- idx_estimates_user ON estimates(user_id, status)

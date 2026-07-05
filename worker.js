@@ -15817,6 +15817,7 @@ const HELP_SECTIONS = [
     ['social-posts',    'Social Posts'],
     ['blog',            'Blog'],
     ['analytics',       'Analytics'],
+    ['estimates',       'Estimates & Invoices'],
     ['google-reviews',  'Syncing and Displaying Google Reviews'],
     ['csv-import',      'Bulk Importing Services via CSV'],
     ['gmail-oauth',     'Connecting Gmail for Automated Emails'],
@@ -16547,6 +16548,52 @@ Notes:    Natural stone or concrete pavers. Free on-site estimate.
 
 <blockquote class="hc-callout"><span class="hc-co-h">Prorated Charges</span><p>Adding or removing add-ons mid-billing cycle triggers automatic proration by Stripe. Any credit from cancelled features will be applied directly to your subsequent invoice.</p></blockquote>
 `;
+
+    case 'estimates': return `<p class="hc-lead">Turn a phone call into a paid job. Build a professional estimate, text it to your client, and get paid online &mdash; all without leaving your dashboard.</p>
+
+<h2>What an estimate does</h2>
+<p>An estimate (or quote) is a branded price breakdown you send a client for approval. They open it on their phone, review the line items, and pay you online in a couple of taps. Whether you run a salon, a cleaning service, a photography studio, or a hardscape business, it is the fastest path from &ldquo;how much?&rdquo; to money in the bank.</p>
+
+<h2>Creating an estimate</h2>
+<p>You can start an estimate two ways:</p>
+<ul>
+  <li>From the <a href="/p/estimates">Estimates</a> page, click <strong>New estimate</strong>.</li>
+  <li>From any lead&rsquo;s profile on the <a href="/p/leads">Leads</a> page, click <strong>+ Create estimate</strong> so it is tied to that customer automatically.</li>
+</ul>
+<p>Give it a title, then add one or more line items &mdash; a description and a price for each. The total updates live as you type. Save it and it waits as a <strong>draft</strong> until you are ready to send.</p>
+
+<h2>Sending it to your client</h2>
+<p>Click <strong>Send</strong> and Branch Live texts your client a private link to their estimate. The status moves from <strong>draft</strong> to <strong>sent</strong>, so you always know what has gone out and what is still sitting on your desk.</p>
+
+<h2>What your client sees</h2>
+<p>The link opens a clean, mobile-friendly page with your business name, the line items, the total, and one clear button. There is nothing to download and no account to create. Depending on where things stand, they will see:</p>
+<ul>
+  <li><strong>Approve &amp; Pay</strong> &mdash; for an estimate they have not acted on yet.</li>
+  <li><strong>Resume Payment</strong> &mdash; if they started checkout but did not finish.</li>
+  <li>A <strong>Paid</strong> confirmation banner &mdash; once payment clears.</li>
+</ul>
+
+<h2>Getting paid</h2>
+<p>When your client taps <strong>Approve &amp; Pay</strong>, they are sent to a secure Stripe checkout for the exact estimate total. The moment the payment succeeds, the estimate flips to <strong>paid</strong> and the linked lead is automatically marked as booked &mdash; no manual bookkeeping on your end.</p>
+
+<h2>Estimate statuses</h2>
+<ul>
+  <li><strong>Draft:</strong> Created but not yet sent. Only you can see it.</li>
+  <li><strong>Sent:</strong> Texted to your client and waiting on them.</li>
+  <li><strong>Approved:</strong> Your client has started checkout; payment is in progress.</li>
+  <li><strong>Paid:</strong> Payment cleared and the lead is booked.</li>
+</ul>
+
+<blockquote class="hc-callout"><span class="hc-co-h">Editing an estimate</span><p>In this version, estimates are not edited in place. If a draft needs changes, delete it and create a fresh one &mdash; it takes seconds and keeps every quote you have sent accurate.</p></blockquote>
+
+<h2>Step-by-step</h2>
+<ol>
+  <li>Open <a href="/p/estimates">Estimates</a> and click <strong>New estimate</strong>, or start one from a lead&rsquo;s profile.</li>
+  <li>Add a title and your line items; watch the total add up.</li>
+  <li>Save the draft, then click <strong>Send</strong> to text it to your client.</li>
+  <li>Your client opens the link and taps <strong>Approve &amp; Pay</strong>.</li>
+  <li>The estimate turns <strong>paid</strong> and the lead is booked automatically.</li>
+</ol>`;
 
     default: return `
 <p class="hc-lead">Article not found.</p>

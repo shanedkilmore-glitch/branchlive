@@ -73,6 +73,15 @@ Routes are matched in order. First match wins. All /api/* routes check auth befo
 | POST | /api/cron/social-autopost | Bulk social auto-post | Cron only |
 | POST | /api/cron/videos-generate | Bulk video generate | Cron only |
 
+### Estimates & Invoices
+| Method | Path | Handler() | Notes |
+|--------|------|-----------|-------|
+| GET | /p/estimates | handleEstimatesHtmx() | Estimates dashboard (cookie auth) |
+| GET | /s/:slug/estimate/:id | handlePublicEstimate() | Public estimate view (no auth; ownership checked internally) |
+| POST | /api/estimates | handleEstimateCreate() | Create draft quote (total recomputed server-side) |
+| POST | /api/estimates/:id/send | handleEstimateSend() | Text estimate link to client (draft -> sent) |
+| POST | /api/estimates/:id/approve | handleEstimateApprove() | Create Stripe payment link (sent -> approved -> paid via webhook); demo-mode marks paid |
+
 ### Legacy / SPA endpoints
 | Method | Path | Notes |
 |--------|------|-------|
