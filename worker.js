@@ -6653,12 +6653,21 @@ async function handleEstimatesHtmx(request, env, uid, ctx) {
       env.DB.prepare('SELECT e.*, l.caller_name AS customer_name FROM estimates e LEFT JOIN leads l ON l.id = e.lead_id WHERE e.user_id = ? ORDER BY e.created_at DESC').bind(uid).all(),
       env.DB.prepare("SELECT id, caller_name FROM leads WHERE user_id = ? AND status NOT IN ('closed','booked') ORDER BY updated_at DESC LIMIT 200").bind(uid).all(),
       env.DB.prepare('SELECT slug, published FROM sites WHERE user_id = ?').bind(uid).first(),
-      env.DB.prepare('SELECT business_name FROM settings WHERE user_id = ?').bind(uid).first(),
+      env.DB.prepare('SELECT business_name, stripe_charges_enabled FROM settings WHERE user_id = ?').bind(uid).first(),
     ]);
     const rows = (estimates.results || []);
     const leadRows = (leads.results || []);
     const pubUrl = (site && site.slug) ? `/s/${site.slug}/estimate` : null;
     const businessName = (settings && settings.business_name) || 'your business';
+    const chargesEnabled = !!(settings && settings.stripe_charges_enabled);
+    // Stripe Connect nudge: when the business hasn't finished onboarding, a
+    // dismissible amber banner links them to Settings so quotes can actually
+    // be collected (spec §7). Sending is still allowed — a quote can be
+    // informational — but payment will fail until Connect is complete.
+    const connectBanner = chargesEnabled ? '' : `<div class="est-connect-banner" style="display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap;background:rgba(212,165,116,.10);border:1px solid var(--border-soft);border-left:3px solid var(--accent-amber);border-radius:10px;padding:12px 16px;margin:0 0 20px">
+      <span style="color:var(--cream);font-size:.92rem">Connect Stripe in Settings to accept payments — money goes straight to your bank.</span>
+      <a class="btn btn-amber btn-sm" href="/settings-htmx">Connect Stripe →</a>
+    </div>`;
 
     // Metric cards.
     const sumBy = status => rows.filter(r => r.status === status).reduce((s, r) => s + Number(r.total || 0), 0);
@@ -6687,6 +6696,7 @@ async function handleEstimatesHtmx(request, env, uid, ctx) {
 <h1>Estimates</h1>
 <p class="sub">Send a quote via text. The customer taps Approve, it converts to an invoice, and Stripe handles payment — no paper.</p>
 
+${connectBanner}
 <div class="metric-row" style="display:flex;gap:12px;flex-wrap:wrap;margin:22px 0">${metricCards}</div>
 
 <div style="display:flex;gap:10px;align-items:center;margin:0 0 12px">
@@ -6876,20 +6886,36 @@ async function handleEstimateApprove(request, env, uid, estId) {
       return json({ ok: true, demo: true, redirectUrl: demoUrl, message: 'Demo mode — marked as paid.' });
     }
 
-    // Real Stripe flow: inline product → price → payment link (spec §5).
+    // Real Stripe flow: inline product → price → payment link, all created ON
+    // the business's connected Express account so funds land in their bank
+    // (spec §4). The platform secret still authenticates the call; the
+    // Stripe-Account header (set by opts.account in stripeRequest) scopes it.
+    const st = await env.DB.prepare('SELECT stripe_account_id, stripe_charges_enabled FROM settings WHERE user_id = ?').bind(est.user_id).first();
+    const acct = st && st.stripe_account_id;
+    if (!acct || !st.stripe_charges_enabled) {
+      // Gate: a quote can't be collected until the business finishes Connect
+      // onboarding. Friendly error surfaces on the public estimate page.
+      return json({ ok: false, error: 'This business hasn\u2019t finished setting up payments yet. Please contact them.' }, 400);
+    }
+
     const totalCents = Math.round(Number(est.total || 0) * 100);
     const product = await stripeRequest(env, '/v1/products', {
-      method: 'POST', form: stripeEncode({ name: `Estimate #${est.id}` + (est.title ? ` — ${est.title}` : '') }),
+      method: 'POST', account: acct,
+      form: stripeEncode({ name: `Estimate #${est.id}` + (est.title ? ` — ${est.title}` : '') }),
     });
     if (!product.ok) return json({ ok: false, error: product.error || 'Could not create product' }, 500);
     const price = await stripeRequest(env, '/v1/prices', {
-      method: 'POST', form: stripeEncode({ product: product.data.id, unit_amount: totalCents, currency: 'usd' }),
+      method: 'POST', account: acct,
+      form: stripeEncode({ product: product.data.id, unit_amount: totalCents, currency: 'usd' }),
     });
     if (!price.ok) return json({ ok: false, error: price.error || 'Could not create price' }, 500);
 
     const successUrl = `${origin}/s/__est_done__`;
+    // TODO fee: to take a platform cut, add application_fee_amount: <cents>
+    // to this payment_links form (0% fee for now — spec §4/§9).
     const link = await stripeRequest(env, '/v1/payment_links', {
-      method: 'POST', form: stripeEncode({
+      method: 'POST', account: acct,
+      form: stripeEncode({
         'line_items[0][price]': price.data.id,
         'line_items[0][quantity]': 1,
         metadata: { estimate_id: String(est.id) },
