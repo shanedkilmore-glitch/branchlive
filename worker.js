@@ -6688,8 +6688,9 @@ function estAddRow(desc,qty,rate){
     +'<td style="width:60px"><input class="est-qty" type="number" min="0" step="1" style="width:54px" value="'+(qty==null?1:qty)+'"></td>'
     +'<td style="width:80px"><input class="est-rate" type="number" min="0" step="0.01" style="width:74px" value="'+(rate==null?'':rate)+'"></td>'
     +'<td><span class="est-amt">$0.00</span></td>'
-    +'<td style="width:30px"><button type="button" class="btn btn-ghost btn-sm" onclick="this.closest(\'tr\').remove();estRecalc();">×</button></td>';
+    +'<td style="width:30px"><button type="button" class="btn btn-ghost btn-sm est-del">×</button></td>';
   tb.appendChild(tr);
+  var _del=tr.querySelector('.est-del');if(_del)_del.addEventListener('click',function(){tr.remove();estRecalc();});
   tr.querySelectorAll('input').forEach(function(i){i.addEventListener('input',estRecalc);});
   estRecalc();
 }
