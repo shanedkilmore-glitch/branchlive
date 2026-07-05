@@ -15787,9 +15787,9 @@ async function blogUniqueSlug(env, base, exceptId) {
 // HELP CENTER
 // ═══════════════════════════════════════════════════════════════════════
 
-// HELP CENTER ΓÇö /p/help (+ /p/help/{slug})
+// HELP CENTER &mdash; /p/help (+ /p/help/{slug})
 // In-app documentation. Every Branch Live feature documented as a static
-// HTML article (hardcoded here, not external markdown ΓÇö matches the rest of
+// HTML article (hardcoded here, not external markdown &mdash; matches the rest of
 // worker.js and adds no new deps). Two-column layout inside simpleShell():
 // a sticky left topic nav (collapsible sections) + a right article pane.
 // Each article ends with a "Still have questions?" box whose ≡ƒªÇ Ask Scout
@@ -15846,7 +15846,7 @@ const HELP_ARTICLES = (() => {
 const HELP_DEFAULT_SLUG = 'welcome';
 
 // Styles for the help center. Scoped under .hc-* so they never collide with
-// the global dashboard CSS. Amber-monotone only ΓÇö no purple/green/red/blue.
+// the global dashboard CSS. Amber-monotone only &mdash; no purple/green/red/blue.
 function helpCenterStyles() {
   return `<style>
 .hc-layout{display:grid;grid-template-columns:230px 1fr;gap:34px;align-items:start;margin-top:6px}
@@ -15872,7 +15872,7 @@ function helpCenterStyles() {
   .hc-nav{display:none}
   .hc-mobile-nav{display:block}
 }
-/* Article typography ΓÇö long-form reading, clean and airy. */
+/* Article typography &mdash; long-form reading, clean and airy. */
 .hc-article{min-width:0}
 .hc-crumb{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);margin-bottom:10px;display:flex;align-items:center;gap:8px}
 .hc-crumb a{color:var(--accent)}
@@ -15919,7 +15919,7 @@ function helpTopicNav(activeSlug) {
       return `<li><a class="${cls}" href="/p/help/${htmxEsc(slug)}">${htmxEsc(title)}</a></li>`;
     }).join('');
     return `<div class="hc-sec${open}">
-      <button type="button" class="hc-sec-h" onclick="this.parentElement.classList.toggle('open')"><span>${htmxEsc(sec.name)}</span><span class="hc-caret">ΓÇ║</span></button>
+      <button type="button" class="hc-sec-h" onclick="this.parentElement.classList.toggle('open')"><span>${htmxEsc(sec.name)}</span><span class="hc-caret">&rsaquo;</span></button>
       <ul class="hc-sec-list">${links}</ul>
     </div>`;
   }).join('');
@@ -15950,7 +15950,7 @@ function helpScoutBox(question) {
   return `<div class="hc-ask">
     <div>
       <div class="hc-ask-t">Still have questions?</div>
-      <div class="hc-ask-d">Scout can walk you through it ΓÇö it knows this page.</div>
+      <div class="hc-ask-d">Scout can walk you through it &mdash; it knows this page.</div>
     </div>
     <button type="button" class="btn btn-amber" data-scout-q="${q}" onclick="openScoutQuestion(this.getAttribute('data-scout-q'))">
       <span aria-hidden="true">≡ƒªÇ</span> Ask Scout
@@ -15980,33 +15980,33 @@ function openScoutQuestion(q){
 }
 
 // Article bodies keyed by slug. Each returns HTML for the right-hand pane.
-// Kept deliberately concise ΓÇö one render fn per article keeps the file
+// Kept deliberately concise &mdash; one render fn per article keeps the file
 // navigable and lets each topic match the feature's actual behavior.
 function helpArticleBody(slug) {
   const esc = htmxEsc;
   switch (slug) {
     case 'welcome': return `
-<p class="hc-lead">Branch Live gives your service business a 24/7 AI receptionist named Emma ΓÇö she answers every call, captures leads, and books appointments straight into your calendar.</p>
+<p class="hc-lead">Branch Live gives your service business a 24/7 AI receptionist named Emma &mdash; she answers every call, captures leads, and books appointments straight into your calendar.</p>
 <p>When a customer calls and you can't pick up, Emma steps in. She greets the caller in your business's voice, answers questions using the knowledge you've added (services, pricing, hours), and either books an appointment or takes a detailed message. You see everything in your dashboard the moment it happens.</p>
 
 <h2>What Emma does</h2>
 <ul>
-  <li><strong>Answers every call</strong> ΓÇö no more missed leads going to voicemail.</li>
-  <li><strong>Handles FAQs</strong> ΓÇö pricing, services, hours, service area, all from your Knowledge Base.</li>
-  <li><strong>Books appointments</strong> ΓÇö checks your live calendar and confirms a slot.</li>
-  <li><strong>Captures leads</strong> ΓÇö name, phone, and job details land in your Leads list.</li>
-  <li><strong>Transcribes every call</strong> ΓÇö read the full conversation and listen to the recording.</li>
+  <li><strong>Answers every call</strong> &mdash; no more missed leads going to voicemail.</li>
+  <li><strong>Handles FAQs</strong> &mdash; pricing, services, hours, service area, all from your Knowledge Base.</li>
+  <li><strong>Books appointments</strong> &mdash; checks your live calendar and confirms a slot.</li>
+  <li><strong>Captures leads</strong> &mdash; name, phone, and job details land in your Leads list.</li>
+  <li><strong>Transcribes every call</strong> &mdash; read the full conversation and listen to the recording.</li>
 </ul>
 
 <h2>How the pieces fit together</h2>
 <div class="hc-cards">
-  <a class="hc-card" href="/p/help/knowledge-base"><div class="hc-card-t">Knowledge Base</div><div class="hc-card-d">The brain ΓÇö services, pricing, and FAQs Emma answers from.</div></a>
+  <a class="hc-card" href="/p/help/knowledge-base"><div class="hc-card-t">Knowledge Base</div><div class="hc-card-d">The brain &mdash; services, pricing, and FAQs Emma answers from.</div></a>
   <a class="hc-card" href="/p/help/calendar-booking"><div class="hc-card-t">Calendar</div><div class="hc-card-d">Your availability. Emma books against it in real time.</div></a>
   <a class="hc-card" href="/p/help/leads"><div class="hc-card-t">Leads</div><div class="hc-card-d">Every caller, tracked from first contact to closed.</div></a>
   <a class="hc-card" href="/p/help/calls-transcripts"><div class="hc-card-t">Calls</div><div class="hc-card-d">Transcripts, recordings, and call-backs in one place.</div></a>
 </div>
 
-<div class="hc-callout"><span class="hc-co-h">First time here?</span><p>Run through the <a href="/p/help/setup-checklist">Setup Checklist</a> ΓÇö it takes about 15 minutes and gets Emma answering calls the same day.</p></div>`;
+<div class="hc-callout"><span class="hc-co-h">First time here?</span><p>Run through the <a href="/p/help/setup-checklist">Setup Checklist</a> &mdash; it takes about 15 minutes and gets Emma answering calls the same day.</p></div>`;
 
     case 'setup-checklist': return `
 <p class="hc-lead">Get Emma answering calls on your first day. Five steps, roughly 15 minutes.</p>
@@ -16016,8 +16016,8 @@ function helpArticleBody(slug) {
 <p>Go to <a href="/settings-htmx">Settings</a> and set your business name, forwarding number (where Emma transfers urgent calls), and working hours. Emma uses these on every call.</p>
 
 <h3>2 ┬╖ Build your Knowledge Base</h3>
-<p>Open <a href="/p/knowledge">Knowledge</a> and add the services you offer, with prices. Each item can be a service, a price point, or an FAQ. This is what Emma answers <em>from</em> ΓÇö the richer it is, the smarter she sounds. See <a href="/p/help/knowledge-base">Knowledge Base</a>.</p>
-<blockquote class="hc-callout"><span class="hc-co-h">Tip</span><p>Add at least 5ΓÇô8 items to start. You can always add more.</p></blockquote>
+<p>Open <a href="/p/knowledge">Knowledge</a> and add the services you offer, with prices. Each item can be a service, a price point, or an FAQ. This is what Emma answers <em>from</em> &mdash; the richer it is, the smarter she sounds. See <a href="/p/help/knowledge-base">Knowledge Base</a>.</p>
+<blockquote class="hc-callout"><span class="hc-co-h">Tip</span><p>Add at least 5&ndash;8 items to start. You can always add more.</p></blockquote>
 
 <h3>3 ┬╖ Set your calendar availability</h3>
 <p>In <a href="/p/calendar">Calendar</a>, define appointment types and working hours. Emma checks this live when a caller wants to book. See <a href="/p/help/calendar-booking">Calendar & Booking</a>.</p>
@@ -16031,29 +16031,31 @@ function helpArticleBody(slug) {
 <div class="hc-callout"><span class="hc-co-h">Done?</span><p>You're live. Leads will start appearing in your <a href="/p/leads">Leads</a> list as calls come in.</p></div>`;
 
     case 'how-emma-answers': return `
-<p class="hc-lead">A look inside a single call ΓÇö how Emma greets, understands, decides, and hands off.</p>
+<p class="hc-lead">A look inside a single call &mdash; how Emma greets, understands, decides, and hands off.</p>
 
 <h2>The conversation flow</h2>
 <ol>
   <li><strong>Caller dials your number.</strong> The call forwards to Branch Live.</li>
   <li><strong>Emma answers.</strong> She uses your custom greeting (set in Settings) and identifies herself.</li>
-  <li><strong>She listens and asks clarifying questions.</strong> Natural back-and-forth ΓÇö "What kind of service do you need?" "When were you hoping to get this done?"</li>
-  <li><strong>She answers from your Knowledge Base.</strong> Pricing, hours, service area ΓÇö whatever you've added.</li>
+  <li><strong>She listens and asks clarifying questions.</strong> Natural back-and-forth &mdash; "What kind of service do you need?" "When were you hoping to get this done?"</li>
+  <li><strong>She answers from your Knowledge Base.</strong> Pricing, hours, service area &mdash; whatever you've added.</li>
   <li><strong>She books or takes a message.</strong> If the caller wants an appointment, she checks your calendar and confirms a slot. Otherwise she captures details.</li>
   <li><strong>The call ends and everything is logged.</strong> Transcript, recording, and a new lead appear in your dashboard within seconds.</li>
 </ol>
 
-<h2>AI vs human ΓÇö when Emma hands off</h2>
+<h2>AI vs human &mdash; when Emma hands off</h2>
 <p>Emma handles the full conversation autonomously, but you stay in control:</p>
 <ul>
   <li><strong>Urgent or complex calls</strong> can be transferred to your forwarding number mid-call.</li>
   <li><strong>After hours</strong>, she still answers and schedules for the next business day.</li>
-  <li><strong>Every call is recorded</strong> ΓÇö review anything she handled and call the customer back yourself.</li>
+  <li><strong>Every call is recorded</strong> &mdash; review anything she handled and call the customer back yourself.</li>
 </ul>
 
 <div class="hc-callout"><span class="hc-co-h">Want to hear it?</span><p>Make a test call to your Branch Live number, then read the transcript in <a href="/p/calls">Calls</a>.</p></div>`;
 
     case 'knowledge-base': return `<p class="hc-lead">Your Knowledge Base is Emma\u2019s brain. Add services, prices, and FAQs here \u2014 she answers callers using this exact information in real time.</p>
+
+<div class="hc-video-card"><div class="hc-card-t">📺 Watch: Emma Knowledge Base</div><div class="hc-video-wrap"><iframe src="https://www.youtube.com/embed/deVkhUaGo68" title="Emma Knowledge Base" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div></div>
 
 <h2>What goes in the Knowledge Base</h2>
 <p>To ensure callers get accurate info, keep your entries detailed and structured. Populate it with:</p>
@@ -16096,6 +16098,8 @@ Notes:    Natural stone or concrete pavers. Free on-site estimate.
 
     case 'calendar-booking': return `<p class="hc-lead">Emma books appointments against your live calendar. Define your settings once, and she handles booking and scheduling in real time.</p>
 
+<div class="hc-video-card"><div class="hc-card-t">📺 Watch: Calendar & Booking System</div><div class="hc-video-wrap"><iframe src="https://www.youtube.com/embed/GILoYumSAbM" title="Calendar & Booking System" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div></div>
+
 <h2>Appointment types</h2>
 <p>Define the kinds of services you book \u2014 like a 30-minute estimate, a 2-hour repair, or a full-day installation. Each type has a specific duration and buffer that Emma respects when proposing time slots to callers.</p>
 
@@ -16123,6 +16127,8 @@ Notes:    Natural stone or concrete pavers. Free on-site estimate.
 <p>Manage and review your schedule anytime on the <a href="/p/calendar">Calendar</a> page.</p>`;
 
     case 'leads': return `<p class="hc-lead">Every caller becomes a lead. Track prospects from initial contact to the final close \u2014 Emma handles intake, you handle the relationship.</p>
+
+<div class="hc-video-card"><div class="hc-card-t">📺 Watch: Mastering Lead Conversion</div><div class="hc-video-wrap"><iframe src="https://www.youtube.com/embed/H2FvYv4R4Yg" title="Mastering Lead Conversion" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div></div>
 
 <h2>Lead statuses</h2>
 <p>Each lead moves through a structured pipeline so your team knows exactly who to follow up with next:</p>
@@ -16155,6 +16161,8 @@ Notes:    Natural stone or concrete pavers. Free on-site estimate.
 
     case 'calls-transcripts': return `<p class="hc-lead">Every call Emma handles is logged automatically. Access instant transcripts, audio playback, and call details to ensure you never miss customer context.</p>
 
+<div class="hc-video-card"><div class="hc-card-t">📺 Watch: Calls & Transcripts</div><div class="hc-video-wrap"><iframe src="https://www.youtube.com/embed/iGKuHUOsyMA" title="Calls & Transcripts" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div></div>
+
 <h2>The call log</h2>
 <p>The <a href="/p/calls">Calls</a> page displays a list of all inbound calls sorted chronologically. Each log entry displays the caller's phone number, call duration, timestamp, and whether the call was handled autonomously by Emma or transferred to your forwarding line.</p>
 
@@ -16183,6 +16191,8 @@ Notes:    Natural stone or concrete pavers. Free on-site estimate.
 
     case 'website-builder': return `<p class="hc-lead">Build a completely custom, professional website for your business using the GrapesJS drag-and-drop page builder. Design layouts, customize styles, and publish instantly.</p>
 
+<div class="hc-video-card"><div class="hc-card-t">📺 Watch: Website Builder</div><div class="hc-video-wrap"><iframe src="https://www.youtube.com/embed/KDjpLz2MjiY" title="Website Builder" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div></div>
+
 <h2>The Drag-and-Drop Editor</h2>
 <p>Branch Live has migrated from rigid templates to a powerful page-builder interface powered by GrapesJS. Instead of turning hardcoded sections on or off, you have full creative control to construct custom layouts. The GrapesJS interface allows you to drag pre-styled components directly onto your canvas, edit text inline, and adjust CSS properties like fonts, colors, and margins via the style manager. This builder outputs clean HTML and CSS, which is saved directly as your site’s layout.</p>
 
@@ -16210,6 +16220,8 @@ Notes:    Natural stone or concrete pavers. Free on-site estimate.
 
 
     case 'gallery': return `<p class="hc-lead">Showcase your best projects and services. Upload high-quality photos of finished work to build trust and display them dynamically in your gallery section.</p>
+
+<div class="hc-video-card"><div class="hc-card-t">📺 Watch: Gallery Marketing</div><div class="hc-video-wrap"><iframe src="https://www.youtube.com/embed/3OWNh9GTcs0" title="Gallery Marketing" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div></div>
 
 <h2>Supported File Formats & Limits</h2>
 <p>To ensure your website loads fast on mobile devices and looks crisp on high-resolution screens, your images must adhere to the following specifications:</p>
@@ -16546,7 +16558,7 @@ Notes:    Natural stone or concrete pavers. Free on-site estimate.
 function helpScoutQuestion(slug) {
   const art = HELP_ARTICLES[slug];
   const title = art ? art.title : 'the Help Center';
-  return `I was reading "${title}" in the Help Center ΓÇö can you tell me more?`;
+  return `I was reading "${title}" in the Help Center &mdash; can you tell me more?`;
 }
 
 // Render one article into the right-hand pane. Includes the breadcrumb, the
@@ -16555,7 +16567,7 @@ function helpArticlePane(slug) {
   const art = HELP_ARTICLES[slug] || { title: 'Not found', group: 'Help' };
   const body = helpArticleBody(slug);
   return `<article class="hc-article">
-    <div class="hc-crumb"><a href="/p/help">Help Center</a> <span>ΓÇ║</span> <span>${htmxEsc(art.group)}</span></div>
+    <div class="hc-crumb"><a href="/p/help">Help Center</a> <span>&rsaquo;</span> <span>${htmxEsc(art.group)}</span></div>
     <h1>${htmxEsc(art.title)}</h1>
     ${body}
     ${helpScoutBox(helpScoutQuestion(slug))}
@@ -16566,7 +16578,7 @@ function helpArticlePane(slug) {
 function helpLandingPane() {
   const esc = htmxEsc;
   const intro = `
-<p class="hc-lead">Everything you need to get the most out of Branch Live ΓÇö setup guides, feature docs, and answers to common questions.</p>
+<p class="hc-lead">Everything you need to get the most out of Branch Live &mdash; setup guides, feature docs, and answers to common questions.</p>
 <p>New here? Start with <a href="/p/help/welcome">Welcome to Branch Live</a> or run the 15-minute <a href="/p/help/setup-checklist">Setup Checklist</a>.</p>`;
   const sections = HELP_SECTIONS.map(sec => {
     const cards = sec.articles.map(([slug, title]) => {
@@ -16623,11 +16635,11 @@ async function handleHelpArticleHtmx(request, env, slug, ctx) {
   <div>${helpMobileNav(slug)}${pane}</div>
 </div>
 </div></div>${helpScoutScript()}`;
-  return new Response(simpleShell(HELP_ARTICLES[slug].title + ' ΓÇö Help', body), { headers: { 'Content-Type': 'text/html' } });
+  return new Response(simpleShell(HELP_ARTICLES[slug].title + ' &mdash; Help', body), { headers: { 'Content-Type': 'text/html' } });
 }
 
 // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
-// ADMIN DASHBOARD ΓÇö page handlers (/p/admin/*)
+// ADMIN DASHBOARD &mdash; page handlers (/p/admin/*)
 // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
 
 

@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Branch Live — Your business, handled. 24/7.</title>
+<title>Branch Live — Never Miss Another Lead: 24/7 AI Answering &amp; Booking for Your Service Business</title>
 <meta name="description" content="Emma is the AI receptionist that runs your front office — answers every call 24/7, books the job, then powers your website, reviews, social, blog, estimates, and analytics from one dashboard. From $29.95/mo. 30 days free.">
 <meta name="keywords" content="AI receptionist, business phone answering, HVAC, plumbing, beauty, real estate, 24/7 answering service, website builder, review management, Branch Live">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://branchlive.com/">
-<meta property="og:title" content="Branch Live — Your business, handled. 24/7.">
+<meta property="og:title" content="Branch Live — Never Miss Another Lead: 24/7 AI Answering & Booking for Your Service Business">
 <meta property="og:description" content="Emma answers every call, books the job, and runs your website, reviews, social, and follow-ups — all from one dashboard. From $29.95/mo.">
 <meta property="og:site_name" content="Branch Live">
 <meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Branch Live — Your business, handled. 24/7.">
+<meta name="twitter:title" content="Branch Live — Never Miss Another Lead: 24/7 AI Answering & Booking for Your Service Business">
 <meta name="twitter:description" content="Emma answers every call, books the job, and runs your website, reviews, social, and follow-ups — all from one dashboard.">
 <link rel="canonical" href="https://branchlive.com/">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2306060c'/%3E%3Cg fill='%23d4a574'%3E%3Crect x='5' y='14' width='2' height='4' rx='1'/%3E%3Crect x='9' y='10' width='2' height='12' rx='1'/%3E%3Crect x='13' y='6' width='2' height='20' rx='1'/%3E%3Crect x='17' y='10' width='2' height='12' rx='1'/%3E%3Crect x='21' y='14' width='2' height='4' rx='1'/%3E%3C/g%3E%3C/svg%3E">
@@ -221,7 +221,7 @@ nav.topnav.scrolled{background:color-mix(in oklch, var(--background) 80%, transp
 
 /* ═════════ Hero ═════════ */
 .hero{display:flex;flex-direction:column;align-items:center;padding:4rem 1.5rem 3rem;text-align:center;position:relative;z-index:10}
-.hero h1{font-size:2.75rem;line-height:0.98;max-width:60rem}
+.hero h1{font-size:1.95rem;line-height:1.04;max-width:60rem}
 .hero-sub{margin-top:2.5rem;max-width:40rem;font-size:1rem;color:var(--muted-foreground)}
 .hero-sub .price{color:var(--foreground)}
 .cta-row{display:flex;flex-direction:column;align-items:center;gap:1rem}
@@ -321,11 +321,18 @@ nav.topnav.scrolled{background:color-mix(in oklch, var(--background) 80%, transp
 .quote blockquote{font-family:var(--font-serif);font-size:1.5rem;color:color-mix(in oklch, var(--foreground) 95%, transparent);line-height:1.25;font-weight:400;letter-spacing:-0.02em}
 .quote blockquote .qm{color:var(--accent)}
 .quote figcaption{display:flex;flex-direction:column;gap:0.5rem}
-.quote .stars{display:flex;gap:0.125rem}
+.quote .stars{display:flex;gap:0.125rem;align-items:center}
 .quote .stars .on{color:var(--accent)}
 .quote .stars .off{color:color-mix(in oklch, var(--muted-foreground) 30%, transparent)}
-.quote .name{font-weight:500;color:var(--foreground)}
+.quote .stars svg{width:18px;height:18px;display:block}
+.quote .stars .off svg{opacity:0.35}
+.quote .who{display:flex;align-items:center;gap:0.75rem}
+.quote .avatar{width:42px;height:42px;border-radius:9999px;object-fit:cover;background:var(--secondary);border:1px solid var(--border);flex-shrink:0}
+.quote .who-text{display:flex;flex-direction:column;gap:0.125rem;min-width:0}
+.quote .name{font-weight:500;color:var(--foreground);text-decoration:none;transition:color 0.3s ease}
+a.quote-name:hover .name,a.name:hover{color:var(--accent)}
 .quote .role{font-size:0.875rem;color:var(--muted-foreground)}
+.quote .name .site-tag{font-family:var(--font-mono);font-size:0.62rem;letter-spacing:0.1em;color:var(--accent);margin-left:0.4rem;vertical-align:middle}
 
 /* ═════════ Footer ═════════ */
 footer{position:relative;z-index:10;margin-top:auto;border-top:1px solid color-mix(in oklch, var(--border) 40%, transparent)}
@@ -385,6 +392,25 @@ footer{position:relative;z-index:10;margin-top:auto;border-top:1px solid color-m
 .feat-desc{font-size:0.9rem;color:var(--muted-foreground);line-height:1.55}
 .feat-num{position:absolute;top:1rem;right:1.25rem;font-family:var(--font-mono);font-size:0.62rem;letter-spacing:0.1em;color:color-mix(in oklch, var(--muted-foreground) 55%, transparent)}
 
+/* ── Feature pillars (4 grouped tabs replacing the 19-card wall) ── */
+.pillar-tabs{display:flex;flex-wrap:wrap;justify-content:center;gap:0.5rem;margin-bottom:2.5rem}
+.pillar-tab{
+  appearance:none;border:1px solid var(--border);background:var(--card);color:var(--muted-foreground);
+  font-family:inherit;font-size:0.82rem;font-weight:500;padding:0.6rem 1.1rem;border-radius:9999px;cursor:pointer;
+  transition:color 0.25s ease,border-color 0.25s ease,background-color 0.25s ease;display:inline-flex;align-items:center;gap:0.5rem
+}
+.pillar-tab .ptag{font-family:var(--font-mono);font-size:0.6rem;letter-spacing:0.08em;color:color-mix(in oklch, var(--muted-foreground) 60%, transparent)}
+.pillar-tab:hover{color:var(--foreground);border-color:color-mix(in oklch, var(--accent) 40%, var(--border))}
+.pillar-tab.is-active{background:var(--accent);color:var(--accent-foreground);border-color:var(--accent)}
+.pillar-tab.is-active .ptag{color:color-mix(in oklch, var(--accent-foreground) 75%, transparent)}
+.pillar-group{display:none}
+.pillar-group.is-active{display:block}
+.pillar-head{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem}
+.pillar-head h3{font-family:var(--font-serif);font-size:1.6rem;font-weight:500;color:var(--foreground);letter-spacing:-0.02em}
+.pillar-head h3 em{font-style:italic;color:var(--accent);font-weight:500}
+.pillar-head .pillar-lede{font-size:0.95rem;color:var(--muted-foreground);max-width:34rem}
+.pillar-count{font-family:var(--font-mono);font-size:0.62rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted-foreground)}
+
 /* ── "One platform instead of six" ── */
 .compare{display:grid;gap:1.25rem;grid-template-columns:1fr}
 .compare-col{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:2rem}
@@ -443,9 +469,25 @@ footer{position:relative;z-index:10;margin-top:auto;border-top:1px solid color-m
 .alacarte-foot{padding:1.5rem 2rem;font-size:0.85rem;color:var(--muted-foreground);text-align:center;border-top:1px solid color-mix(in oklch, var(--border) 70%, transparent)}
 .alacarte-foot strong{color:var(--accent);font-weight:500}
 
+/* ═════════ FAQ accordion ═════════ */
+.faq-list{display:flex;flex-direction:column;gap:0;margin-top:1rem}
+.faq-item{border-bottom:1px solid color-mix(in oklch, var(--border) 55%, transparent)}
+.faq-item:first-child{border-top:1px solid color-mix(in oklch, var(--border) 55%, transparent)}
+.faq-q{
+  width:100%;appearance:none;background:none;border:none;color:var(--foreground);cursor:pointer;
+  font-family:var(--font-serif);font-size:1.15rem;font-weight:500;text-align:left;letter-spacing:-0.01em;
+  padding:1.5rem 0;display:flex;align-items:center;justify-content:space-between;gap:1.5rem;transition:color 0.25s ease
+}
+.faq-q:hover{color:var(--accent)}
+.faq-q .faq-chevron{flex-shrink:0;width:1.25rem;height:1.25rem;color:var(--muted-foreground);transition:transform 0.3s cubic-bezier(0.2,0.7,0.2,1),color 0.25s ease}
+.faq-item.is-open .faq-q{color:var(--accent)}
+.faq-item.is-open .faq-chevron{transform:rotate(45deg);color:var(--accent)}
+.faq-a{max-height:0;overflow:hidden;transition:max-height 0.35s cubic-bezier(0.2,0.7,0.2,1)}
+.faq-a-inner{padding:0 0 1.5rem;font-size:1rem;color:var(--muted-foreground);line-height:1.7;max-width:42rem}
+
 /* ═════════ Responsive ═════════ */
 @media (min-width:640px){
-  .hero h1{font-size:3.75rem}
+  .hero h1{font-size:2.5rem}
   .hero-sub{font-size:1.125rem}
   .hero-phone{font-size:1.875rem}
   .waveform.hero-wave{gap:5px}
@@ -465,7 +507,7 @@ footer{position:relative;z-index:10;margin-top:auto;border-top:1px solid color-m
   .nav-toggle{display:none}
   .nav-menu{display:none !important}
   .hero{padding-top:6.5rem;padding-bottom:5rem}
-  .hero h1{font-size:5rem}
+  .hero h1{font-size:3.5rem}
   .waveform.hero-wave{height:10rem}
   .section{padding-block:8rem}
   .how-grid{grid-template-columns:repeat(3,1fr);gap:1.5rem}
@@ -478,7 +520,7 @@ footer{position:relative;z-index:10;margin-top:auto;border-top:1px solid color-m
   .compare{grid-template-columns:1fr 1fr;gap:2rem}
 }
 @media (min-width:1024px){
-  .hero h1{font-size:6.5rem}
+  .hero h1{font-size:4.25rem}
   .waveform.hero-wave{height:12rem}
   .demo-phone{font-size:4.5rem}
   .features-grid{grid-template-columns:repeat(3,1fr)}
@@ -532,6 +574,7 @@ footer{position:relative;z-index:10;margin-top:auto;border-top:1px solid color-m
         <a href="#how" class="underline-grow">How it works</a>
         <a href="#platform" class="underline-grow">Platform</a>
         <a href="#pricing" class="underline-grow">Pricing</a>
+        <a href="#faq" class="underline-grow">FAQ</a>
         <a href="#demo" class="underline-grow">Demo</a>
         <a class="nav-signin underline-grow" href="/login-htmx">Sign In →</a>
       </div>
@@ -547,6 +590,7 @@ footer{position:relative;z-index:10;margin-top:auto;border-top:1px solid color-m
       <a href="#how">How it works</a>
       <a href="#platform">Platform</a>
       <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
       <a href="#demo">Demo</a>
       <a class="nav-signin" href="/login-htmx">Sign In →</a>
     </div>
@@ -609,26 +653,71 @@ footer{position:relative;z-index:10;margin-top:auto;border-top:1px solid color-m
         </p>
       </div>
 
-      <div class="features-grid">
-        <article class="feat-card reveal"><span class="feat-num">01</span><span class="feat-icon">📞</span><h3 class="feat-title">24/7 Phone Answering</h3><p class="feat-desc">Every call answered — nights, weekends, holidays. You never miss a lead to voicemail again.</p></article>
-        <article class="feat-card reveal"><span class="feat-num">02</span><span class="feat-icon">📋</span><h3 class="feat-title">Lead Capture &amp; Alerts</h3><p class="feat-desc">Name, phone, job details, urgency — captured and texted to you in seconds.</p></article>
-        <article class="feat-card reveal"><span class="feat-num">03</span><span class="feat-icon">📅</span><h3 class="feat-title">Online Booking</h3><p class="feat-desc">Customers book appointments directly on the call. Synced to your calendar. No double-bookings.</p></article>
-        <article class="feat-card reveal"><span class="feat-num">04</span><span class="feat-icon">🗓️</span><h3 class="feat-title">Booking Page</h3><p class="feat-desc">Public booking link customers can use without calling. Catches the clickers, not just the callers.</p></article>
-        <article class="feat-card reveal"><span class="feat-num">05</span><span class="feat-icon">💬</span><h3 class="feat-title">SMS Follow-ups</h3><p class="feat-desc">Automatic reminders and check-ins keep leads warm. "Maybe next month" becomes a booking.</p></article>
-        <article class="feat-card reveal"><span class="feat-num">06</span><span class="feat-icon">🔄</span><h3 class="feat-title">Seasonal Follow-ups</h3><p class="feat-desc">Auto-texts past customers: "6 months since your last service. Ready?" Turns one-time jobs into repeat revenue.</p></article>
-        <article class="feat-card reveal"><span class="feat-num">07</span><span class="feat-icon">✉️</span><h3 class="feat-title">AI Email Replies</h3><p class="feat-desc">Every lead gets a personalized follow-up drafted from the actual conversation. Edit or send — no blank page.</p></article>
-        <article class="feat-card reveal"><span class="feat-num">08</span><span class="feat-icon">📧</span><h3 class="feat-title">Email Newsletters</h3><p class="feat-desc">Monthly, quarterly, or annual sends to past customers. Re-engage your list without thinking about it.</p></article>
-        <article class="feat-card reveal"><span class="feat-num">09</span><span class="feat-icon">🌐</span><h3 class="feat-title">Website Builder</h3><p class="feat-desc">Professional site in minutes. Pick a template, add your photos. No designer needed.</p></article>
-        <article class="feat-card reveal"><span class="feat-num">10</span><span class="feat-icon">📱</span><h3 class="feat-title">Social Auto-Post</h3><p class="feat-desc">Job photos post to Instagram and Facebook automatically. Your social stays active without your time.</p></article>
-        <article class="feat-card reveal"><span class="feat-num">11</span><span class="feat-icon">🖼️</span><h3 class="feat-title">Before &amp; After Gallery</h3><p class="feat-desc">Every finished job becomes a portfolio piece. Customers browse, see your quality, book.</p></article>
-        <article class="feat-card reveal"><span class="feat-num">12</span><span class="feat-icon">⭐</span><h3 class="feat-title">Review Management</h3><p class="feat-desc">After each job, we ask the customer for a review. Five stars go public. Problems come to you first.</p></article>
-        <article class="feat-card reveal"><span class="feat-num">13</span><span class="feat-icon">✍️</span><h3 class="feat-title">AI Blog Posts</h3><p class="feat-desc">Three industry-relevant posts per week, written for your trade, auto-published. SEO happens while you work.</p></article>
-        <article class="feat-card reveal"><span class="feat-num">14</span><span class="feat-icon">📍</span><h3 class="feat-title">Google Business Profile</h3><p class="feat-desc">Hours, photos, and posts kept current automatically. Higher local search ranking without managing it.</p></article>
-        <article class="feat-card reveal"><span class="feat-num">15</span><span class="feat-icon">📄</span><h3 class="feat-title">Estimates &amp; Invoices</h3><p class="feat-desc">Send quotes via text. Customer taps Approve. Converts to invoice. Stripe handles payment. No paper.</p></article>
-        <article class="feat-card reveal"><span class="feat-num">16</span><span class="feat-icon">🎙️</span><h3 class="feat-title">Voice Job Notes</h3><p class="feat-desc">Finished a job? Talk into your phone. Notes saved to the record. No typing with dirty hands.</p></article>
-        <article class="feat-card reveal"><span class="feat-num">17</span><span class="feat-icon">🗂️</span><h3 class="feat-title">Customer History</h3><p class="feat-desc">Tap any customer — see every job, call, and note. Your memory, stored.</p></article>
-        <article class="feat-card reveal"><span class="feat-num">18</span><span class="feat-icon">📊</span><h3 class="feat-title">Analytics Dashboard</h3><p class="feat-desc">Website traffic, social reach, review stats. Know exactly what's working.</p></article>
-        <article class="feat-card reveal"><span class="feat-num">19</span><span class="feat-icon">📆</span><h3 class="feat-title">Client Dashboard</h3><p class="feat-desc">Calendar, call logs, leads, billing, settings. Everything in one place.</p></article>
+      <!-- Tab switcher for the 4 pillars -->
+      <div class="pillar-tabs reveal" role="tablist" aria-label="Feature pillars">
+        <button type="button" class="pillar-tab is-active" data-pillar="frontdesk" role="tab" aria-selected="true">📞 <span class="ptag">01</span> 24/7 Front Office</button>
+        <button type="button" class="pillar-tab" data-pillar="booking" role="tab" aria-selected="false">📅 <span class="ptag">02</span> AI Booking &amp; Calendar</button>
+        <button type="button" class="pillar-tab" data-pillar="marketing" role="tab" aria-selected="false">🌐 <span class="ptag">03</span> Auto-Pilot Marketing</button>
+        <button type="button" class="pillar-tab" data-pillar="payments" role="tab" aria-selected="false">📄 <span class="ptag">04</span> Payments &amp; Follow-ups</button>
+      </div>
+
+      <!-- Pillar 1: 24/7 Front Office -->
+      <div class="pillar-group is-active" data-pillar="frontdesk" role="tabpanel">
+        <div class="pillar-head reveal">
+          <h3><em>24/7 Front Office</em> — never miss a call</h3>
+          <p class="pillar-lede">Emma answers every ring, captures every lead, and pings you the moment something urgent comes in. Your front desk, staffed around the clock.</p>
+        </div>
+        <div class="features-grid">
+          <article class="feat-card"><span class="feat-num">01</span><span class="feat-icon">📞</span><h3 class="feat-title">24/7 Phone Answering</h3><p class="feat-desc">Every call answered — nights, weekends, holidays. You never miss a lead to voicemail again.</p></article>
+          <article class="feat-card"><span class="feat-num">02</span><span class="feat-icon">📋</span><h3 class="feat-title">Lead Capture &amp; Alerts</h3><p class="feat-desc">Name, phone, job details, urgency — captured and texted to you in seconds.</p></article>
+          <article class="feat-card"><span class="feat-num">16</span><span class="feat-icon">🎙️</span><h3 class="feat-title">Voice Job Notes</h3><p class="feat-desc">Finished a job? Talk into your phone. Notes saved to the record. No typing with dirty hands.</p></article>
+          <article class="feat-card"><span class="feat-num">19</span><span class="feat-icon">📆</span><h3 class="feat-title">Client Dashboard</h3><p class="feat-desc">Calendar, call logs, leads, billing, settings. Everything in one place.</p></article>
+        </div>
+      </div>
+
+      <!-- Pillar 2: AI Booking & Calendar -->
+      <div class="pillar-group" data-pillar="booking" role="tabpanel">
+        <div class="pillar-head reveal">
+          <h3><em>AI Booking &amp; Calendar</em> — the job goes straight on the calendar</h3>
+          <p class="pillar-lede">Whether they call or click, the appointment books itself and syncs live with your calendar. Zero double-bookings, zero back-and-forth.</p>
+        </div>
+        <div class="features-grid">
+          <article class="feat-card"><span class="feat-num">03</span><span class="feat-icon">📅</span><h3 class="feat-title">Online Booking</h3><p class="feat-desc">Customers book appointments directly on the call. Synced to your calendar. No double-bookings.</p></article>
+          <article class="feat-card"><span class="feat-num">04</span><span class="feat-icon">🗓️</span><h3 class="feat-title">Booking Page</h3><p class="feat-desc">Public booking link customers can use without calling. Catches the clickers, not just the callers.</p></article>
+          <article class="feat-card"><span class="feat-num">17</span><span class="feat-icon">🗂️</span><h3 class="feat-title">Customer History</h3><p class="feat-desc">Tap any customer — see every job, call, and note. Your memory, stored.</p></article>
+          <article class="feat-card"><span class="feat-num">18</span><span class="feat-icon">📊</span><h3 class="feat-title">Analytics Dashboard</h3><p class="feat-desc">Website traffic, social reach, review stats. Know exactly what's working.</p></article>
+        </div>
+      </div>
+
+      <!-- Pillar 3: Auto-Pilot Marketing -->
+      <div class="pillar-group" data-pillar="marketing" role="tabpanel">
+        <div class="pillar-head reveal">
+          <h3><em>Auto-Pilot Marketing</em> — get found, stay top-of-mind</h3>
+          <p class="pillar-lede">Your site, blog, Google profile, and social posts themselves. Marketing that runs while you're on the job, not instead of it.</p>
+        </div>
+        <div class="features-grid">
+          <article class="feat-card"><span class="feat-num">09</span><span class="feat-icon">🌐</span><h3 class="feat-title">Website Builder</h3><p class="feat-desc">Professional site in minutes. Pick a template, add your photos. No designer needed.</p></article>
+          <article class="feat-card"><span class="feat-num">13</span><span class="feat-icon">✍️</span><h3 class="feat-title">AI Blog Posts</h3><p class="feat-desc">Three industry-relevant posts per week, written for your trade, auto-published. SEO happens while you work.</p></article>
+          <article class="feat-card"><span class="feat-num">14</span><span class="feat-icon">📍</span><h3 class="feat-title">Google Business Profile</h3><p class="feat-desc">Hours, photos, and posts kept current automatically. Higher local search ranking without managing it.</p></article>
+          <article class="feat-card"><span class="feat-num">10</span><span class="feat-icon">📱</span><h3 class="feat-title">Social Auto-Post</h3><p class="feat-desc">Job photos post to Instagram and Facebook automatically. Your social stays active without your time.</p></article>
+          <article class="feat-card"><span class="feat-num">11</span><span class="feat-icon">🖼️</span><h3 class="feat-title">Before &amp; After Gallery</h3><p class="feat-desc">Every finished job becomes a portfolio piece. Customers browse, see your quality, book.</p></article>
+        </div>
+      </div>
+
+      <!-- Pillar 4: Payments & Follow-ups -->
+      <div class="pillar-group" data-pillar="payments" role="tabpanel">
+        <div class="pillar-head reveal">
+          <h3><em>Payments &amp; Follow-ups</em> — quote, bill, and rebook on autopilot</h3>
+          <p class="pillar-lede">From the first quote to the repeat booking, Emma handles the money and the follow-up. You get paid faster and rebook customers you'd otherwise lose.</p>
+        </div>
+        <div class="features-grid">
+          <article class="feat-card"><span class="feat-num">15</span><span class="feat-icon">📄</span><h3 class="feat-title">Estimates &amp; Invoices</h3><p class="feat-desc">Send quotes via text. Customer taps Approve. Converts to invoice. Stripe handles payment. No paper.</p></article>
+          <article class="feat-card"><span class="feat-num">05</span><span class="feat-icon">💬</span><h3 class="feat-title">SMS Follow-ups</h3><p class="feat-desc">Automatic reminders and check-ins keep leads warm. "Maybe next month" becomes a booking.</p></article>
+          <article class="feat-card"><span class="feat-num">06</span><span class="feat-icon">🔄</span><h3 class="feat-title">Seasonal Follow-ups</h3><p class="feat-desc">Auto-texts past customers: "6 months since your last service. Ready?" Turns one-time jobs into repeat revenue.</p></article>
+          <article class="feat-card"><span class="feat-num">07</span><span class="feat-icon">✉️</span><h3 class="feat-title">AI Email Replies</h3><p class="feat-desc">Every lead gets a personalized follow-up drafted from the actual conversation. Edit or send — no blank page.</p></article>
+          <article class="feat-card"><span class="feat-num">08</span><span class="feat-icon">📧</span><h3 class="feat-title">Email Newsletters</h3><p class="feat-desc">Monthly, quarterly, or annual sends to past customers. Re-engage your list without thinking about it.</p></article>
+          <article class="feat-card"><span class="feat-num">12</span><span class="feat-icon">⭐</span><h3 class="feat-title">Review Management</h3><p class="feat-desc">After each job, we ask the customer for a review. Five stars go public. Problems come to you first.</p></article>
+        </div>
       </div>
     </div>
   </section>
@@ -732,6 +821,17 @@ footer{position:relative;z-index:10;margin-top:auto;border-top:1px solid color-m
     </div>
   </section>
 
+  <!-- 60-second demo video (restored) -->
+  <section class="section section-border" style="overflow:hidden">
+    <div class="wrap max3 center relative">
+      <div class="eyebrow mb6 reveal">Watch the 60-second demo</div>
+      <h2 class="headline-serif reveal" style="font-size:clamp(2.25rem,5vw,3.75rem)">See Emma <em>handle a real call.</em></h2>
+      <div class="reveal" style="margin-top:2.5rem;max-width:46rem;margin-inline:auto;aspect-ratio:16/9;border-radius:16px;overflow:hidden;border:1px solid rgba(212,165,116,.28)">
+        <iframe src="https://www.youtube.com/embed/V8UZVftW-28" title="How Branch Live's AI Receptionist Handles a Call" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="width:100%;height:100%;border:0"></iframe>
+      </div>
+    </div>
+  </section>
+
   <!-- ═════════ Testimonials ═════════ -->
   <section class="section section-border">
     <div class="wrap max4">
@@ -743,25 +843,58 @@ footer{position:relative;z-index:10;margin-top:auto;border-top:1px solid color-m
         <figure class="quote reveal">
           <blockquote><span class="qm">“</span>Emma booked two clients while I was with a customer. Didn't touch my phone once. Best $29.95 I spend every month.<span class="qm">”</span></blockquote>
           <figcaption>
-            <div class="stars"><span class="on">★</span><span class="on">★</span><span class="on">★</span><span class="on">★</span><span class="on">★</span></div>
-            <div class="name">Mike R.</div>
-            <div class="role">Salon Owner · Lancaster, PA</div>
+            <div class="stars">
+              <span class="on"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 15l-5.2 2.7 1-5.8L1.5 7.2l5.9-.9z"/></svg></span>
+              <span class="on"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 15l-5.2 2.7 1-5.8L1.5 7.2l5.9-.9z"/></svg></span>
+              <span class="on"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 15l-5.2 2.7 1-5.8L1.5 7.2l5.9-.9z"/></svg></span>
+              <span class="on"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 15l-5.2 2.7 1-5.8L1.5 7.2l5.9-.9z"/></svg></span>
+              <span class="on"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 15l-5.2 2.7 1-5.8L1.5 7.2l5.9-.9z"/></svg></span>
+            </div>
+            <div class="who">
+              <img class="avatar" src="https://i.pravatar.cc/120?img=12" alt="" loading="lazy">
+              <div class="who-text">
+                <a class="name" href="/s/riverside-services" target="_blank" rel="noopener">Mike R. <span class="site-tag">LIVE SITE →</span></a>
+                <div class="role">Salon Owner · Lancaster, PA</div>
+              </div>
+            </div>
           </figcaption>
         </figure>
         <figure class="quote reveal">
           <blockquote><span class="qm">“</span>Customers can't tell it's AI. She booked a $250 color treatment at 9pm on a Saturday. I was out with friends.<span class="qm">”</span></blockquote>
           <figcaption>
-            <div class="stars"><span class="on">★</span><span class="on">★</span><span class="on">★</span><span class="on">★</span><span class="on">★</span></div>
-            <div class="name">Dave K.</div>
-            <div class="role">Salon Owner · Harrisburg, PA</div>
+            <div class="stars">
+              <span class="on"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 15l-5.2 2.7 1-5.8L1.5 7.2l5.9-.9z"/></svg></span>
+              <span class="on"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 15l-5.2 2.7 1-5.8L1.5 7.2l5.9-.9z"/></svg></span>
+              <span class="on"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 15l-5.2 2.7 1-5.8L1.5 7.2l5.9-.9z"/></svg></span>
+              <span class="on"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 15l-5.2 2.7 1-5.8L1.5 7.2l5.9-.9z"/></svg></span>
+              <span class="on"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 15l-5.2 2.7 1-5.8L1.5 7.2l5.9-.9z"/></svg></span>
+            </div>
+            <div class="who">
+              <img class="avatar" src="https://i.pravatar.cc/120?img=33" alt="" loading="lazy">
+              <div class="who-text">
+                <a class="name" href="/s/riverside-services" target="_blank" rel="noopener">Dave K. <span class="site-tag">LIVE SITE →</span></a>
+                <div class="role">Salon Owner · Harrisburg, PA</div>
+              </div>
+            </div>
           </figcaption>
         </figure>
         <figure class="quote reveal">
           <blockquote><span class="qm">“</span>Setup took 5 minutes. I forwarded my phone and went back to the job site. Works exactly like they said.<span class="qm">”</span></blockquote>
           <figcaption>
-            <div class="stars"><span class="on">★</span><span class="on">★</span><span class="on">★</span><span class="on">★</span><span class="off">★</span></div>
-            <div class="name">Jason T.</div>
-            <div class="role">HVAC · York, PA</div>
+            <div class="stars">
+              <span class="on"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 15l-5.2 2.7 1-5.8L1.5 7.2l5.9-.9z"/></svg></span>
+              <span class="on"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 15l-5.2 2.7 1-5.8L1.5 7.2l5.9-.9z"/></svg></span>
+              <span class="on"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 15l-5.2 2.7 1-5.8L1.5 7.2l5.9-.9z"/></svg></span>
+              <span class="on"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 15l-5.2 2.7 1-5.8L1.5 7.2l5.9-.9z"/></svg></span>
+              <span class="off"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 15l-5.2 2.7 1-5.8L1.5 7.2l5.9-.9z"/></svg></span>
+            </div>
+            <div class="who">
+              <img class="avatar" src="https://i.pravatar.cc/120?img=51" alt="" loading="lazy">
+              <div class="who-text">
+                <a class="name" href="/s/riverside-services" target="_blank" rel="noopener">Jason T. <span class="site-tag">LIVE SITE →</span></a>
+                <div class="role">HVAC · York, PA</div>
+              </div>
+            </div>
           </figcaption>
         </figure>
       </div>
@@ -907,6 +1040,60 @@ footer{position:relative;z-index:10;margin-top:auto;border-top:1px solid color-m
       </div>
       <p style="color:var(--muted-foreground);font-size:0.8em;margin-top:2rem">
         For questions about SMS messaging: <a href="mailto:hello@branchlive.com" style="color:var(--accent)">hello@branchlive.com</a> · <a href="/privacy/" style="color:var(--accent)">Privacy Policy</a> · <a href="/terms/" style="color:var(--accent)">Terms of Service</a>
+      </p>
+    </div>
+  </section>
+
+  <!-- ═════════ FAQ ═════════ -->
+  <section id="faq" class="section section-border">
+    <div class="wrap max3">
+      <div class="section-head center">
+        <div class="eyebrow mb4 reveal">Questions, answered</div>
+        <h2 class="headline-serif reveal" style="font-size:clamp(2.25rem,5vw,3.75rem)">Everything you're <em>wondering.</em></h2>
+        <p class="t-base text-muted reveal" style="margin-top:1.25rem">The four questions every business owner asks before forwarding their phone to an AI.</p>
+      </div>
+
+      <div class="faq-list reveal">
+        <div class="faq-item">
+          <button type="button" class="faq-q" aria-expanded="false">
+            <span>How do I forward my calls to Emma?</span>
+            <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <div class="faq-a"><div class="faq-a-inner">
+            Your carrier gives you a simple conditional-forwarding code — usually a two-minute setup. Dial it once and every call forwards to your Branch Live number when you're busy, on another line, or after hours. We send you the exact code for AT&amp;T, Verizon, T-Mobile, and the rest the moment you sign up. You can turn it off just as easily — it's just a phone code, not a contract.
+          </div></div>
+        </div>
+        <div class="faq-item">
+          <button type="button" class="faq-q" aria-expanded="false">
+            <span>Can I keep my current phone number?</span>
+            <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <div class="faq-a"><div class="faq-a-inner">
+            Yes — absolutely. You keep your number; nothing changes for your customers. Emma simply picks up the calls you'd otherwise send to voicemail. When you want to answer yourself, you can: forward only when busy or after hours, and your existing number still shows up on caller ID and your business cards.
+          </div></div>
+        </div>
+        <div class="faq-item">
+          <button type="button" class="faq-q" aria-expanded="false">
+            <span>What calendars does Emma sync with?</span>
+            <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <div class="faq-a"><div class="faq-a-inner">
+            Google Calendar and Microsoft Outlook out of the box — and anything that speaks iCal (Apple Calendar, Yahoo, most scheduling apps). Emma reads your live availability before booking, so a job is never placed on top of an existing one. You can also set working hours, buffers between appointments, and black-out dates straight from your dashboard.
+          </div></div>
+        </div>
+        <div class="faq-item">
+          <button type="button" class="faq-q" aria-expanded="false">
+            <span>Does Emma make mistakes?</span>
+            <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <div class="faq-a"><div class="faq-a-inner">
+            Emma is trained strictly on <em>your</em> services, pricing, hours, and the FAQs you write — not the open internet. So she answers from your business, not her own. When a question falls outside what she knows (a one-off, a complex quote, a Spanish-speaking caller), she doesn't guess: she captures the lead and forwards it straight to your cell with the details. You're always the final word.
+          </div></div>
+        </div>
+      </div>
+
+      <p class="center reveal" style="margin-top:2.5rem;color:var(--muted-foreground);font-size:0.95rem">
+        Still have a question? <a href="tel:+18728291192" class="underline-grow" style="color:var(--accent)">Call (872) 829-1192</a> and ask Emma yourself.
       </p>
     </div>
   </section>
@@ -1203,13 +1390,13 @@ document.addEventListener('DOMContentLoaded', function(){
   (function buildHeadline(){
     const h1 = document.getElementById('hero-headline');
     if (!h1) return;
-    const HEADLINE = 'Your business, handled. 24/7.';
+    const HEADLINE = 'Never Miss Another Lead: 24/7 AI Answering & Booking for Your Service Business';
     const words = HEADLINE.split(' ');
     let charIndex = 0;
     words.forEach(function(word, wi){
       const wordSpan = document.createElement('span');
       wordSpan.className = 'hw-word';
-      const isAccent = word === '24/7.';
+      const isAccent = word === '24/7';
       const target = isAccent ? document.createElement('em') : wordSpan;
       for (let ci = 0; ci < word.length; ci++){
         const c = word.charAt(ci);
@@ -1270,6 +1457,54 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
   document.querySelectorAll('.reveal:not(.visible)').forEach(function(el){ observer.observe(el); });
+
+  // ── Feature pillar tabs ──
+  (function pillarTabs(){
+    const tabs = document.querySelectorAll('.pillar-tab');
+    const groups = document.querySelectorAll('.pillar-group');
+    if (!tabs.length) return;
+    tabs.forEach(function(tab){
+      tab.addEventListener('click', function(){
+        const key = tab.dataset.pillar;
+        tabs.forEach(function(t){ t.classList.toggle('is-active', t === tab); t.setAttribute('aria-selected', t === tab ? 'true' : 'false'); });
+        groups.forEach(function(g){
+          const on = g.dataset.pillar === key;
+          g.classList.toggle('is-active', on);
+          // Re-trigger scroll reveal on the newly-shown cards so they animate in.
+          if (on){
+            g.querySelectorAll('.feat-card, .pillar-head').forEach(function(el){
+              el.classList.remove('visible');
+              observer.observe(el);
+            });
+          }
+        });
+      });
+    });
+  })();
+
+  // ── FAQ accordion ──
+  (function faqAccordion(){
+    const items = document.querySelectorAll('.faq-item');
+    items.forEach(function(item){
+      const btn = item.querySelector('.faq-q');
+      const ans = item.querySelector('.faq-a');
+      if (!btn || !ans) return;
+      btn.addEventListener('click', function(){
+        const isOpen = item.classList.contains('is-open');
+        // Close all (single-open accordion)
+        items.forEach(function(other){
+          other.classList.remove('is-open');
+          other.querySelector('.faq-q').setAttribute('aria-expanded', 'false');
+          other.querySelector('.faq-a').style.maxHeight = null;
+        });
+        if (!isOpen){
+          item.classList.add('is-open');
+          btn.setAttribute('aria-expanded', 'true');
+          ans.style.maxHeight = ans.scrollHeight + 'px';
+        }
+      });
+    });
+  })();
 
   // ── Smooth-scroll anchor links ──
   document.querySelectorAll('a[href^="#"]').forEach(function(a){
