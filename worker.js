@@ -1023,12 +1023,19 @@ async function stripeRequest(env, path, opts = {}) {
     return { ok: false, error: 'Stripe not configured', status: 0 };
   }
   try {
+    const headers = {
+      'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    };
+    // Stripe Connect: when opts.account is set, send the Stripe-Account header
+    // so the call acts ON BEHALF OF the connected account (product/price/payment
+    // link are created there, funds land in the business's bank). Omitted for
+    // ordinary platform calls (checkout, connect onboarding) — fully backward
+    // compatible.
+    if (opts.account) headers['Stripe-Account'] = opts.account;
     const res = await fetch(`https://api.stripe.com${path}`, {
       method: opts.method || 'GET',
-      headers: {
-        'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
+      headers,
       body: opts.form || undefined,
     });
     const data = await res.json().catch(() => ({}));
@@ -1810,6 +1817,14 @@ async function initDB(env) {
     // not 1 AND the account has no knowledge items OR no working hours, the
     // overview redirects to /p/onboarding. Idempotent.
     try { await env.DB.prepare("ALTER TABLE settings ADD COLUMN onboarding_complete INTEGER DEFAULT 0").run(); } catch(e) {}
+
+    // Stripe Connect (Express): each business connects their own Stripe account
+    // so estimate payments land in THEIR bank, not the platform account.
+    // stripe_account_id holds the connected Express account id (acct_...), empty
+    // when not connected. stripe_charges_enabled flips to 1 once Stripe reports
+    // charges_enabled:true (onboarding complete). Idempotent ALTERs.
+    try { await env.DB.prepare("ALTER TABLE settings ADD COLUMN stripe_account_id TEXT DEFAULT ''").run(); } catch(e) {}
+    try { await env.DB.prepare('ALTER TABLE settings ADD COLUMN stripe_charges_enabled INTEGER DEFAULT 0').run(); } catch(e) {}
 
     // Migration: social_posts queue. One row per drafted or published post,
     // keyed by user_id so each business's queue is independent. Idempotent.
@@ -3129,6 +3144,37 @@ function settingsHtmxBody({ row, user, saved, outreach }) {
     </div>
     <p style="color:var(--text-faint);font-size:.82em;margin:12px 0 0">Connect Google Calendar so appointments Emma books appear on your calendar automatically.</p>
   </div>`;
+  // Stripe Connect (Express) Payments card. Server-rendered from the settings
+  // row already loaded for this page — three states drive the copy + action:
+  // not connected, onboarding started but incomplete, and fully connected.
+  // Onboarding is a browser redirect to Stripe (a in-page link, not a fetch),
+  // so the card needs no JS status poll like the Gmail card does.
+  const stripeAcct = s.stripe_account_id || '';
+  const stripeCharges = !!(s.stripe_charges_enabled);
+  let stripeStatusLine, stripeActionBtn, stripeHelpText;
+  if (stripeCharges) {
+    stripeStatusLine = '✓ Connected — you are ready to get paid.';
+    stripeActionBtn = '<a class="btn btn-sm" href="/api/stripe/dashboard" target="_blank" rel="noopener">Open Stripe dashboard</a>';
+    stripeHelpText = 'Estimate payments go straight to your bank account. Manage payouts, transactions, and bank details in your Stripe dashboard.';
+  } else if (stripeAcct) {
+    stripeStatusLine = '⚪ Setup started — not finished yet.';
+    stripeActionBtn = '<a class="btn btn-amber btn-sm" href="/api/stripe/connect">Continue setup</a>';
+    stripeHelpText = 'Finish your Stripe setup to start getting paid. A few more details and your bank account will be linked.';
+  } else {
+    stripeStatusLine = '⚪ Not connected';
+    stripeActionBtn = '<a class="btn btn-amber btn-sm" href="/api/stripe/connect">Connect Stripe</a>';
+    stripeHelpText = 'Connect Stripe to accept estimate payments — money goes straight to your bank.';
+  }
+  const stripeCard = `<div class="card glow" style="margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div>
+        <strong style="font-size:1.05rem">💳 Payments</strong>${tip("Connect your own Stripe account so estimate payments land in YOUR bank, not Branch Live. Customers pay through Stripe; you get paid directly.")}
+        <div style="margin-top:6px;font-size:.9em;color:var(--text-muted)">${stripeStatusLine}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">${stripeActionBtn}</div>
+    </div>
+    <p style="color:var(--text-faint);font-size:.82em;margin:12px 0 0">${stripeHelpText}</p>
+  </div>`;
   return `<div class="app">${sidebarNav('settings')}<div class="content" style="max-width:680px">
   ${tipStyles}
   <span class="eyebrow">Settings</span>
@@ -3137,6 +3183,7 @@ function settingsHtmxBody({ row, user, saved, outreach }) {
   ${savedBox}
   ${vapiCard}
   ${gmailCard}
+  ${stripeCard}
   ${gcalCard}
   ${o.card || ''}
   <script>
@@ -3709,6 +3756,23 @@ async function handleSettingsHtmx(request, env) {
 
   // GET (and after a successful POST): render the logged-in user's data.
   try {
+    // Returning from Stripe onboarding (?stripe=connected): re-fetch the
+    // connected account and persist charges_enabled before reading the row,
+    // so the Payments card reflects the just-completed setup immediately.
+    const sp = new URL(request.url).searchParams;
+    if (sp.get('stripe') === 'connected') {
+      try {
+        const st = await env.DB.prepare('SELECT stripe_account_id FROM settings WHERE user_id = ?').bind(uid).first();
+        const acctId = (st && st.stripe_account_id) || '';
+        if (acctId && stripeConfigured(env)) {
+          const acct = await stripeRequest(env, `/v1/accounts/${acctId}`, { method: 'GET' });
+          if (acct.ok && acct.data) {
+            await env.DB.prepare('UPDATE settings SET stripe_charges_enabled = ? WHERE user_id = ?')
+              .bind(acct.data.charges_enabled ? 1 : 0, uid).run();
+          }
+        }
+      } catch (e) { console.error('Stripe status refresh on return failed:', e.message); }
+    }
     const user = await env.DB.prepare('SELECT email FROM users WHERE id = ?').bind(uid).first();
     const row = await env.DB.prepare('SELECT * FROM settings WHERE user_id = ?').bind(uid).first();
     return new Response(simpleShell('Settings', settingsHtmxBody({ row, user, saved: request.method === 'POST', outreach })), {
@@ -12242,6 +12306,134 @@ async function handleGmailDisconnectHtmx(request, env) {
   return handleGmailDisconnect(request, env, uid);
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// STRIPE CONNECT (Express) — each business connects their own Stripe account
+// so estimate payments land in THEIR bank, not the platform account. Three
+// cookie-authed endpoints (browser navigation/redirects, no Bearer):
+//   GET /api/stripe/connect    → create Express acct + account link, 302 to onboarding
+//   GET /api/stripe/status     → refresh charges_enabled from Stripe
+//   GET /api/stripe/dashboard  → 302 to the business's Express dashboard
+// All resolve the business via resolveContext() → ctx.bid (the owning account)
+// so a team member onboards the business they belong to, not their own row.
+// ═══════════════════════════════════════════════════════════════════════
+
+// GET /api/stripe/connect — start or continue Express onboarding. Creates the
+// connected account on first visit (stored on settings.stripe_account_id),
+// then issues an account link and 302-redirects to Stripe's hosted onboarding
+// (name, bank/debit, KYC). The refresh_url loops back here so an expired link
+// just regenerates; the return_url lands on Settings with ?stripe=connected,
+// which triggers a status refresh.
+async function handleStripeConnect(request, env) {
+  const uid = await getUidFromSessionCookie(request, env);
+  if (!uid) return json({ ok: false, error: 'Not logged in' }, 401);
+  const ctx = await resolveContext(request, env, uid);
+  const bid = ctx.bid;
+  const origin = new URL(request.url).origin;
+  if (!stripeConfigured(env)) {
+    return json({ ok: false, error: 'Stripe is not configured on this platform yet.' }, 503);
+  }
+  try {
+    let st = await env.DB.prepare('SELECT stripe_account_id FROM settings WHERE user_id = ?').bind(bid).first();
+    let acctId = (st && st.stripe_account_id) || '';
+
+    // First connect: create the Express account. Uses the business email when
+    // available so Stripe can email the owner about payouts.
+    if (!acctId) {
+      const user = await env.DB.prepare('SELECT email FROM users WHERE id = ?').bind(bid).first();
+      const created = await stripeRequest(env, '/v1/accounts', {
+        method: 'POST',
+        form: stripeEncode({
+          type: 'express',
+          email: (user && user.email) || '',
+          'capabilities[card_payments][requested]': 'true',
+          'capabilities[transfers][requested]': 'true',
+        }),
+      });
+      if (!created.ok) {
+        console.error('Stripe Connect: account create failed', created.error);
+        return json({ ok: false, error: created.error || 'Could not create Stripe account' }, 502);
+      }
+      acctId = created.data.id;
+      await env.DB.prepare('UPDATE settings SET stripe_account_id = ? WHERE user_id = ?').bind(acctId, bid).run();
+    }
+
+    // Issue an account link (single-use URL) for onboarding. type=account_onboarding
+    // takes the owner through the full Express setup wizard.
+    const link = await stripeRequest(env, '/v1/account_links', {
+      method: 'POST',
+      form: stripeEncode({
+        account: acctId,
+        type: 'account_onboarding',
+        refresh_url: `${origin}/api/stripe/connect`,
+        return_url: `${origin}/settings-htmx?stripe=connected`,
+      }),
+    });
+    if (!link.ok || !link.data || !link.data.url) {
+      console.error('Stripe Connect: account link failed', link.error);
+      return json({ ok: false, error: link.error || 'Could not create onboarding link' }, 502);
+    }
+    return Response.redirect(link.data.url, 302);
+  } catch (e) {
+    console.error('Stripe Connect onboarding error:', e);
+    return json({ ok: false, error: 'Could not start Stripe onboarding' }, 500);
+  }
+}
+
+// GET /api/stripe/status — re-fetch the connected account from Stripe and
+// persist charges_enabled. Called on Settings page load and when returning
+// from onboarding (?stripe=connected). Returns { ok, connected, charges_enabled }.
+async function handleStripeStatus(request, env) {
+  const uid = await getUidFromSessionCookie(request, env);
+  if (!uid) return json({ ok: false, error: 'Not logged in' }, 401);
+  const ctx = await resolveContext(request, env, uid);
+  const bid = ctx.bid;
+  try {
+    const st = await env.DB.prepare('SELECT stripe_account_id FROM settings WHERE user_id = ?').bind(bid).first();
+    const acctId = (st && st.stripe_account_id) || '';
+    if (!acctId) return json({ ok: true, connected: false, charges_enabled: false });
+    if (!stripeConfigured(env)) {
+      // Stripe not configured on the platform — report whatever we last stored.
+      const last = await env.DB.prepare('SELECT stripe_charges_enabled FROM settings WHERE user_id = ?').bind(bid).first();
+      return json({ ok: true, connected: true, charges_enabled: !!(last && last.stripe_charges_enabled) });
+    }
+    const acct = await stripeRequest(env, `/v1/accounts/${acctId}`, { method: 'GET' });
+    if (!acct.ok) {
+      console.error('Stripe Connect: status fetch failed', acct.error);
+      return json({ ok: false, error: acct.error || 'Could not read Stripe account' }, 502);
+    }
+    const chargesEnabled = !!acct.data.charges_enabled;
+    await env.DB.prepare('UPDATE settings SET stripe_charges_enabled = ? WHERE user_id = ?')
+      .bind(chargesEnabled ? 1 : 0, bid).run();
+    return json({ ok: true, connected: true, charges_enabled: chargesEnabled });
+  } catch (e) {
+    console.error('Stripe Connect status error:', e);
+    return json({ ok: false, error: 'Could not check Stripe status' }, 500);
+  }
+}
+
+// GET /api/stripe/dashboard — open the business's Express dashboard (payouts,
+// transactions, bank details). Issues a login link and 302-redirects to it.
+async function handleStripeDashboard(request, env) {
+  const uid = await getUidFromSessionCookie(request, env);
+  if (!uid) return json({ ok: false, error: 'Not logged in' }, 401);
+  const ctx = await resolveContext(request, env, uid);
+  const bid = ctx.bid;
+  if (!stripeConfigured(env)) return json({ ok: false, error: 'Stripe is not configured on this platform yet.' }, 503);
+  try {
+    const st = await env.DB.prepare('SELECT stripe_account_id FROM settings WHERE user_id = ?').bind(bid).first();
+    const acctId = (st && st.stripe_account_id) || '';
+    if (!acctId) return json({ ok: false, error: 'Not connected yet' }, 400);
+    const login = await stripeRequest(env, `/v1/accounts/${acctId}/login_links`, { method: 'POST' });
+    if (!login.ok || !login.data || !login.data.url) {
+      return json({ ok: false, error: login.error || 'Could not open Stripe dashboard' }, 502);
+    }
+    return Response.redirect(login.data.url, 302);
+  } catch (e) {
+    console.error('Stripe Connect dashboard error:', e);
+    return json({ ok: false, error: 'Could not open Stripe dashboard' }, 500);
+  }
+}
+
 // Send email via Gmail API using stored refresh token
 async function sendViaGmail(env, uid, { to, subject, html }) {
   const row = await env.DB.prepare(
@@ -16965,6 +17157,19 @@ export default {
       }
       if (path === '/api/gmail/status-htmx' && method === 'GET') {
         return handleGmailStatusHtmx(request, env);
+      }
+      // Stripe Connect (Express) — cookie-authed browser redirects for the
+      // Settings Payments card. connect starts/continues onboarding (302 to
+      // Stripe), status refreshes charges_enabled, dashboard opens the Express
+      // dashboard. All resolve the business via resolveContext inside the handler.
+      if (path === '/api/stripe/connect' && method === 'GET') {
+        return handleStripeConnect(request, env);
+      }
+      if (path === '/api/stripe/status' && method === 'GET') {
+        return handleStripeStatus(request, env);
+      }
+      if (path === '/api/stripe/dashboard' && method === 'GET') {
+        return handleStripeDashboard(request, env);
       }
       if (path === '/api/gmail/disconnect-htmx' && method === 'POST') {
         const gUid = await getUidFromSessionCookie(request, env);
