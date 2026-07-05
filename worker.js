@@ -15798,7 +15798,7 @@ async function blogUniqueSlug(env, base, exceptId) {
 // question pre-filled.
 // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
 
-// Collapsible nav sections ΓåÆ ordered list of articles. Each article tuple is
+// Collapsible nav sections -> ordered list of articles. Each article tuple is
 // [slug, title]; slugs index HELP_ARTICLES below. The default landing slug
 // (welcome) is what /p/help shows when no slug is given.
 const HELP_SECTIONS = [
@@ -15836,7 +15836,7 @@ const HELP_SECTIONS = [
   ]},
 ];
 
-// Flat slug ΓåÆ article lookup, built once from HELP_SECTIONS so the two never
+// Flat slug -> article lookup, built once from HELP_SECTIONS so the two never
 // drift apart. Each value: { title, group } (body is rendered by the slug's
 // dedicated render function in helpArticleBody()).
 const HELP_ARTICLES = (() => {
@@ -15969,7 +15969,7 @@ function openScoutQuestion(q){
   var tab=document.getElementById('scout-tab');
   var panel=document.getElementById('scout-panel');
   if(!tab){window.location.href='/p/help';return;}
-  // Scout wires its clickΓåÆopen listener on #scout-tab, so a real click opens
+  // Scout wires its click->open listener on #scout-tab, so a real click opens
   // the panel exactly as a user tap would (adds .open, focuses the input).
   tab.click();
   // The panel/input exist immediately after append; populate + focus.
@@ -16665,7 +16665,7 @@ async function handleHelpHtmx(request, env, ctx) {
 }
 
 async function handleHelpArticleHtmx(request, env, slug, ctx) {
-  // Unknown slug ΓåÆ 404 page (still in the shell so nav stays usable).
+  // Unknown slug -> 404 page (still in the shell so nav stays usable).
   if (!HELP_ARTICLES[slug]) {
     const body = `${helpCenterStyles()}<div class="app">${sidebarNav('help', undefined, ctx)}<div class="content">
 <div class="hc-layout">
@@ -16683,7 +16683,7 @@ async function handleHelpArticleHtmx(request, env, slug, ctx) {
   <div>${helpMobileNav(slug)}${pane}</div>
 </div>
 </div></div>${helpScoutScript()}`;
-  return new Response(simpleShell(HELP_ARTICLES[slug].title + ' &mdash; Help', body), { headers: { 'Content-Type': 'text/html' } });
+  return new Response(simpleShell(HELP_ARTICLES[slug].title + ' — Help', body), { headers: { 'Content-Type': 'text/html' } });
 }
 
 // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
