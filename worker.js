@@ -6642,7 +6642,7 @@ async function handleEstimatesHtmx(request, env, uid, ctx) {
     <label class="field-label">Customer (lead)</label>
     <select id="est-lead" style="width:100%;box-sizing:border-box;margin-bottom:12px">${leadOpts}</select>
     <label class="field-label">Title</label>
-    <input id="est-title" placeholder="e.g. Bathroom remodel — phase 1" style="width:100%;box-sizing:border-box;margin-bottom:14px">
+    <input id="est-title" placeholder="e.g. Project quote &mdash; spring" style="width:100%;box-sizing:border-box;margin-bottom:14px">
     <label class="field-label">Line items</label>
     <table style="margin-bottom:8px">
       <thead><tr><th style="text-align:left">Description</th><th>Qty</th><th>Rate</th><th>Amount</th><th></th></tr></thead>
