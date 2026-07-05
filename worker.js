@@ -1052,18 +1052,21 @@ async function stripeRequest(env, path, opts = {}) {
 // Encode an object as application/x-www-form-urlencoded for Stripe.
 function stripeEncode(obj) {
   const parts = [];
-  for (const [k, v] of Object.entries(obj)) {
-    if (v === undefined || v === null) continue;
-    if (Array.isArray(v)) {
-      v.forEach((item) => parts.push(`${encodeURIComponent(k)}[]=${encodeURIComponent(item)}`));
-    } else if (typeof v === 'object') {
-      for (const [sk, sv] of Object.entries(v)) {
-        parts.push(`${encodeURIComponent(k)}[${sk}]=${encodeURIComponent(sv)}`);
-      }
+  // Flatten nested objects/arrays into Stripe's bracket notation to ARBITRARY
+  // depth (e.g. after_completion[redirect][url]=...). The old one-level-only
+  // version stringified 2-deep values as "[object Object]", which Stripe
+  // rejected with "Invalid object" (broke Connect estimate payment links).
+  const add = (key, val) => {
+    if (val === undefined || val === null) return;
+    if (Array.isArray(val)) {
+      val.forEach((item) => add(`${key}[]`, item));
+    } else if (typeof val === 'object') {
+      for (const [sk, sv] of Object.entries(val)) add(`${key}[${sk}]`, sv);
     } else {
-      parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+      parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(val)}`);
     }
-  }
+  };
+  for (const [k, v] of Object.entries(obj)) add(k, v);
   return parts.join('&');
 }
 
