@@ -1,0 +1,27 @@
+TASK: Implement the "Common Facts / FAQ" feature in Branch Live's worker.js, following the spec EXACTLY. Tight scope — build only what's specified, nothing more.
+
+READ FIRST:
+- C:/Users/17173/Projects/branchlive/FAQ_SPEC.md — the full implementation spec (table, endpoints, page, role gating, nav, Emma integration). Build to THIS.
+- Your branchlive skill (.zcode/skills/branchlive) — do its mandatory wiki reads (routes/tables/patterns/auth) and heed the template-literal pitfall.
+- In worker.js, grep for and READ the actual existing functions the spec references: handleKnowledgeHtmx, the knowledge add/update/delete HTMX handlers, initDB, the /p/ dispatcher, ROUTE_MIN_ROLE, VIEW_ONLY_FOR_EMPLOYEE, the sidebar nav helper, emmaSystemPrompt, vapiProvision. The spec's line numbers are APPROXIMATE — find real locations by grepping; do NOT trust exact line numbers.
+
+BUILD (this exact scope, nothing extra):
+1. `common_facts` table in initDB — idempotent CREATE TABLE IF NOT EXISTS per spec (business_id, category, question, answer, sort_order, created_at).
+2. `/p/faq` page handler mirroring handleKnowledgeHtmx EXACTLY — same simpleShell/HTMX/styling. Group by the 5 fixed categories: Hours, Pricing, Credentials, Process, Policies. Employee view-only via the same ctx.role pattern used by /p/knowledge.
+3. add/update/delete HTMX endpoints mirroring the knowledge ones (same shape/naming convention).
+4. Router + dispatcher additions per spec (use kCtx.bid / pCtx.bid exactly as neighboring routes do).
+5. ROUTE_MIN_ROLE + VIEW_ONLY_FOR_EMPLOYEE entries for /p/faq.
+6. Sidebar nav link next to the Knowledge Base link.
+7. Emma integration — CRITICAL, do this carefully:
+   - FIRST determine HOW knowledge currently reaches Emma: grep + read emmaSystemPrompt and vapiProvision. Does the knowledge table ALREADY get folded into Emma's system prompt / provisioning?
+   - If knowledge is ALREADY in the prompt/provision: add common_facts in the SAME place, the SAME way. Do NOT duplicate the knowledge block.
+   - If knowledge is NOT currently in the prompt: follow the spec to fold BOTH knowledge + common_facts in, but do NOT create any parallel/duplicate system.
+   - Goal: Emma answers from common_facts, WITHOUT breaking or duplicating existing knowledge behavior.
+
+CRITICAL RULES (do not violate):
+- PRESERVE template literals inside simpleShell strings: avoid backslash-apostrophes and single-backslash regex; use htmxEsc() for ALL user-generated data; never interpolate raw untrusted ${} into HTML.
+- Run `node --check worker.js` — it MUST pass. Fix any syntax error before reporting.
+- Do NOT git commit. Do NOT deploy. Do NOT run deploy.sh. Do NOT `git reset` or `git checkout -- worker.js`. Hermes reviews the diff and deploys.
+- Targeted edits only; do not reformat or touch unrelated code.
+
+REPORT: exact functions/handlers you added and their locations, the table DDL, the router/dispatcher/nav/role-gate edits, exactly how you integrated common_facts into Emma (and explicit confirmation you did NOT duplicate the knowledge block), and confirm `node --check worker.js` passed.

@@ -1,0 +1,23 @@
+Design a precise, buildable implementation SPEC for a "Common Facts / FAQ" feature in the Branch Live app. DESIGN/SPEC ONLY — do NOT edit worker.js or any code file. Output a spec document only.
+
+PROJECT: C:/Users/17173/Projects/branchlive/ — single-file Cloudflare Worker `worker.js` (~17.8K lines, 1.07MB) + D1 (SQLite). Read the relevant parts of worker.js AND the wiki files before designing.
+
+READ FIRST (to match existing conventions EXACTLY):
+- wiki/routes.md, wiki/tables.md, wiki/auth.md, wiki/patterns.md
+- In worker.js: the existing `/p/knowledge` PAGE handler and its add/edit/delete API endpoints (this is the CRUD pattern to MIRROR precisely — same simpleShell/HTMX approach, same styling, same API shape). Find it by grepping for `/p/knowledge` and the knowledge add/edit/delete handlers.
+- The function that compiles knowledge items for Emma's voice AI (grep for how knowledge is assembled into Emma's prompt/knowledge base — e.g. a compile/build function used by the Emma/Vapi voice handler). The FAQ facts must be folded into this so Emma answers from them.
+- The `initDB` function (table creation pattern — CREATE TABLE IF NOT EXISTS, idempotent). Mirror it for the new table.
+- The `/p/` dispatcher + sidebar nav rendering (where nav links live) and `resolveContext()` / role gating (ROUTE_MIN_ROLE) — the new page must be gated like the other /p/ pages (owners/admins manage; employees likely view-only).
+
+FEATURE SCOPE — TIGHT (this exact scope failed on July 4 due to over-scoping; keep it minimal but COMPLETE):
+1. `common_facts` table: id, business_id (owning account user_id, per the multi-tenant `ctx.bid` pattern), category, question, answer, sort_order (int, optional), created_at. Idempotent migration in initDB.
+2. `/p/faq` page: lists facts grouped by the 5 fixed categories (Hours, Pricing, Credentials, Process, Policies), with add / edit / delete — mirroring /p/knowledge's HTMX CRUD exactly.
+3. API endpoints for add/edit/delete (match the naming/shape of the knowledge endpoints, e.g. `/api/faq/...` or the `-htmx` convention the codebase uses).
+4. Emma integration: facts compiled into Emma's knowledge base so she answers callers from them (extend the existing knowledge-compile function; do NOT create a parallel system if one exists).
+5. Sidebar nav link to /p/faq.
+6. Role gating consistent with existing /p/ routes.
+EXCLUDE (do NOT spec these — they caused the July 4 failure): drag-to-reorder, Vapi live re-sync beyond the existing mechanism, Google Sheets import, bulk ops, any extra polish.
+
+DELIVER a spec with: exact table DDL; the exact new functions to add and WHERE (which existing function/section to extend, with the pattern to copy); the route additions (page + APIs) and where in the dispatcher; the Emma-compile integration point (function name + how to fold facts in); the nav link edit; the role gate entry. Reference real line numbers / function names from worker.js so ZCode can implement directly. Note the template-literal hazards in simpleShell (avoid `\` and `${` breakage). 
+
+IMPORTANT: end your response by stating which model you are actually running as (I need to confirm you are NOT the Flash fallback). Save the full spec — I will rescue it from your output dir.

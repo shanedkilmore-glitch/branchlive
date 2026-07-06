@@ -1553,6 +1553,18 @@ async function initDB(env) {
         price REAL,
         notes TEXT
       )`),
+      // Common Facts / FAQ — short Q&A pairs grouped into fixed categories
+      // (Hours, Pricing, Credentials, Process, Policies). business_id mirrors
+      // the multi-tenant ctx.bid pattern (= owning account's user_id).
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS common_facts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        business_id INTEGER,
+        category TEXT,
+        question TEXT,
+        answer TEXT,
+        sort_order INTEGER DEFAULT 0,
+        created_at TEXT
+      )`),
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS subscriptions (
         user_id INTEGER PRIMARY KEY,
         stripe_customer_id TEXT,
@@ -2711,6 +2723,7 @@ const NAV_ITEMS = {
   calls:    { key:'calls',    href: '/p/calls',       label: 'Calls',     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' },
   calendar: { key:'calendar', href: '/p/calendar',    label: 'Calendar',  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' },
   knowledge:{ key:'knowledge',href: '/p/knowledge',   label: 'Knowledge', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>' },
+  faq:      { key:'faq',      href: '/p/faq',         label: 'FAQ',       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' },
   gallery:  { key:'gallery',  href: '/p/gallery',     label: 'Gallery',   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>' },
   analytics:{ key:'analytics',href: '/p/analytics',   label: 'Analytics', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="4" y2="12"/><line x1="10" y1="20" x2="10" y2="4"/><line x1="16" y1="20" x2="16" y2="14"/><line x1="22" y1="20" x2="22" y2="8"/></svg>' },
   estimates:{ key:'estimates',href: '/p/estimates',  label: 'Estimates', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/></svg>' },
@@ -2728,7 +2741,7 @@ const NAV_ITEMS = {
 // The role filter (minRoleFor, applied in sidebarNav) drops items a user can't
 // access, and any group left empty is omitted entirely.
 const NAV_GROUPS = [
-  { name: 'Main',     keys: ['overview','calendar','knowledge','gallery'] },
+  { name: 'Main',     keys: ['overview','calendar','knowledge','faq','gallery'] },
   { name: 'Business', keys: ['leads','calls','analytics','estimates'] },
   { name: 'Growth',   keys: ['website','blog','social'] },
   { name: 'Account',  keys: ['billing','team','settings','help'] },
@@ -2947,12 +2960,13 @@ const ROUTE_MIN_ROLE = {
   '/p/calendar':  'employee',
   '/p/knowledge': 'employee',
   '/p/gallery':   'employee',
+  '/p/faq':       'employee',
   '/p/overview':  'employee',
 };
 
 // Pages where the 'employee' role is view-only (banner + locked inputs).
 const VIEW_ONLY_FOR_EMPLOYEE = new Set([
-  '/p/calendar', '/p/knowledge', '/p/gallery',
+  '/p/calendar', '/p/knowledge', '/p/gallery', '/p/faq',
 ]);
 
 // True when the user's role meets or exceeds the minimum.
@@ -3626,6 +3640,66 @@ async function handleKnowledgeDeleteHtmx(request, env, uid) {
   } catch (e) {
     console.error('Knowledge delete htmx error:', e);
     return json({ ok: false, error: 'Could not delete knowledge item' });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// COMMON FACTS / FAQ — HTMX CRUD (cookie auth). Mirrors the knowledge
+// handlers above; scoped by business_id (= ctx.bid = owner user_id).
+// ═══════════════════════════════════════════════════════════════════════
+
+// POST /api/faq/add-htmx — insert one FAQ Q&A pair (JSON body).
+// Body: { category, question, answer }. category is one of the fixed set
+// (Hours, Pricing, Credentials, Process, Policies); validated loosely here,
+// the page form constrains it to the dropdown.
+async function handleFaqAddHtmx(request, env, uid) {
+  try {
+    const body = await request.json();
+    if (!body.question) return json({ ok: false, error: 'Question is required' });
+    await env.DB.prepare(
+      'INSERT INTO common_facts (business_id, category, question, answer, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind(uid, body.category || '', body.question, body.answer || '', 0, nowISO()).run();
+    return json({ ok: true });
+  } catch (e) {
+    console.error('FAQ add htmx error:', e);
+    return json({ ok: false, error: 'Could not add FAQ item' });
+  }
+}
+
+// POST /api/faq/update-htmx — edit one FAQ pair (JSON body).
+// Updates category, question, answer; scoped to the cookie business. 404s if
+// the row belongs to another business (no rows touched).
+async function handleFaqUpdateHtmx(request, env, uid) {
+  try {
+    const body = await request.json();
+    const id = parseInt(body.id, 10);
+    if (!id) return json({ ok: false, error: 'Item id is required' });
+    if (!body.question) return json({ ok: false, error: 'Question is required' });
+    const res = await env.DB.prepare(
+      'UPDATE common_facts SET category = ?, question = ?, answer = ? WHERE id = ? AND business_id = ?'
+    ).bind(body.category || '', body.question, body.answer || '', id, uid).run();
+    if (!res.meta || res.meta.changes === 0) return json({ ok: false, error: 'Item not found' });
+    return json({ ok: true });
+  } catch (e) {
+    console.error('FAQ update htmx error:', e);
+    return json({ ok: false, error: 'Could not update FAQ item' });
+  }
+}
+
+// POST /api/faq/delete-htmx — remove one FAQ pair (JSON body).
+async function handleFaqDeleteHtmx(request, env, uid) {
+  try {
+    const body = await request.json();
+    const id = parseInt(body.id, 10);
+    if (!id) return json({ ok: false, error: 'Item id is required' });
+    const res = await env.DB.prepare(
+      'DELETE FROM common_facts WHERE id = ? AND business_id = ?'
+    ).bind(id, uid).run();
+    if (!res.meta || res.meta.changes === 0) return json({ ok: false, error: 'Item not found' });
+    return json({ ok: true });
+  } catch (e) {
+    console.error('FAQ delete htmx error:', e);
+    return json({ ok: false, error: 'Could not delete FAQ item' });
   }
 }
 
@@ -10513,6 +10587,223 @@ kRenderPager(${totalPages});
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// HTMX COMMON FACTS / FAQ (/p/faq)
+// Short Q&A pairs grouped into 5 fixed categories: Hours, Pricing,
+// Credentials, Process, Policies. Mirrors handleKnowledgeHtmx exactly —
+// same simpleShell + dual card/table render + inline edit + search/paginate.
+// JS helpers use an "f" prefix so they never collide with the knowledge "k"
+// helpers (each page owns its own scope, but distinct prefixes are safer).
+// ═══════════════════════════════════════════════════════════════════════
+const FAQ_CATEGORIES = ['Hours', 'Pricing', 'Credentials', 'Process', 'Policies'];
+
+async function handleFaqHtmx(request, env, uid, ctx) {
+  try {
+    const { results } = await env.DB.prepare(
+      'SELECT id, category, question, answer FROM common_facts WHERE business_id = ? ORDER BY sort_order, created_at LIMIT 500'
+    ).bind(uid).all();
+    const items = results || [];
+    const viewOnly = ctx && ctx.role === 'employee';
+    const PAGE = 20;
+    const totalPages = Math.max(1, Math.ceil(items.length / PAGE));
+    // Order rows by the fixed category sequence so the page groups naturally.
+    const catRank = c => {
+      const i = FAQ_CATEGORIES.indexOf(c);
+      return i === -1 ? FAQ_CATEGORIES.length : i;
+    };
+    items.sort((a, b) => {
+      const r = catRank(a.category) - catRank(b.category);
+      return r !== 0 ? r : String(a.question).localeCompare(String(b.question));
+    });
+    const stat = (label, value, tone) => `<div class="card stat-card"><div class="stat-num ${tone}">${value}</div><div class="stat-lab">${label}</div></div>`;
+    const catOptions = (sel) => FAQ_CATEGORIES.map(c =>
+      `<option value="${htmxEsc(c)}"${c === sel ? ' selected' : ''}>${htmxEsc(c)}</option>`
+    ).join('');
+    // Mobile cards (fc-) — one per FAQ pair, with an inline edit form.
+    const cards = items.map((it, i) => {
+      const pageNum = Math.floor(i / PAGE) + 1;
+      const search = ((it.question || '') + ' ' + (it.answer || '') + ' ' + (it.category || '')).toLowerCase();
+      const cat = htmxEsc(it.category || 'General');
+      const q = htmxEsc(it.question || '—');
+      const a = htmxEsc(it.answer || '—');
+      const editCard = viewOnly ? '' : `<div class="k-card-edit fc-edit" id="fc-edit-${it.id}" data-page="${pageNum}" style="display:none">
+  <form class="f-edit-form" data-id="${it.id}" data-view="card">
+    <select name="category">${catOptions(it.category)}</select>
+    <input name="question" value="${htmxEsc(it.question || '')}" placeholder="Question" required>
+    <textarea name="answer" placeholder="Answer" rows="3">${htmxEsc(it.answer || '')}</textarea>
+    <div style="display:flex;gap:6px">
+      <button type="submit" class="btn-amber btn-sm">Save</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="fCancel(${it.id})">Cancel</button>
+    </div>
+    <div class="k-edit-msg"></div>
+  </form>
+</div>`;
+      const cardActions = viewOnly ? '' : `<div class="ki-actions">
+    <button type="button" class="btn btn-ghost btn-sm" onclick="fEdit(${it.id})">✎ Edit</button>
+    <button type="button" class="btn btn-ghost btn-sm" onclick="fDelete(${it.id})">🗑 Delete</button>
+  </div>`;
+      return `<div class="k-item fc-row" id="fc-${it.id}" data-page="${pageNum}" data-search="${htmxEsc(search)}">
+  <span class="ki-cat">${cat}</span>
+  <div class="ki-main"><span class="ki-name">${q}</span></div>
+  <div class="ki-notes">${a}</div>
+  ${cardActions}
+</div>${editCard}`;
+    }).join('');
+    // Desktop table rows (ft-) — dense mirror of the cards.
+    const tableRows = items.map((it, i) => {
+      const pageNum = Math.floor(i / PAGE) + 1;
+      const search = ((it.question || '') + ' ' + (it.answer || '') + ' ' + (it.category || '')).toLowerCase();
+      const cat = htmxEsc(it.category || 'General');
+      const q = htmxEsc(it.question || '—');
+      const ansShort = htmxEsc((it.answer || '—').slice(0, 80)) + ((it.answer || '').length > 80 ? '…' : '');
+      const editRow = viewOnly ? '' : `<tr class="kt-edit-row ft-edit" id="ft-edit-${it.id}" data-page="${pageNum}" style="display:none">
+  <td colspan="4">
+    <form class="f-edit-form" data-id="${it.id}" data-view="table" style="padding:6px 0">
+      <select name="category">${catOptions(it.category)}</select>
+      <input name="question" value="${htmxEsc(it.question || '')}" placeholder="Question" required>
+      <textarea name="answer" placeholder="Answer" rows="3">${htmxEsc(it.answer || '')}</textarea>
+      <div style="display:flex;gap:6px">
+        <button type="submit" class="btn-amber btn-sm">Save</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="fCancel(${it.id})">Cancel</button>
+      </div>
+      <div class="k-edit-msg"></div>
+    </form>
+  </td>
+</tr>`;
+      const rowActions = viewOnly ? '<td class="k-actions"></td>' : `<td class="k-actions">
+    <button type="button" class="k-icon-btn" title="Edit" onclick="fEdit(${it.id})">✎</button>
+    <button type="button" class="k-icon-btn k-del" title="Delete" onclick="fDelete(${it.id})">🗑</button>
+  </td>`;
+      return `<tr class="ft-row" id="ft-${it.id}" data-page="${pageNum}" data-search="${htmxEsc(search)}">
+  <td><span class="badge badge-new">${cat}</span></td>
+  <td style="font-weight:500">${q}</td>
+  <td style="color:var(--text-muted);font-size:.88rem">${ansShort}</td>
+  ${rowActions}
+</tr>${editRow}`;
+    }).join('');
+    const body = `<div class="app">${sidebarNav('faq', undefined, ctx)}<div class="content">
+<span class="eyebrow">Common facts</span>
+<h1>Quick answers <em>Emma</em> uses</h1>
+<p class="sub">Frequent questions callers ask, grouped by category. Emma reads these on every call.</p>
+${viewOnly ? '<div class="vo-banner"><span class="vo-ico">👁</span>View only — contact your admin to make changes.</div>' : ''}
+<div class="grid2" style="margin-top:24px">
+  ${stat('Total facts', items.length, 'purple')}
+  ${stat('Categories used', [...new Set(items.map(i => i.category).filter(Boolean))].length, '')}
+  ${stat('Per page', PAGE, 'blue')}
+</div>
+<div class="k-toolbar">
+  <div class="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input id="f-search" placeholder="Search facts…" oninput="fSearch(this.value)">
+  </div>
+  ${viewOnly ? '' : `<button class="btn btn-amber btn-sm" onclick="var el=document.getElementById('f-add');el.style.display=el.style.display==='none'?'':'none'">+ Add fact</button>`}
+</div>
+${viewOnly ? '' : `<div id="f-add" class="card" style="display:none;margin-bottom:18px">
+  <h3 style="margin-top:0">Add a fact</h3>
+  <form id="f-add-form" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+    <select name="category">${catOptions('')}</select>
+    <input name="question" placeholder="Question" required>
+    <input name="answer" placeholder="Answer">
+    <button type="submit" class="btn-amber btn-sm">Add</button>
+  </form>
+  <div id="f-add-msg" style="margin-top:8px;font-size:.85rem"></div>
+</div>
+<script>
+document.getElementById('f-add-form').addEventListener('submit',async function(e){
+  e.preventDefault();var fd=new FormData(this);var msg=document.getElementById('f-add-msg');
+  var body={category:fd.get('category'),question:fd.get('question'),answer:fd.get('answer')};
+  msg.style.color='var(--text-muted)';msg.textContent='Adding…';
+  try{var r=await fetch('/api/faq/add-htmx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});var d=await r.json();
+    if(d.ok){msg.style.color='var(--success)';msg.textContent='✓ Added — reload to see it.';this.reset();setTimeout(function(){location.reload();},800);}
+    else{msg.style.color='var(--danger)';msg.textContent='✗ '+(d.error||'Could not add');}
+  }catch(err){msg.style.color='var(--danger)';msg.textContent='✗ Connection error';}
+});
+</script>`}
+${items.length ? `<div class="k-grid" id="f-grid">${cards}</div>
+<div class="k-table-wrap"><table><thead><tr><th>Category</th><th>Question</th><th>Answer</th><th style="width:90px"></th></tr></thead><tbody id="f-tbody">${tableRows}</tbody></table></div>
+<div class="pager" id="f-pager"></div>
+<script>
+var FPAGE=1,FPER=${PAGE};
+function fActiveView(){
+  var g=document.getElementById('f-grid');
+  if(!g){return 'card';}
+  return window.getComputedStyle(g).display==='none'?'table':'card';
+}
+function fRowSel(){return fActiveView()==='card'?'.fc-row':'.ft-row';}
+function fRenderPager(total){
+  var p=document.getElementById('f-pager');p.innerHTML='';
+  if(total<=1){p.style.display='none';return;}p.style.display='flex';
+  for(var i=1;i<=total;i++){var b=document.createElement('button');b.textContent=i;b.className=i===FPAGE?'current':'';b.onclick=function(){FPAGE=+this.textContent;fShow();};p.appendChild(b);}
+}
+function fShow(){
+  var vis=0;
+  document.querySelectorAll(fRowSel()).forEach(function(r){
+    if(r.getAttribute('data-hidden')==='1'){return;}
+    vis++;var show=Math.ceil(vis/FPER)===FPAGE;
+    r.style.display=show?'':'none';
+    var editEl=document.getElementById(r.id.slice(0,2)+'-edit-'+r.id.slice(3));
+    if(editEl){editEl.style.display=(show&&editEl.getAttribute('data-editing')==='1')?'':'none';}
+  });
+}
+function fSearch(q){
+  q=(q||'').toLowerCase();var vis=0;
+  document.querySelectorAll('.fc-row,.ft-row').forEach(function(r){
+    var s=r.getAttribute('data-search');var show=!q||s.indexOf(q)!==-1;
+    r.setAttribute('data-hidden',show?'0':'1');
+  });
+  vis=document.querySelectorAll('.fc-row:not([data-hidden="1"])').length;
+  FPAGE=1;var total=Math.ceil(vis/${PAGE})||1;fRenderPager(total);fShow();
+}
+function fPrefixFor(id){
+  var card=fActiveView()==='card';
+  if(document.getElementById((card?'fc':'ft')+'-edit-'+id)){return card?'fc':'ft';}
+  if(document.getElementById((card?'ft':'fc')+'-edit-'+id)){return card?'ft':'fc';}
+  return null;
+}
+function fEdit(id){
+  var prefix=fPrefixFor(id);if(!prefix){return;}
+  var row=document.getElementById(prefix+'-'+id),er=document.getElementById(prefix+'-edit-'+id);
+  if(!er||!row){return;}
+  row.style.display='none';er.setAttribute('data-editing','1');
+  er.style.display=(row.getAttribute('data-hidden')==='1')?'none':'';
+}
+function fCancel(id){
+  var prefix=fPrefixFor(id);
+  var row=prefix&&document.getElementById(prefix+'-'+id),er=prefix&&document.getElementById(prefix+'-edit-'+id);
+  if(er){er.setAttribute('data-editing','0');er.style.display='none';}
+  if(row&&row.getAttribute('data-hidden')!=='1'){fShow();}
+}
+document.querySelectorAll('.f-edit-form').forEach(function(f){
+  f.addEventListener('submit',async function(e){
+    e.preventDefault();var id=this.getAttribute('data-id');var msg=this.querySelector('.k-edit-msg');
+    var fd=new FormData(this);
+    var body={id:parseInt(id,10),category:fd.get('category'),question:fd.get('question'),answer:fd.get('answer')};
+    msg.style.color='var(--text-muted)';msg.textContent='Saving…';
+    try{var r=await fetch('/api/faq/update-htmx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});var d=await r.json();
+      if(d.ok){msg.style.color='var(--success)';msg.textContent='✓ Saved — reloading…';setTimeout(function(){location.reload();},600);}
+      else{msg.style.color='var(--danger)';msg.textContent='✗ '+(d.error||'Could not save');}
+    }catch(err){msg.style.color='var(--danger)';msg.textContent='✗ Connection error';}
+  });
+});
+async function fDelete(id){
+  if(!confirm("Delete this fact? This cannot be undone.")){return;}
+  try{var r=await fetch('/api/faq/delete-htmx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})});var d=await r.json();
+    if(d.ok){
+      ['fc-'+id,'fc-edit-'+id,'ft-'+id,'ft-edit-'+id].forEach(function(eid){var el=document.getElementById(eid);if(el){el.remove();}});
+      FPAGE=1;fSearch(document.getElementById('f-search').value||'');
+    }else{alert('✗ '+(d.error||'Could not delete'));}
+  }catch(e){alert('✗ Connection error');}
+}
+fRenderPager(${totalPages});
+</script>` : '<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-title">No common facts yet</div><div class="empty-msg">Add quick answers for the questions callers ask most — hours, pricing, credentials, process, and policies. Emma uses these to respond accurately on every call.</div></div>'}
+</div></div>`;
+    return new Response(simpleShell('Common Facts', body), { headers: { 'Content-Type': 'text/html' } });
+  } catch (e) {
+    console.error('FAQ htmx error:', e);
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load common facts.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // HTMX BILLING (/p/billing)
 // Pricing card ($29.95/mo base) + add-on toggles. Toggles read the current
 // state from the settings row and POST to /api/settings/addon-htmx (cookie
@@ -12631,14 +12922,65 @@ function vapiServerUrl(env) {
   return 'https://branchlive-portal.shane-f58.workers.dev/api/vapi/call-webhook';
 }
 
-// Compose Emma's system prompt from the business's settings, mirroring the
-// brief the onboarding flow uses. Defaults keep it usable before onboarding.
-function emmaSystemPrompt(s) {
+// Compose Emma's system prompt from the business's settings (mirroring the
+// brief the onboarding flow uses; defaults keep it usable before onboarding).
+// `compiledKnowledge` is an optional pre-formatted string of the business's
+// knowledge + common_facts rows, assembled by vapiProvision. When present it
+// is appended as a single KNOWLEDGE & FAQ block so Emma can answer pricing,
+// process, and hours questions from real data. There is no other place
+// knowledge is folded in — this is the single source.
+function emmaSystemPrompt(s, compiledKnowledge = '') {
   const name = (s && s.business_name) || 'this business';
   const industry = (s && s.industry) || 'home services';
   const area = (s && s.service_area) || 'our service area';
   const desc = (s && s.service_description) || '';
-  return `You are Emma, the AI receptionist for ${name}, a ${industry} company serving ${area}. Be warm, professional, and efficient. Book appointments, capture lead details (name, phone, email, job, urgency), and answer questions about services from the knowledge base.${desc ? ` Services: ${desc}` : ''} Always collect the caller's name, callback number, email address, what they need done, and how urgent it is before ending the call. If they don't want to share their email, that's fine — move on.`;
+  const kbBlock = compiledKnowledge
+    ? `\n\n--- KNOWLEDGE & FAQ ---\n${compiledKnowledge}\n----------------------\n\nUse the facts above to answer caller questions accurately. If a question is not covered, do not invent details — take a message instead.`
+    : '';
+  return `You are Emma, the AI receptionist for ${name}, a ${industry} company serving ${area}. Be warm, professional, and efficient. Book appointments, capture lead details (name, phone, email, job, urgency), and answer questions about services from the knowledge base.${desc ? ` Services: ${desc}` : ''} Always collect the caller's name, callback number, email address, what they need done, and how urgent it is before ending the call. If they don't want to share their email, that's fine — move on.${kbBlock}`;
+}
+
+// Compile a business's knowledge + common_facts rows into a single text block
+// for Emma's system prompt. Knowledge items are grouped by category with their
+// price; FAQ pairs are grouped by category as Q/A. Returns '' when both are
+// empty so the caller can omit the block entirely. Never throws.
+async function compileEmmaKnowledge(env, uid) {
+  // Best-effort: tables are created idempotently in initDB, but a brand-new
+  // account or a partially-applied migration could trip a missing-table error.
+  // Provisioning must never fail on that — degrade to no knowledge.
+  const parts = [];
+  const { results } = await env.DB.prepare(
+    `SELECT 'kb' AS src, category, item AS a, price AS b, notes AS c FROM knowledge WHERE user_id = ?
+     UNION ALL
+     SELECT 'faq' AS src, category, question AS a, answer AS b, NULL AS c FROM common_facts WHERE business_id = ?
+     ORDER BY src, category`
+  ).bind(uid, uid).all();
+  const rows = results || [];
+  if (!rows.length) return '';
+  const kbByCat = {};
+  const faqByCat = {};
+  rows.forEach(r => {
+    const cat = r.category || 'General';
+    if (r.src === 'kb') {
+      (kbByCat[cat] = kbByCat[cat] || []).push(r);
+    } else {
+      (faqByCat[cat] = faqByCat[cat] || []).push(r);
+    }
+  });
+  const allCats = [...new Set([...Object.keys(kbByCat), ...Object.keys(faqByCat)])].sort();
+  allCats.forEach(cat => {
+    parts.push('[' + cat + ']');
+    (kbByCat[cat] || []).forEach(r => {
+      const price = (r.b != null && r.b !== 0) ? ' — $' + Number(r.b).toFixed(2) : '';
+      const notes = r.c ? ' (' + r.c + ')' : '';
+      parts.push('- ' + r.a + price + notes);
+    });
+    (faqByCat[cat] || []).forEach(r => {
+      parts.push('Q: ' + r.a);
+      parts.push('A: ' + (r.b || ''));
+    });
+  });
+  return parts.join('\n');
 }
 
 function emmaFirstMessage(s) {
@@ -12716,6 +13058,14 @@ async function vapiProvision(env, settings) {
 
   // 1. Assistant — create or update.
   let assistantId = settings && settings.vapi_assistant_id;
+  // Fold the business's knowledge + common_facts into Emma's system prompt so
+  // she answers from real data. Compiled once here; never fetched elsewhere.
+  const ownerUid = settings && settings.user_id;
+  let compiledKnowledge = '';
+  if (ownerUid) {
+    try { compiledKnowledge = await compileEmmaKnowledge(env, ownerUid); }
+    catch (e) { console.log('Vapi: knowledge compile failed, continuing without:', e && e.message); }
+  }
   const assistantBody = {
     name: 'Emma',
     firstMessage: emmaFirstMessage(settings),
@@ -12723,7 +13073,7 @@ async function vapiProvision(env, settings) {
       provider: VAPI_DEFAULTS.modelProvider,
       model: VAPI_DEFAULTS.model,
       messages: [
-        { role: 'system', content: emmaSystemPrompt(settings) },
+        { role: 'system', content: emmaSystemPrompt(settings, compiledKnowledge) },
       ],
     },
     voice: {
@@ -17062,6 +17412,7 @@ export default {
             return handleAppointmentDetailHtmx(request, env, pCtx.bid, apptId, pCtx);
           }
           if (path === '/p/knowledge') return handleKnowledgeHtmx(request, env, pCtx.bid, pCtx);
+          if (path === '/p/faq') return handleFaqHtmx(request, env, pCtx.bid, pCtx);
           if (path === '/p/billing') return handleBillingHtmx(request, env, pCtx.bid, pCtx);
           // ── Growth Feature Previews — interstitial sales/preview pages shown
           // when a Growth add-on is disabled. The full feature pages below
@@ -17259,6 +17610,29 @@ export default {
         const kCtx = await resolveContext(request, env, kUid);
         if (!roleMeets(kCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
         return handleKnowledgeDeleteHtmx(request, env, kCtx.bid);
+      }
+      // ── Common Facts / FAQ — cookie auth, manager+ only (same shape as the
+      //    knowledge endpoints above; scoped by kCtx.bid).
+      if (path === '/api/faq/add-htmx' && method === 'POST') {
+        const kUid = await getUidFromSessionCookie(request, env);
+        if (!kUid) return json({ ok: false, error: 'Not logged in' });
+        const kCtx = await resolveContext(request, env, kUid);
+        if (!roleMeets(kCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
+        return handleFaqAddHtmx(request, env, kCtx.bid);
+      }
+      if (path === '/api/faq/update-htmx' && method === 'POST') {
+        const kUid = await getUidFromSessionCookie(request, env);
+        if (!kUid) return json({ ok: false, error: 'Not logged in' });
+        const kCtx = await resolveContext(request, env, kUid);
+        if (!roleMeets(kCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
+        return handleFaqUpdateHtmx(request, env, kCtx.bid);
+      }
+      if (path === '/api/faq/delete-htmx' && method === 'POST') {
+        const kUid = await getUidFromSessionCookie(request, env);
+        if (!kUid) return json({ ok: false, error: 'Not logged in' });
+        const kCtx = await resolveContext(request, env, kUid);
+        if (!roleMeets(kCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
+        return handleFaqDeleteHtmx(request, env, kCtx.bid);
       }
       if (path === '/api/settings/addon-htmx' && method === 'POST') {
         const sUid = await getUidFromSessionCookie(request, env);

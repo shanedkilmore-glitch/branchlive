@@ -1,0 +1,39 @@
+You are reviewing a Cloudflare Worker application (~13K lines) at C:/Users/17173/Projects/branchlive/worker.js. This is a production SaaS dashboard for local service businesses. 
+
+DO NOT edit any files. Return a REPORT ONLY.
+
+Please read the ENTIRE worker.js file and the index.html landing page at C:/Users/17173/Projects/branchlive/index.html. Then return a prioritized, numbered list of concrete improvement opportunities. Each item should include:
+
+- PRIORITY: Critical / High / Medium / Low
+- CATEGORY: Bug Risk / Missing Feature / User Experience / Code Quality / Performance
+- LINE REFERENCE(S): specific line numbers
+- FINDING: what you observed
+- WHY IT MATTERS: impact on users or the business
+
+PLEASE CHECK FOR:
+
+1. **Features promised on the landing page (index.html) that have no handler in worker.js.** The landing page advertises 19 features. Cross-reference each against the worker — which ones don't exist yet?
+
+2. **Template literal safety** — worker.js uses template literals (backtick strings) extensively for HTML rendering. Look for:
+   - Stray backticks inside template literals that could terminate the string early (causes error 1101)
+   - Backslash sequences inside template literals that get consumed by the outer template before reaching the browser (e.g., `\s` becomes `s`, breaking regex)
+   - Injected variables that could be undefined in the handler's scope (produces literal "undefined" in output)
+   - This file has a KNOWN pattern: client-side JS lives INSIDE a template literal in simpleShell(), so backslash sequences need double-escaping
+
+3. **Incomplete features** — search for TODO, TBD, FIXME markers. Check GROWTH_EXPLAINERS (around line 947) which have youtubeId: 'TBD' — these render placeholder cards instead of real video embeds.
+
+4. **User input handling** — look for innerHTML assignments where user-provided values are interpolated without sanitization. These could allow unintended content injection.
+
+5. **Error handling gaps** — look for API handlers that don't catch errors, fetch calls without .catch(), missing null checks on DB query results.
+
+6. **Accessibility basics** — missing aria labels on interactive elements, keyboard navigation gaps in modal dialogs, color contrast issues.
+
+7. **Code duplication** — repeated patterns that could be consolidated, copy-pasted blocks.
+
+8. **The "purple" CSS class names** — the app uses amber-monotone design (accent #d4a574). Several CSS classes are named "purple" but their actual color is overridden to amber tones. This is confusing for maintainers.
+
+9. **Consistency issues** — the hero on index.html says "30-second demo" but the video section says "60-second demo." Any other copy mismatches?
+
+10. **Missing form validation** — forms that don't validate inputs before submission.
+
+Please format as a single markdown report starting with "# Branch Live Code Review". Number each finding. Be specific with line numbers. Do NOT edit any files.
