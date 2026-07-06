@@ -16473,6 +16473,7 @@ function helpCenterStyles() {
 .hc-callout .hc-co-h{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:5px;display:block}
 .hc-callout p:last-child{margin-bottom:0}
 .hc-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:0 0 18px}
+.hc-infographic{display:block;max-width:100%;height:auto;margin:4px 0 22px;border:1px solid var(--border);border-radius:14px}
 .hc-card{background:var(--bg-card);border:1px solid var(--border);border-left:3px solid transparent;border-radius:12px;padding:16px 18px;transition:border-color .25s ease,transform .2s ease;text-decoration:none;color:inherit}
 .hc-card:hover{border-left-color:var(--accent);transform:translateY(-2px);text-decoration:none}
 .hc-card .hc-card-t{font-family:var(--font-serif);font-weight:500;font-size:1.05rem;color:var(--cream);margin-bottom:4px;letter-spacing:-.01em}
@@ -17226,6 +17227,7 @@ function helpArticlePane(slug) {
   return `<article class="hc-article">
     <div class="hc-crumb"><a href="/p/help">Help Center</a> <span>&rsaquo;</span> <span>${htmxEsc(art.group)}</span></div>
     <h1>${htmxEsc(art.title)}</h1>
+    <img class="hc-infographic" src="https://branchlive.com/static/help/${htmxEsc(slug)}.png" alt="${htmxEsc(art.title)} infographic" loading="lazy" onerror="this.remove()">
     ${body}
     ${helpScoutBox(helpScoutQuestion(slug))}
   </article>`;

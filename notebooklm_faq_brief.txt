@@ -1,0 +1,22 @@
+TASK: Write/fix NotebookLM source markdown for Branch Live's now-LIVE "Common Facts / FAQ" feature. These MDs are NotebookLM video sources. Two deliverables.
+
+CONTEXT — the feature as ACTUALLY built & deployed today (use these EXACT facts; older docs describe an imagined version that was never built):
+- Dedicated page at /p/faq. Sidebar nav link labeled "Common Facts", in the MAIN nav group, right next to "Knowledge Base". (NOT under a "Business section", NOT a tab on the Knowledge page — ignore any doc that says that.)
+- Users Add / Edit / Delete short Q&A "facts".
+- 5 fixed categories: Hours, Pricing, Credentials, Process, Policies.
+- Emma reads Common Facts alongside the Knowledge Base on every call (they're compiled together into her knowledge).
+- Purpose: quick answers to the questions callers ask most (hours, deposits, licensing, policies) — versus the Knowledge Base which is the full services/pricing catalog.
+
+READ FIRST (for format + style consistency):
+- C:/Users/17173/Desktop/BranchLive-NotebookLM/04-knowledge-base.md and C:/Users/17173/Desktop/BranchLive-NotebookLM/24-estimates.md (match their markdown structure/section conventions).
+- C:/Users/17173/Projects/branchlive/FAQ_SPEC.md (technical reference).
+
+STYLE RULES (mandatory, from the notebooklm-videos skill):
+- Industry-neutral examples ONLY: hair salons, nail salons, day spas, real estate agents, photography studios, cleaning services, beauty professionals. Rotate them; NEVER default to plumbing/contractors/blue-collar trades; never repeat the same industry twice in a row.
+- Premium, warm, helpful tone for a busy small-business owner. One concept, explainer-ready.
+
+DELIVERABLES (write the actual files to disk):
+1. CREATE C:/Users/17173/Desktop/BranchLive-NotebookLM/25-common-facts.md — a complete, accurate source doc for the Common Facts / FAQ feature, matching the numbered-MD format of the others (intro, what it is, the 5 categories with industry-neutral examples, how to add/edit facts, how Emma uses them, why it matters).
+2. FIX C:/Users/17173/Desktop/BranchLive-NotebookLM/04-knowledge-base.md — correct its existing Common Facts / FAQ references to match reality (the /p/faq page + "Common Facts" sidebar link next to Knowledge Base; remove the wrong "Business section" / "tab on the Knowledge page" wording), and keep a brief cross-reference pointing to the dedicated Common Facts topic. Do NOT rewrite the whole file — only fix the inaccurate Common Facts bits.
+
+After writing, list the two file paths and confirm they were saved. End by stating which model you are actually running as (confirm you're NOT the Flash fallback).
