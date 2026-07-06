@@ -16383,6 +16383,7 @@ const HELP_SECTIONS = [
   ]},
   { name: 'Features', articles: [
     ['knowledge-base',  'Knowledge Base'],
+    ['common-facts',    'Common Facts / FAQ'],
     ['calendar-booking','Calendar & Booking'],
     ['leads',           'Leads'],
     ['calls-transcripts','Calls & Transcripts'],
@@ -16671,6 +16672,40 @@ Notes:    Natural stone or concrete pavers. Free on-site estimate.
 </ul>
 
 <div class="hc-callout"><span class="hc-co-h">Why this matters</span><p>Emma relies solely on this data. If a service or policy is missing, she will politely take a message instead of answering directly.</p></div>`;
+
+    case 'common-facts': return `<p class="hc-lead">Common Facts are short, plain-language answers to the questions callers ask most &mdash; your hours, pricing, credentials, process, and policies. Emma reads them alongside your Knowledge Base, so she answers instantly and consistently.</p>
+
+<h2>Common Facts vs. Knowledge Base</h2>
+<p>They work together but do different jobs:</p>
+<ul>
+  <li><strong>Common Facts</strong> &mdash; quick Q&amp;A for the questions you hear every day ("Are you open Sundays?", "Do you take walk-ins?"), sorted into five categories.</li>
+  <li><strong>Knowledge Base</strong> &mdash; your full catalog of services and prices Emma quotes from.</li>
+</ul>
+
+<h2>The five categories</h2>
+<ul>
+  <li><strong>Hours</strong> &mdash; opening times and closures. A hair salon: "Open Tue&ndash;Sat 9&ndash;6, closed Sundays and Mondays."</li>
+  <li><strong>Pricing</strong> &mdash; deposits, fees, payment methods. A day spa: "A 50% deposit holds your booking; cancellations within 24 hours forfeit it."</li>
+  <li><strong>Credentials</strong> &mdash; licenses, insurance, experience. A real estate agent: "Licensed in PA and MD, 12 years in the area."</li>
+  <li><strong>Process</strong> &mdash; what happens after booking. A photography studio: "After you book, you get a questionnaire and a planning call."</li>
+  <li><strong>Policies</strong> &mdash; pets, parking, rescheduling, guarantees. A cleaning service: "We bring all supplies; please secure pets before we arrive."</li>
+</ul>
+
+<h2>Adding a fact</h2>
+<ol>
+  <li>Open <a href="/p/faq">Common Facts</a> from the sidebar.</li>
+  <li>Click <strong>Add Fact</strong>, choose a category, and type the question and answer.</li>
+  <li>Click <strong>Save</strong> &mdash; Emma uses it on the very next call.</li>
+</ol>
+
+<h2>Writing facts Emma can use</h2>
+<ul>
+  <li>Keep answers short and specific &mdash; one clear sentence beats a paragraph.</li>
+  <li>Phrase the question the way a caller would actually ask it.</li>
+  <li>Update a fact instead of adding a duplicate when something changes.</li>
+</ul>
+
+<div class="hc-callout"><span class="hc-co-h">Why this matters</span><p>The more everyday answers you capture here, the more calls Emma resolves on her own &mdash; and the fewer messages you have to return.</p></div>`;
 
     case 'calendar-booking': return `<p class="hc-lead">Emma books appointments against your live calendar. Define your settings once, and she handles booking and scheduling in real time.</p>
 
