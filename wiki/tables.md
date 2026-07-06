@@ -4,6 +4,48 @@
 
 All tables live in Cloudflare D1. Migrations are idempotent (CREATE TABLE IF NOT EXISTS / ALTER TABLE ADD COLUMN wrapped in try/catch) in initDB().
 
+## Sales / Invoicing Tables (added 2026-07-06)
+
+### estimates
+| Column | Type | Notes |
+|--------|------|-------|
+| id | INTEGER PK | |
+| user_id | INTEGER | FK → users.id (tenant = ctx.bid) |
+| lead_id | INTEGER | FK → leads.id |
+| title | TEXT | |
+| items | TEXT | JSON [{desc,qty,rate}] |
+| total | REAL | |
+| status | TEXT | draft→sent→approved→invoiced→paid |
+| stripe_payment_link | TEXT | |
+| created_at | TEXT | |
+
+### invoices
+| Column | Type | Notes |
+|--------|------|-------|
+| id | INTEGER PK | |
+| user_id | INTEGER | FK → users.id (tenant) |
+| lead_id | INTEGER | FK → leads.id |
+| estimate_id | INTEGER | FK → estimates.id (if converted) |
+| invoice_number | TEXT | INV-00001, auto-seq per tenant. UNIQUE(user_id, invoice_number) |
+| items | TEXT | JSON [{desc,qty,rate}] |
+| subtotal, tax, discount, deposit, total, amount_paid | REAL | |
+| status | TEXT | draft/sent/partial/paid/overdue/void |
+| issue_date, due_date | TEXT | terms: net15/net30/due_on_receipt |
+| stripe_payment_link, paid_at, notes | TEXT | |
+| created_at, updated_at | TEXT | |
+
+### activity_log
+| Column | Type | Notes |
+|--------|------|-------|
+| id | INTEGER PK | |
+| user_id | INTEGER | FK → users.id (tenant) |
+| lead_id | INTEGER | groups a client's full history |
+| entity_type | TEXT | lead / estimate / invoice |
+| entity_id | INTEGER | |
+| action | TEXT | created / status_change / sent / paid / converted |
+| detail | TEXT | human-readable |
+| created_at | TEXT | |
+
 ## Core Tables
 
 ### users

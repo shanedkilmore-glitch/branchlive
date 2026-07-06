@@ -36,6 +36,18 @@ Routes are matched in order. First match wins. All /api/* routes check auth befo
 | GET | /p/outreach | handleOutreach() | Prospect finder |
 | GET | /settings-htmx | handleSettingsHtmx() | Settings form |
 | POST | /settings-htmx | handleSettingsUpdate() | Save settings |
+| GET | /p/estimates | handleEstimatesHtmx() | Estimates (draft→sent→approved→paid) |
+| GET | /p/invoices | handleInvoicesHtmx() | Invoices — INV-##### numbering, statuses, Stripe pay |
+| GET | /p/pipeline | handlePipelineHtmx() | Kanban board — stage derived from lead/estimate/invoice |
+
+### Invoicing & Pipeline APIs (cookie auth; writes require manager+)
+| Method | Path | Handler | Notes |
+|--------|------|---------|-------|
+| POST | /api/invoices | handleInvoiceCreate() | Create invoice |
+| POST | /api/invoices/:id/send | handleInvoiceSend() | Stripe payment link + SMS |
+| POST | /api/invoices/:id/pay | handleInvoicePay() | Manual mark paid |
+| POST | /api/estimates/:id/convert | handleEstimateConvert() | Estimate→real invoice (approved-only, idempotent) |
+| POST | /api/pipeline/advance | pipeline advance | Advance a job's stage |
 
 ### Admin pages (cookie auth + requireAdmin)
 | Method | Path | Handler | Notes |
