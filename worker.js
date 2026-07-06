@@ -7709,7 +7709,7 @@ function computePipelineStage(lead, est, inv) {
   const status = String(lead.status || 'new').toLowerCase();
   if (status === 'lost') return 'lost';
   // Invoice is the most decisive signal — it sits downstream of the estimate.
-  if (inv) {
+  if (inv && String(inv.status || '').toLowerCase() !== 'void') {
     const is = String(inv.status || '').toLowerCase();
     if (is === 'paid') return 'paid';
     // A draft invoice that was never sent still counts as "invoiced" — the
@@ -7723,7 +7723,7 @@ function computePipelineStage(lead, est, inv) {
     // A draft estimate means the business is actively quoting → consultation.
     return 'consultation';
   }
-  if (status === 'contacted' || status === 'scheduled' || status === 'consult') {
+  if (status === 'contacted' || status === 'scheduled' || status === 'consult' || status === 'booked' || status === 'confirmed') {
     return 'consultation';
   }
   return 'new';
