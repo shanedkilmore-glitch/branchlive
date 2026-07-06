@@ -1934,6 +1934,52 @@ async function initDB(env) {
       ]);
     } catch(e) { console.error('estimates table migration error:', e); }
 
+    // Invoicing pipeline — invoices + audit log. Idempotent CREATE TABLE IF NOT
+    // EXISTS exactly per the invoicing spec §1A/1B. A converted invoice carries
+    // its source estimate_id; activity_log is the cross-entity history feed.
+    try {
+      await env.DB.batch([
+        env.DB.prepare(`CREATE TABLE IF NOT EXISTS invoices (
+          id              INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id         INTEGER NOT NULL,
+          lead_id         INTEGER,
+          estimate_id     INTEGER,
+          invoice_number  TEXT NOT NULL,
+          items           TEXT NOT NULL,
+          subtotal        REAL NOT NULL DEFAULT 0,
+          tax             REAL DEFAULT 0,
+          discount        REAL DEFAULT 0,
+          deposit         REAL DEFAULT 0,
+          total           REAL NOT NULL DEFAULT 0,
+          amount_paid     REAL DEFAULT 0,
+          status          TEXT NOT NULL DEFAULT 'draft',
+          issue_date      TEXT,
+          due_date        TEXT,
+          terms           TEXT DEFAULT 'net15',
+          notes           TEXT,
+          stripe_payment_link TEXT,
+          paid_at         TEXT,
+          created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+        )`),
+        env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_invoices_user ON invoices(user_id, status)`),
+        env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_invoices_lead ON invoices(lead_id)`),
+        env.DB.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_num ON invoices(user_id, invoice_number)`),
+        env.DB.prepare(`CREATE TABLE IF NOT EXISTS activity_log (
+          id              INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id         INTEGER NOT NULL,
+          lead_id         INTEGER,
+          entity_type     TEXT NOT NULL,
+          entity_id       INTEGER NOT NULL,
+          action          TEXT NOT NULL,
+          detail          TEXT,
+          created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+        )`),
+        env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_log(user_id, created_at DESC)`),
+        env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_activity_lead ON activity_log(lead_id, created_at DESC)`),
+      ]);
+    } catch(e) { console.error('invoices/activity_log table migration error:', e); }
+
     // Every account owner is an admin of their own business (idempotent
     // backfill). This guarantees legacy owners + the demo account keep full
     // access the moment the table exists — nothing is ever locked out.
@@ -2727,6 +2773,7 @@ const NAV_ITEMS = {
   gallery:  { key:'gallery',  href: '/p/gallery',     label: 'Gallery',   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>' },
   analytics:{ key:'analytics',href: '/p/analytics',   label: 'Analytics', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="4" y2="12"/><line x1="10" y1="20" x2="10" y2="4"/><line x1="16" y1="20" x2="16" y2="14"/><line x1="22" y1="20" x2="22" y2="8"/></svg>' },
   estimates:{ key:'estimates',href: '/p/estimates',  label: 'Estimates', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/></svg>' },
+  invoices: { key:'invoices', href: '/p/invoices',    label: 'Invoices',  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>' },
   website:  { key:'website',  href: '/p/growth/website',     label: 'Website',    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>' },
   blog:     { key:'blog',     href: '/p/growth/blog',        label: 'Blog',      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>' },
   social:   { key:'social',   href: '/p/growth/social',      label: 'Social',    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-8-8 18-2-7-8-3z"/></svg>' },
@@ -2742,7 +2789,7 @@ const NAV_ITEMS = {
 // access, and any group left empty is omitted entirely.
 const NAV_GROUPS = [
   { name: 'Main',     keys: ['overview','calendar','knowledge','faq','gallery'] },
-  { name: 'Business', keys: ['leads','calls','analytics','estimates'] },
+  { name: 'Business', keys: ['leads','calls','analytics','estimates','invoices'] },
   { name: 'Growth',   keys: ['website','blog','social'] },
   { name: 'Account',  keys: ['billing','team','settings','help'] },
 ];
@@ -2948,6 +2995,7 @@ const ROUTE_MIN_ROLE = {
   '/p/settings':  'admin',
   '/p/billing':   'admin',
   '/p/estimates': 'manager',
+  '/p/invoices':  'employee',
   '/p/help':      'employee',
   '/p/leads':     'manager',
   '/p/calls':     'manager',
@@ -2966,7 +3014,7 @@ const ROUTE_MIN_ROLE = {
 
 // Pages where the 'employee' role is view-only (banner + locked inputs).
 const VIEW_ONLY_FOR_EMPLOYEE = new Set([
-  '/p/calendar', '/p/knowledge', '/p/gallery', '/p/faq',
+  '/p/calendar', '/p/knowledge', '/p/gallery', '/p/faq', '/p/invoices',
 ]);
 
 // True when the user's role meets or exceeds the minimum.
@@ -5244,6 +5292,28 @@ async function handleStripeWebhook(request, env) {
     }
 
     if (type === 'checkout.session.completed') {
+      // Invoice payment (invoicing spec §4): a Payment Link checkout carries
+      // the INVOICE id in metadata. Mark the invoice paid (amount_paid, paid_at,
+      // status='paid') + flip the linked CRM lead to 'booked', then we're done.
+      // Branched BEFORE the estimate path because a payment link carries either
+      // invoice_id OR estimate_id metadata — never both — so existing estimate
+      // handling is untouched.
+      const invMetaId = data && data.metadata && data.metadata.invoice_id;
+      if (invMetaId) {
+        try {
+          const inv = await env.DB.prepare('SELECT id, lead_id, total, invoice_number FROM invoices WHERE id = ?').bind(parseInt(invMetaId, 10)).first();
+          if (inv) {
+            await env.DB.prepare(
+              "UPDATE invoices SET status = 'paid', amount_paid = ?, paid_at = datetime('now'), updated_at = datetime('now') WHERE id = ?"
+            ).bind(Number(inv.total || 0), inv.id).run();
+            if (inv.lead_id) {
+              try { await env.DB.prepare("UPDATE leads SET status = 'booked', updated_at = datetime('now') WHERE id = ?").bind(inv.lead_id).run(); } catch (e) {}
+            }
+            await logActivity(env, null, inv.lead_id, 'invoice', inv.id, 'paid', `Invoice ${inv.invoice_number} paid via Stripe`);
+          }
+        } catch (e) { console.error('Invoice webhook paid error:', e.message); }
+        return json({ ok: true, received: true });
+      }
       // Estimate payment (spec §5.2): a Payment Link checkout carries the
       // estimate id in metadata. Flip the estimate to paid + link the CRM lead
       // to 'booked', then we're done — these checkouts have no subscription.
@@ -6697,11 +6767,12 @@ function estRowHtml(est, opts = {}) {
     draft:    '<span class="status-pill" style="background:rgba(139,148,158,.18);color:var(--text-muted)">Draft</span>',
     sent:     '<span class="status-pill pill-scheduled">Sent</span>',
     approved: '<span class="status-pill pill-booked">Approved</span>',
+    invoiced: '<span class="status-pill pill-booked">Invoiced</span>',
     paid:     '<span class="status-pill" style="background:rgba(63,185,80,.18);color:#7fd692">Paid</span>',
   }[est.status] || '<span class="status-pill">—</span>';
 
   // Action cell depends on status (spec §6). draft→Send SMS; sent→Resend/View;
-  // approved→View Link; paid→checkmark.
+  // approved→Convert to Invoice + View Link; invoiced→View Invoices; paid→checkmark.
   let actions;
   if (est.status === 'draft') {
     actions = `<button class="btn btn-ghost btn-sm" onclick="sendEst(${est.id},this)">Send SMS</button>`;
@@ -6709,7 +6780,10 @@ function estRowHtml(est, opts = {}) {
     actions = `<button class="btn btn-ghost btn-sm" onclick="sendEst(${est.id},this)">Resend SMS</button>`
             + (pub ? ` <a class="btn btn-ghost btn-sm" href="${esc(pub)}" target="_blank" rel="noopener">View link</a>` : '');
   } else if (est.status === 'approved') {
-    actions = pub ? `<a class="btn btn-ghost btn-sm" href="${esc(pub)}" target="_blank" rel="noopener">Resume payment</a>` : '—';
+    actions = `<button class="btn btn-ghost btn-sm" onclick="convertEst(${est.id},this)">Convert to Invoice</button>`
+            + (pub ? ` <a class="btn btn-ghost btn-sm" href="${esc(pub)}" target="_blank" rel="noopener">View link</a>` : '');
+  } else if (est.status === 'invoiced') {
+    actions = `<a class="btn btn-ghost btn-sm" href="/p/invoices">View invoices</a>`;
   } else {
     actions = '<span style="color:#7fd692">✓ Paid</span>';
   }
@@ -6773,7 +6847,7 @@ async function handleEstimatesHtmx(request, env, uid, ctx) {
     const body = `<div class="app">${sidebarNav('estimates', undefined, ctx)}<div class="content" style="max-width:980px">
 <span class="eyebrow">Quotes & Invoices</span>
 <h1>Estimates</h1>
-<p class="sub">Send a quote via text. The customer taps Approve, it converts to an invoice, and Stripe handles payment — no paper.</p>
+<p class="sub">Send a quote via text. When approved, convert it to an official invoice to collect payment.</p>
 
 ${connectBanner}
 <div class="metric-row" style="display:flex;gap:12px;flex-wrap:wrap;margin:22px 0">${metricCards}</div>
@@ -6871,6 +6945,15 @@ function sendEst(id,btn){
     .then(function(r){return r.json();})
     .then(function(d){if(d.ok){setEstFb(true,d.message||'SMS sent');setTimeout(function(){location.reload();},900);}
       else{setEstFb(false,d.error||'Could not send');btn.disabled=false;btn.textContent=orig;}})
+    .catch(function(){setEstFb(false,'Connection error');btn.disabled=false;btn.textContent=orig;});
+}
+function convertEst(id,btn){
+  if(!confirm('Convert this approved quote to an invoice? The quote is kept for your records.'))return;
+  btn.disabled=true;var orig=btn.textContent;btn.textContent='Converting…';
+  fetch('/api/estimates/'+id+'/convert',{method:'POST'})
+    .then(function(r){return r.json();})
+    .then(function(d){if(d.ok){setEstFb(true,'Converted to '+(d.invoice_number||'invoice'));setTimeout(function(){window.location.href='/p/invoices';},900);}
+      else{setEstFb(false,d.error||'Could not convert');btn.disabled=false;btn.textContent=orig;}})
     .catch(function(){setEstFb(false,'Connection error');btn.disabled=false;btn.textContent=orig;});
 }
 </script>
@@ -7128,6 +7211,456 @@ async function approveEst(id){
 
 function estimateNotFoundShell() {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Quote not found</title><style>body{font-family:system-ui,sans-serif;background:#0d0d18;color:#e6dccb;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center}.box{max-width:420px;padding:32px}a{color:#d4a574}</style></head><body><div class="box"><div style="font-size:3em;margin-bottom:12px">📄</div><h1>Quote not found</h1><p style="color:#8b949e;margin-top:8px">This quote may have been removed or the link is incorrect.</p></div></body></html>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// INVOICING MODULE — Phase 1
+//   /p/invoices               — manager/employee dashboard (list + create modal)
+//   /api/invoices             — POST create (manager+)
+//   /api/invoices/:id/send    — POST dispatch payment link via SMS (manager+)
+//   /api/invoices/:id/pay     — POST mark paid manually (manager+)
+//   /api/estimates/:id/convert — POST convert an approved estimate to an invoice
+// Mirrors the estimates patterns exactly. Multi-tenant: every query is scoped
+// by the resolved ctx.bid (owning account). Stripe Connect payment link flow is
+// reused — the invoice id rides in metadata so checkout.session.completed can
+// branch on it without disturbing existing estimate handling.
+// ═══════════════════════════════════════════════════════════════════════
+
+// Append a row to activity_log. Best-effort: never throws to the caller (every
+// callsite is fire-and-forget audit). entity_type is 'lead' | 'estimate' |
+// 'invoice'; action is 'created' | 'status_change' | 'sent' | 'paid' |
+// 'converted'. detail is a short human-readable string.
+async function logActivity(env, user_id, lead_id, entity_type, entity_id, action, detail) {
+  try {
+    await env.DB.prepare(
+      'INSERT INTO activity_log (user_id, lead_id, entity_type, entity_id, action, detail) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind(user_id, lead_id || null, entity_type, entity_id, action, detail || null).run();
+  } catch (e) { console.error('logActivity error:', e.message); }
+}
+
+// Next invoice number for this account: INV-XXXXX, zero-padded to 5 digits.
+// Sequenced per user_id from MAX(CAST(REPLACE(...,'INV-','') AS INTEGER))+1 so
+// the demo account and real accounts each number from INV-00001.
+async function nextInvoiceNumber(env, uid) {
+  const row = await env.DB.prepare(
+    "SELECT MAX(CAST(REPLACE(invoice_number, 'INV-', '') AS INTEGER)) AS mx FROM invoices WHERE user_id = ?"
+  ).bind(uid).first();
+  const next = (row && Number(row.mx) ? Number(row.mx) : 0) + 1;
+  return 'INV-' + String(next).padStart(5, '0');
+}
+
+// Compute due_date (YYYY-MM-DD) from an issue date + terms string.
+function dueDateFor(issueDate, terms) {
+  const days = terms === 'net30' ? 30 : terms === 'due_on_receipt' ? 0 : 15; // net15 default
+  const d = new Date(issueDate + 'T00:00:00Z');
+  if (isNaN(d.getTime())) return null;
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+// Today's date as YYYY-MM-DD (UTC), matching datetime('now') behavior.
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// GET /p/invoices — invoices dashboard. Mirrors handleEstimatesHtmx: metrics
+// row (Draft / Sent / Overdue / Paid) + a table + a create modal with the same
+// {desc, qty, rate} line-item builder (server-side total). Employees are
+// view-only (the create/action buttons are hidden via ctx.role).
+async function handleInvoicesHtmx(request, env, uid, ctx) {
+  try {
+    const [invoices, leads, settings] = await Promise.all([
+      env.DB.prepare(
+        `SELECT i.*, l.caller_name AS customer_name
+         FROM invoices i LEFT JOIN leads l ON l.id = i.lead_id
+         WHERE i.user_id = ? ORDER BY i.created_at DESC`
+      ).bind(uid).all(),
+      env.DB.prepare(
+        "SELECT id, caller_name FROM leads WHERE user_id = ? AND status NOT IN ('closed','booked') ORDER BY updated_at DESC LIMIT 200"
+      ).bind(uid).all(),
+      env.DB.prepare('SELECT business_name, stripe_charges_enabled FROM settings WHERE user_id = ?').bind(uid).first(),
+    ]);
+    const rows = (invoices.results || []);
+    const leadRows = (leads.results || []);
+    const businessName = (settings && settings.business_name) || 'your business';
+    const chargesEnabled = !!(settings && settings.stripe_charges_enabled);
+    const canEdit = !ctx || roleMeets(ctx.role, 'manager');
+    const today = todayISO();
+
+    // Overdue = sent/partial and due_date in the past (computed in JS so it
+    // works on the derived view without a per-row CASE explosion).
+    const isOverdue = r => (r.status === 'sent' || r.status === 'partial') && r.due_date && r.due_date < today;
+    const sumBy = fn => rows.filter(fn).reduce((s, r) => s + Number(r.total || 0), 0);
+    const metrics = [
+      { label: 'Draft',   n: rows.filter(r => r.status === 'draft').length,                val: sumBy(r => r.status === 'draft'),   tone: 'muted' },
+      { label: 'Sent',    n: rows.filter(r => r.status === 'sent' || r.status === 'partial').length, val: sumBy(r => r.status === 'sent' || r.status === 'partial'), tone: 'amber' },
+      { label: 'Overdue', n: rows.filter(isOverdue).length,                                 val: sumBy(isOverdue),                  tone: 'amber' },
+      { label: 'Paid',    n: rows.filter(r => r.status === 'paid').length,                  val: sumBy(r => r.status === 'paid'),    tone: 'green' },
+    ];
+    const metricCards = metrics.map(m => `<div class="metric-card">
+  <div class="metric-label">${m.label}</div>
+  <div class="metric-value" style="${m.tone === 'green' ? 'color:#7fd692' : m.tone === 'amber' ? 'color:var(--accent-amber)' : ''}">${m.n}</div>
+  <div class="metric-sub mono" style="color:var(--text-faint)">$${m.val.toFixed(2)}</div>
+</div>`).join('');
+
+    const tableBody = rows.length
+      ? rows.map(r => invoiceRowHtml(r, { isOverdue: isOverdue(r), canEdit })).join('')
+      : `<tr><td colspan="7" style="text-align:center;color:var(--text-faint);padding:32px">No invoices yet. Click <strong>New invoice</strong> to create one, or convert an approved estimate.</td></tr>`;
+
+    const leadOpts = leadRows.length
+      ? leadRows.map(l => `<option value="${l.id}">${htmxEsc(l.caller_name || ('Lead #' + l.id))}</option>`).join('')
+      : '<option value="">(no active leads — create one first)</option>';
+
+    // View-only banner for employees (mirrors the .vo-banner pattern).
+    const voBanner = canEdit ? '' : `<div class="vo-banner" style="background:rgba(212,165,116,.10);border:1px solid var(--border-soft);border-left:3px solid var(--accent-amber);border-radius:10px;padding:10px 14px;margin:0 0 16px;color:var(--text-muted)">You have view-only access to invoices. Ask a manager to create or send them.</div>`;
+
+    const body = `<div class="app">${sidebarNav('invoices', undefined, ctx)}<div class="content" style="max-width:1000px">
+<span class="eyebrow">Billing</span>
+<h1>Invoices</h1>
+<p class="sub">Create an invoice, text a payment link to the customer, and mark it paid — or convert an approved estimate.</p>
+
+${voBanner}
+<div class="metric-row" style="display:flex;gap:12px;flex-wrap:wrap;margin:22px 0">${metricCards}</div>
+
+<div style="display:flex;gap:10px;align-items:center;margin:0 0 12px">
+  ${canEdit ? `<button class="btn" onclick="openInvModal()">+ New invoice</button>` : ''}
+  <span id="inv-fb" class="lead-action-fb" aria-live="polite"></span>
+</div>
+
+<table>
+  <thead><tr><th>Date</th><th>Number</th><th>Customer</th><th>Total</th><th>Due</th><th>Status</th><th>Actions</th></tr></thead>
+  <tbody id="inv-tbody">${tableBody}</tbody>
+</table>
+
+<!-- Create modal: lead picker + line items + live total (same shape as estimates). -->
+<div id="inv-modal" class="modal-overlay" style="display:none">
+  <div class="modal-card" style="max-width:560px">
+    <h3 style="margin-top:0">New invoice ${businessName ? '<span style="color:var(--text-faint);font-weight:400;font-size:.85em">for ' + htmxEsc(businessName) + '</span>' : ''}</h3>
+    <label class="field-label">Customer (lead)</label>
+    <select id="inv-lead" style="width:100%;box-sizing:border-box;margin-bottom:12px">${leadOpts}</select>
+    <label class="field-label">Terms</label>
+    <select id="inv-terms" style="width:100%;box-sizing:border-box;margin-bottom:12px">
+      <option value="net15">Net 15 (due in 15 days)</option>
+      <option value="net30">Net 30 (due in 30 days)</option>
+      <option value="due_on_receipt">Due on receipt</option>
+    </select>
+    <label class="field-label">Line items</label>
+    <table style="margin-bottom:8px">
+      <thead><tr><th style="text-align:left">Description</th><th>Qty</th><th>Rate</th><th>Amount</th><th></th></tr></thead>
+      <tbody id="inv-items"></tbody>
+    </table>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="invAddRow()">+ Add line</button>
+      <span style="margin-left:auto;align-self:center;font-family:var(--font-mono)">Total: <strong id="inv-total" style="color:var(--accent-amber)">$0.00</strong></span>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-ghost btn-sm" onclick="closeInvModal()">Cancel</button>
+      <button class="btn btn-sm" id="inv-save" onclick="saveInv(this)">Create as draft</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.metric-card{flex:1;min-width:130px;background:var(--bg-elev,#161622);border:1px solid var(--border,#262636);border-radius:12px;padding:16px}
+.metric-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint)}
+.metric-value{font-size:1.8rem;font-weight:700;margin:4px 0}
+.metric-sub{font-size:.8rem}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal-card{background:var(--bg-elev,#161622);border:1px solid var(--border,#262636);border-radius:14px;padding:24px;width:100%;box-sizing:border-box}
+.field-label{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin-bottom:6px}
+#inv-items input{width:100%;box-sizing:border-box}
+.inv-amt{font-family:var(--font-mono);color:var(--accent-amber);white-space:nowrap}
+</style>
+
+<script>
+function setInvFb(ok,msg){var el=document.getElementById('inv-fb');if(!el)return;el.textContent=(ok?'\u2713 ':'\u2717 ')+(msg||'');el.style.color=ok?'#7fd692':'var(--danger,#f87373)';}
+function invRecalc(){
+  var total=0;
+  document.querySelectorAll('#inv-items .inv-amt').forEach(function(c){
+    var row=c.closest('tr');var qty=parseFloat(row.querySelector('.inv-qty').value)||0;var rate=parseFloat(row.querySelector('.inv-rate').value)||0;
+    var amt=qty*rate;c.textContent='$'+amt.toFixed(2);total+=amt;
+  });
+  document.getElementById('inv-total').textContent='$'+total.toFixed(2);
+}
+function invAddRow(desc,qty,rate){
+  var tb=document.getElementById('inv-items');
+  var tr=document.createElement('tr');tr.style.borderTop='1px solid var(--border,#262636)';
+  tr.innerHTML='<td><input class="inv-desc" placeholder="Service or material" value="'+(desc||'')+'"></td>'
+    +'<td style="width:60px"><input class="inv-qty" type="number" min="0" step="1" style="width:54px" value="'+(qty==null?1:qty)+'"></td>'
+    +'<td style="width:80px"><input class="inv-rate" type="number" min="0" step="0.01" style="width:74px" value="'+(rate==null?'':rate)+'"></td>'
+    +'<td><span class="inv-amt">$0.00</span></td>'
+    +'<td style="width:30px"><button type="button" class="btn btn-ghost btn-sm inv-del">\u00d7</button></td>';
+  tb.appendChild(tr);
+  var _del=tr.querySelector('.inv-del');if(_del)_del.addEventListener('click',function(){tr.remove();invRecalc();});
+  tr.querySelectorAll('input').forEach(function(i){i.addEventListener('input',invRecalc);});
+  invRecalc();
+}
+function openInvModal(){document.getElementById('inv-modal').style.display='flex';var tb=document.getElementById('inv-items');tb.innerHTML='';invAddRow();}
+function closeInvModal(){document.getElementById('inv-modal').style.display='none';}
+function saveInv(btn){
+  var leadId=parseInt(document.getElementById('inv-lead').value,10)||null;
+  var terms=document.getElementById('inv-terms').value;
+  var items=[];document.querySelectorAll('#inv-items tr').forEach(function(tr){
+    var desc=tr.querySelector('.inv-desc').value.trim();if(!desc)return;
+    items.push({desc:desc,qty:parseFloat(tr.querySelector('.inv-qty').value)||0,rate:parseFloat(tr.querySelector('.inv-rate').value)||0});
+  });
+  if(!items.length){setInvFb(false,'Add at least one line item.');return;}
+  btn.disabled=true;var orig=btn.textContent;btn.textContent='Saving\u2026';
+  fetch('/api/invoices',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lead_id:leadId,terms:terms,items:items})})
+    .then(function(r){return r.json();})
+    .then(function(d){if(d.ok){setInvFb(true,'Invoice '+d.invoice_number+' created');closeInvModal();setTimeout(function(){location.reload();},700);}
+      else{setInvFb(false,d.error||'Could not create');btn.disabled=false;btn.textContent=orig;}})
+    .catch(function(){setInvFb(false,'Connection error');btn.disabled=false;btn.textContent=orig;});
+}
+function sendInv(id,btn){
+  if(!confirm('Send this invoice payment link to the customer by SMS?'))return;
+  btn.disabled=true;var orig=btn.textContent;btn.textContent='Sending\u2026';
+  fetch('/api/invoices/'+id+'/send',{method:'POST'})
+    .then(function(r){return r.json();})
+    .then(function(d){if(d.ok){setInvFb(true,d.message||'SMS sent');setTimeout(function(){location.reload();},900);}
+      else{setInvFb(false,d.error||'Could not send');btn.disabled=false;btn.textContent=orig;}})
+    .catch(function(){setInvFb(false,'Connection error');btn.disabled=false;btn.textContent=orig;});
+}
+function markInvPaid(id,btn){
+  if(!confirm('Mark this invoice as paid?'))return;
+  btn.disabled=true;var orig=btn.textContent;btn.textContent='Saving\u2026';
+  fetch('/api/invoices/'+id+'/pay',{method:'POST'})
+    .then(function(r){return r.json();})
+    .then(function(d){if(d.ok){setInvFb(true,'Marked paid');setTimeout(function(){location.reload();},700);}
+      else{setInvFb(false,d.error||'Could not update');btn.disabled=false;btn.textContent=orig;}})
+    .catch(function(){setInvFb(false,'Connection error');btn.disabled=false;btn.textContent=orig;});
+}
+</script>
+</div></div>`;
+    return new Response(simpleShell('Invoices', body), { headers: { 'Content-Type': 'text/html' } });
+  } catch (e) {
+    console.error('Invoices dashboard error:', e);
+    return new Response(simpleShell('Error', '<h1>\u26a0\ufe0f Error</h1><p style="color:var(--danger)">Could not load invoices.</p>'), { status: 500, headers: { 'Content-Type': 'text/html' } });
+  }
+}
+
+// Render one dashboard table row for an invoice. Mirrors estRowHtml. `canEdit`
+// hides the action buttons for view-only employees.
+function invoiceRowHtml(inv, opts = {}) {
+  const esc = htmxEsc;
+  const customer = esc(inv.customer_name || '\u2014');
+  const total = '$' + Number(inv.total || 0).toFixed(2);
+  const date = (inv.issue_date || inv.created_at || '').slice(0, 10) || '\u2014';
+  const due = inv.due_date || '\u2014';
+  const overdue = opts.isOverdue;
+  const statusLabel = overdue && (inv.status === 'sent' || inv.status === 'partial') ? 'Overdue' : inv.status;
+  const statusBadge = {
+    draft:    '<span class="status-pill" style="background:rgba(139,148,158,.18);color:var(--text-muted)">Draft</span>',
+    sent:     '<span class="status-pill pill-scheduled">Sent</span>',
+    partial:  '<span class="status-pill pill-scheduled">Partial</span>',
+    overdue:  '<span class="status-pill" style="background:rgba(248,115,115,.18);color:var(--danger,#f87373)">Overdue</span>',
+    paid:     '<span class="status-pill" style="background:rgba(63,185,80,.18);color:#7fd692">Paid</span>',
+    void:     '<span class="status-pill" style="background:rgba(139,148,158,.18);color:var(--text-muted)">Void</span>',
+  }[statusLabel] || '<span class="status-pill">\u2014</span>';
+
+  // Actions per status (mirrors estimates flow): draft/partial/sent\u2192Send SMS +
+  // Mark Paid; paid\u2192checkmark. View-only employees get no buttons.
+  let actions;
+  if (!opts.canEdit) {
+    actions = '\u2014';
+  } else if (inv.status === 'paid') {
+    actions = '<span style="color:#7fd692">\u2713 Paid</span>';
+  } else if (inv.status === 'void') {
+    actions = '\u2014';
+  } else {
+    actions = `<button class="btn btn-ghost btn-sm" onclick="sendInv(${inv.id},this)">Send SMS</button>`
+            + ` <button class="btn btn-ghost btn-sm" onclick="markInvPaid(${inv.id},this)">Mark paid</button>`;
+  }
+  return `<tr data-id="${inv.id}">
+  <td style="white-space:nowrap;color:var(--text-muted)">${date}</td>
+  <td><strong style="color:var(--cream)">${esc(inv.invoice_number || ('#' + inv.id))}</strong></td>
+  <td>${customer}</td>
+  <td style="font-family:var(--font-mono);color:var(--accent-amber)">${total}</td>
+  <td style="white-space:nowrap;color:${overdue ? 'var(--danger,#f87373)' : 'var(--text-muted)'}">${esc(due)}</td>
+  <td>${statusBadge}</td>
+  <td style="white-space:nowrap">${actions}</td>
+</tr>`;
+}
+
+// POST /api/invoices — create a draft invoice. Total is recomputed server-side
+// from {desc, qty, rate} items (reuses parseEstimateItems so a tampered payload
+// can't set the amount). Assigns the next INV-XXXXX and derives issue/due dates.
+async function handleInvoiceCreate(request, env, uid) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const parsed = parseEstimateItems(body.items);
+    if (!parsed) return json({ ok: false, error: 'Add at least one line item with a description.' }, 400);
+    const terms = ['net15', 'net30', 'due_on_receipt'].includes(body.terms) ? body.terms : 'net15';
+    const leadId = body.lead_id ? parseInt(body.lead_id, 10) : null;
+    if (leadId) {
+      const lead = await env.DB.prepare('SELECT id FROM leads WHERE id = ? AND user_id = ?').bind(leadId, uid).first();
+      if (!lead) return json({ ok: false, error: 'That lead was not found in your account.' }, 400);
+    }
+    const invoiceNumber = await nextInvoiceNumber(env, uid);
+    const issueDate = todayISO();
+    const dueDate = dueDateFor(issueDate, terms);
+    const res = await env.DB.prepare(
+      `INSERT INTO invoices (user_id, lead_id, invoice_number, items, subtotal, total, status, issue_date, due_date, terms)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(uid, leadId, invoiceNumber, JSON.stringify(parsed.items), parsed.total, parsed.total, 'draft', issueDate, dueDate, terms).run();
+    const newId = res.meta.last_row_id;
+    await logActivity(env, uid, leadId, 'invoice', newId, 'created', `Created invoice ${invoiceNumber}`);
+    return json({ ok: true, id: newId, invoice_number: invoiceNumber });
+  } catch (e) {
+    console.error('Invoice create error:', e);
+    return json({ ok: false, error: 'Could not create invoice' }, 500);
+  }
+}
+
+// POST /api/invoices/:id/send — dispatch a payment link to the customer via
+// SMS. Reuses the estimate Stripe Connect payment-link flow but tags the
+// metadata with invoice_id so the webhook marks THIS invoice paid. Flips
+// draft\u2192sent. Resending is allowed (status stays once paid). Demo mode
+// (no Stripe) just flips to sent with an informational message.
+async function handleInvoiceSend(request, env, uid, invId) {
+  try {
+    const inv = await env.DB.prepare('SELECT * FROM invoices WHERE id = ? AND user_id = ?').bind(invId, uid).first();
+    if (!inv) return json({ ok: false, error: 'Invoice not found' }, 404);
+    if (inv.status === 'paid') return json({ ok: false, error: 'This invoice is already paid.' }, 400);
+
+    const [lead, site, settings] = await Promise.all([
+      inv.lead_id ? env.DB.prepare('SELECT caller_name, caller_phone FROM leads WHERE id = ? AND user_id = ?').bind(inv.lead_id, uid).first() : Promise.resolve(null),
+      env.DB.prepare('SELECT slug FROM sites WHERE user_id = ?').bind(uid).first(),
+      env.DB.prepare('SELECT business_name FROM settings WHERE user_id = ?').bind(uid).first(),
+    ]);
+    const phone = lead && lead.caller_phone;
+    if (!phone) return json({ ok: false, error: 'No phone number on the linked lead. Add one first.' }, 400);
+
+    const origin = new URL(request.url).origin;
+    const custName = (lead && lead.caller_name) ? lead.caller_name.split(/\s+/)[0] : 'there';
+    const bizName = (settings && settings.business_name) || 'us';
+    const slug = site && site.slug;
+    // Payment link: reuse the Stripe Connect flow if configured; otherwise the
+    // SMS carries an informational note (the owner can still mark it paid manually).
+    let payLink = inv.stripe_payment_link || null;
+    let stripeNote = '';
+    if (!payLink && stripeConfigured(env)) {
+      const st = await env.DB.prepare('SELECT stripe_account_id, stripe_charges_enabled FROM settings WHERE user_id = ?').bind(uid).first();
+      const acct = st && st.stripe_account_id;
+      if (acct && st.stripe_charges_enabled) {
+        const totalCents = Math.round(Number(inv.total || 0) * 100);
+        const product = await stripeRequest(env, '/v1/products', {
+          method: 'POST', account: acct,
+          form: stripeEncode({ name: `${inv.invoice_number}` }),
+        });
+        if (product.ok) {
+          const price = await stripeRequest(env, '/v1/prices', {
+            method: 'POST', account: acct,
+            form: stripeEncode({ product: product.data.id, unit_amount: totalCents, currency: 'usd' }),
+          });
+          if (price.ok) {
+            const successUrl = `${origin}/s/__inv_done__`;
+            const link = await stripeRequest(env, '/v1/payment_links', {
+              method: 'POST', account: acct,
+              form: stripeEncode({
+                'line_items[0][price]': price.data.id,
+                'line_items[0][quantity]': 1,
+                metadata: { invoice_id: String(inv.id) },
+                after_completion: { type: 'redirect', redirect: { url: successUrl } },
+              }),
+            });
+            if (link.ok) {
+              payLink = link.data.url;
+              await env.DB.prepare('UPDATE invoices SET stripe_payment_link = ? WHERE id = ? AND user_id = ?').bind(payLink, inv.id, uid).run();
+            }
+          }
+        }
+      }
+    }
+    if (payLink) {
+      stripeNote = ` Pay here: ${payLink}`;
+    } else if (slug) {
+      // No Stripe yet \u2014 link them to the public site as a courtesy.
+      stripeNote = ` Questions? ${origin}/s/${slug}`;
+    }
+    const message = `Hi ${custName}, this is ${bizName}. Invoice ${inv.invoice_number} for $${Number(inv.total || 0).toFixed(2)} is ready.${stripeNote}`;
+
+    const sent = await sendSms(env, { to: phone, body: message });
+    if (!sent) return json({ ok: false, error: 'SMS could not be sent. Check your Twilio configuration.' }, 500);
+
+    if (inv.status === 'draft') {
+      await env.DB.prepare("UPDATE invoices SET status = 'sent', updated_at = datetime('now') WHERE id = ? AND user_id = ?").bind(inv.id, uid).run();
+    }
+    await logActivity(env, uid, inv.lead_id, 'invoice', inv.id, 'sent', `Sent invoice ${inv.invoice_number} via SMS`);
+    return json({ ok: true, message: `Invoice sent to ${phone}`, status: inv.status === 'draft' ? 'sent' : inv.status });
+  } catch (e) {
+    console.error('Invoice send error:', e);
+    return json({ ok: false, error: 'Could not send invoice' }, 500);
+  }
+}
+
+// POST /api/invoices/:id/pay — mark an invoice paid manually (manager action,
+// e.g. cash/check). Sets amount_paid, paid_at, status='paid'. Best-effort
+// lead\u2192booked flip mirrors the estimate payment path.
+async function handleInvoicePay(request, env, uid, invId) {
+  try {
+    const inv = await env.DB.prepare('SELECT * FROM invoices WHERE id = ? AND user_id = ?').bind(invId, uid).first();
+    if (!inv) return json({ ok: false, error: 'Invoice not found' }, 404);
+    if (inv.status === 'paid') return json({ ok: false, error: 'This invoice is already paid.' }, 400);
+    await env.DB.prepare(
+      "UPDATE invoices SET status = 'paid', amount_paid = ?, paid_at = datetime('now'), updated_at = datetime('now') WHERE id = ? AND user_id = ?"
+    ).bind(Number(inv.total || 0), inv.id, uid).run();
+    // Flip the linked CRM lead to 'booked' (best-effort, never throws).
+    if (inv.lead_id) {
+      try { await env.DB.prepare("UPDATE leads SET status = 'booked', updated_at = datetime('now') WHERE id = ?").bind(inv.lead_id).run(); } catch (e) {}
+    }
+    await logActivity(env, uid, inv.lead_id, 'invoice', inv.id, 'paid', `Invoice ${inv.invoice_number} marked paid ($${Number(inv.total || 0).toFixed(2)})`);
+    return json({ ok: true, message: 'Marked paid' });
+  } catch (e) {
+    console.error('Invoice pay error:', e);
+    return json({ ok: false, error: 'Could not mark invoice paid' }, 500);
+  }
+}
+
+// POST /api/estimates/:id/convert — convert an approved estimate into an
+// invoice. Copies items, lead_id, estimate_id, totals; carries any deposit;
+// assigns the next invoice_number; sets issue_date=today + due_date per terms.
+// The estimate is KEPT (historical integrity) but flipped to 'invoiced'. Logs
+// the conversion to activity_log. Idempotent guard: an estimate already linked
+// to an invoice for this account returns the existing invoice instead.
+async function handleEstimateConvert(request, env, uid, estId) {
+  try {
+    const est = await env.DB.prepare('SELECT * FROM estimates WHERE id = ? AND user_id = ?').bind(estId, uid).first();
+    if (!est) return json({ ok: false, error: 'Estimate not found' }, 404);
+
+    // Idempotent: if this estimate already converted, return the prior invoice.
+    const existing = await env.DB.prepare('SELECT id, invoice_number FROM invoices WHERE estimate_id = ? AND user_id = ? ORDER BY id DESC LIMIT 1').bind(est.id, uid).first();
+    if (existing) return json({ ok: true, id: existing.id, invoice_number: existing.invoice_number, already_converted: true });
+
+    if (est.status !== 'approved') return json({ ok: false, error: 'Only approved estimates can be converted to an invoice' }, 400);
+
+    const invoiceNumber = await nextInvoiceNumber(env, uid);
+    const issueDate = todayISO();
+    // Estimate items are stored as the same {desc, qty, rate} shape invoices use.
+    const itemsJson = est.items || '[]';
+    let subtotal = Number(est.total || 0);
+    // Carry a deposit over as already-paid (amount_paid) so the balance due
+    // reflects it. Estimates have no deposit column today, so default 0.
+    const deposit = 0;
+    const total = subtotal;
+    const dueDate = dueDateFor(issueDate, 'net15');
+
+    const res = await env.DB.prepare(
+      `INSERT INTO invoices (user_id, lead_id, estimate_id, invoice_number, items, subtotal, total, deposit, amount_paid, status, issue_date, due_date, terms)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(uid, est.lead_id, est.id, invoiceNumber, itemsJson, subtotal, total, deposit, deposit, 'sent', issueDate, dueDate, 'net15').run();
+    const newId = res.meta.last_row_id;
+
+    // Keep the estimate for history; mark it invoiced so the UI can show the link.
+    try { await env.DB.prepare("UPDATE estimates SET status = 'invoiced' WHERE id = ? AND user_id = ?").bind(est.id, uid).run(); } catch (e) {}
+
+    await logActivity(env, uid, est.lead_id, 'estimate', est.id, 'converted', `Converted estimate to invoice ${invoiceNumber}`);
+    await logActivity(env, uid, est.lead_id, 'invoice', newId, 'created', `Created invoice ${invoiceNumber} from estimate #${est.id}`);
+    return json({ ok: true, id: newId, invoice_number: invoiceNumber });
+  } catch (e) {
+    console.error('Estimate convert error:', e);
+    return json({ ok: false, error: 'Could not convert estimate' }, 500);
+  }
 }
 
 async function handlePublicSite(request, env, slug) {
@@ -17479,6 +18012,7 @@ export default {
           if (path === '/p/outreach') return handleOutreachHtmx(request, env, pCtx.bid, pCtx);
           if (path === '/p/analytics') return handleAnalyticsHtmx(request, env, pCtx.bid, pCtx);
           if (path === '/p/estimates') return handleEstimatesHtmx(request, env, pCtx.bid, pCtx);
+          if (path === '/p/invoices') return handleInvoicesHtmx(request, env, pCtx.bid, pCtx);
           if (path === '/p/team') return handleTeamHtmx(request, env, pCtx);
           // /p/leads/:id — lead detail (GET). The status-update POST is handled
           // in the POST section below (this whole block is GET-only).
@@ -17716,6 +18250,42 @@ export default {
         const eCtx = await resolveContext(request, env, eUid);
         if (!roleMeets(eCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
         return handleEstimateSend(request, env, eCtx.bid, parseInt(estSendMatch[1], 10));
+      }
+      // Convert an approved estimate to an invoice (cookie-authed, manager+).
+      const estConvertMatch = path.match(/^\/api\/estimates\/(\d+)\/convert$/);
+      if (estConvertMatch && method === 'POST') {
+        const eUid = await getUidFromSessionCookie(request, env);
+        if (!eUid) return json({ ok: false, error: 'Not logged in' });
+        const eCtx = await resolveContext(request, env, eUid);
+        if (!roleMeets(eCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
+        return handleEstimateConvert(request, env, eCtx.bid, parseInt(estConvertMatch[1], 10));
+      }
+      // ── Invoices — cookie-authed (the /p/invoices dashboard has no Bearer
+      // token). Create/send/pay are manager-gated like estimates. Employees are
+      // view-only on the page itself (the buttons are hidden, but the POST
+      // routes are also manager-gated here as defense-in-depth).
+      if (path === '/api/invoices' && method === 'POST') {
+        const iUid = await getUidFromSessionCookie(request, env);
+        if (!iUid) return json({ ok: false, error: 'Not logged in' });
+        const iCtx = await resolveContext(request, env, iUid);
+        if (!roleMeets(iCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
+        return handleInvoiceCreate(request, env, iCtx.bid);
+      }
+      const invSendMatch = path.match(/^\/api\/invoices\/(\d+)\/send$/);
+      if (invSendMatch && method === 'POST') {
+        const iUid = await getUidFromSessionCookie(request, env);
+        if (!iUid) return json({ ok: false, error: 'Not logged in' });
+        const iCtx = await resolveContext(request, env, iUid);
+        if (!roleMeets(iCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
+        return handleInvoiceSend(request, env, iCtx.bid, parseInt(invSendMatch[1], 10));
+      }
+      const invPayMatch = path.match(/^\/api\/invoices\/(\d+)\/pay$/);
+      if (invPayMatch && method === 'POST') {
+        const iUid = await getUidFromSessionCookie(request, env);
+        if (!iUid) return json({ ok: false, error: 'Not logged in' });
+        const iCtx = await resolveContext(request, env, iUid);
+        if (!roleMeets(iCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
+        return handleInvoicePay(request, env, iCtx.bid, parseInt(invPayMatch[1], 10));
       }
       // AI email draft for the lead detail page — cookie-authed.
       const emailDraftMatch = path.match(/^\/api\/leads\/(\d+)\/email-draft-htmx$/);

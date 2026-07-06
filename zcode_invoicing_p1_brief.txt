@@ -1,0 +1,25 @@
+TASK: Implement PHASE 1 ONLY of the Invoicing feature in Branch Live's worker.js, following the spec EXACTLY. Do NOT build Phase 2 (no Kanban/pipeline board, no drag-drop, no lead-rollup page). Tight scope.
+
+READ FIRST:
+- C:/Users/17173/Projects/branchlive/INVOICING_SPEC.md — the full spec. Build the "Implementation Phases -> Phase 1" items using detail sections 1 (Data Model), 3 (Estimate->Invoice Conversion), 4 (Invoices Module), 6 (Fix Misleading Text), 7 (Routes/Nav/Gating).
+- Your branchlive skill (.zcode/skills/branchlive) — do the mandatory wiki reads (routes/tables/patterns/auth) and heed the template-literal pitfall.
+- In worker.js, grep + READ the EXISTING patterns to mirror: `handleEstimatesHtmx` (~6729) + the /api/estimates handlers + the estimates create/edit/send/pay flow; the Stripe `checkout.session.completed` webhook (~5246); `initDB` (~1489); the /p/ dispatcher; `sidebarNav` + NAV_ITEMS/NAV_GROUPS; ROUTE_MIN_ROLE + VIEW_ONLY_FOR_EMPLOYEE; `resolveContext` (ctx.bid / ctx.role). Spec line numbers are APPROXIMATE — grep for the real locations.
+
+BUILD (Phase 1 only):
+1. initDB: add the `invoices` and `activity_log` tables — idempotent CREATE TABLE IF NOT EXISTS + the indexes, EXACTLY per spec sections 1A/1B.
+2. `/p/invoices` page `handleInvoicesHtmx`, mirroring `handleEstimatesHtmx`: metrics row (Draft / Sent / Overdue / Paid) + an invoices table; create/edit invoice via HTMX (pick a lead, build JSON line items in the SAME shape estimates use — {desc, qty, rate}, server-side total calc); send (SMS payment link); mark-paid; invoice detail. Employee = view-only.
+3. Invoice numbering: next `INV-XXXXX` per user_id (MAX(CAST(REPLACE(invoice_number,'INV-','') AS INTEGER))+1), zero-padded to 5 digits (INV-00001).
+4. Estimate->Invoice conversion: `POST /api/estimates/:id/convert` — copy items, lead_id, estimate_id, totals; carry the deposit; assign the next invoice_number; set issue_date=today and due_date per terms; KEEP the estimate (optionally set estimates.status='invoiced'); write an activity_log row ("Converted estimate to Invoice INV-XXXXX"). Add a "Convert to Invoice" button on APPROVED estimates in the estimates UI.
+5. Stripe: REUSE the estimate Stripe Connect payment-link flow for invoices — put the invoice id in the metadata. Update the `checkout.session.completed` webhook to detect invoice metadata and mark the invoice paid (set amount_paid, paid_at, status='paid'). MUST NOT break existing estimate payment handling — branch on metadata type.
+6. activity_log: add a small helper `logActivity(env, user_id, lead_id, entity_type, entity_id, action, detail)` and call it on invoice created / status_change / sent / paid / estimate-converted.
+7. Fix the misleading copy at ~line 6776 per spec section 6.
+8. Routes + nav + gating: add `/p/invoices`, `/api/invoices` (+ sub-actions), and `/api/estimates/:id/convert` to the dispatcher; add an "Invoices" sidebar nav item next to Estimates; ROUTE_MIN_ROLE '/p/invoices':'employee' + add '/p/invoices' to VIEW_ONLY_FOR_EMPLOYEE; write/POST routes require manager+ (roleMeets).
+
+CRITICAL RULES:
+- Mirror /p/estimates patterns EXACTLY. Multi-tenant: scope EVERY query by user_id (the resolved ctx.bid).
+- Template-literal safety: htmxEsc() ALL user-supplied data; NO backslash-apostrophes, NO single-backslash regex, NO raw ${} of untrusted data in HTML.
+- `node --check worker.js` MUST pass — fix any syntax error before reporting.
+- Do NOT git commit, deploy, run deploy.sh, git reset, or git checkout. Hermes reviews the diff and deploys.
+- Targeted edits only; do not reformat unrelated code. Do NOT build Phase 2.
+
+REPORT: the functions/handlers added and their locations; the two table DDLs; the conversion endpoint + the webhook change (explicitly confirm existing ESTIMATE payment still works — you branched on metadata); the logActivity helper; the nav/route/role-gating edits; and confirm `node --check worker.js` passed.

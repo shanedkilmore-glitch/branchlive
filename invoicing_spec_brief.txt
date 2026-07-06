@@ -1,0 +1,30 @@
+Design a COMPLETE, buildable implementation SPEC for a professional "Leads -> Estimates -> Invoices" pipeline feature in Branch Live's worker.js. DESIGN/SPEC ONLY — do NOT edit any code. Write the spec to a file (below).
+
+PROJECT: C:/Users/17173/Projects/branchlive/ — single-file Cloudflare Worker worker.js (~17.8K lines, 1.07MB) + D1 (SQLite).
+
+READ FIRST (ground the spec in reality + research):
+- C:/Users/17173/Projects/branchlive/research/field-service-invoicing-synthesis.md — research on how Jobber/Housecall Pro/ServiceTitan/FreshBooks model this (pipeline stages, invoice data model, conversion, history, UX). Follow its recommendations.
+- wiki/routes.md, wiki/tables.md, wiki/patterns.md, wiki/auth.md.
+- In worker.js, grep + read the EXISTING estimates system to mirror it: `handleEstimatesHtmx` (~line 6729) and the /api/estimates handlers (~6658-6662), the estimates table (columns: id, user_id, lead_id, title, items JSON, total, status [draft->sent->approved->paid], stripe_payment_link, created_at), the leads table (caller_name, caller_phone, caller_email, job_details, urgency, status, transcript, created_at, updated_at), the Stripe Connect estimate payment flow (grep checkout.session.completed ~line 5181, application_fee ~6919, the webhook that flips an estimate to 'paid'), the /p/ dispatcher, sidebarNav + NAV_ITEMS/NAV_GROUPS, ROUTE_MIN_ROLE + VIEW_ONLY_FOR_EMPLOYEE, resolveContext (ctx.bid), initDB, and how /p/estimates renders (simpleShell + HTMX CRUD).
+
+OWNER'S VISION (must honor): a Kanban pipeline — Lead -> initial Consultation -> Estimate -> Invoice (after work is done) -> Paid — each job a card moving across stages. REAL invoice records (sequential numbers, full history) attached to each lead. "Fully functional, professional, daily-use quality," like Jobber/Housecall Pro.
+
+SPEC THE FULL FEATURE with exact table DDL, function names, routes, and WHERE in worker.js each piece goes (real line refs):
+1. DATA MODEL:
+   - New `invoices` table: id, user_id, lead_id, estimate_id, invoice_number (auto-sequenced per business, e.g. INV-00001), items (JSON line items: description, qty, unit_price, amount — MATCH the estimates JSON-items pattern for consistency), subtotal, tax, discount, deposit, total, amount_paid, status (draft/sent/paid/partial/overdue/void), issue_date, due_date, terms (net15/net30/due_on_receipt), notes, stripe_payment_link, paid_at, created_at, updated_at. Idempotent CREATE TABLE IF NOT EXISTS + index.
+   - New `activity_log` (history/audit) table: id, user_id, lead_id, entity_type (lead/estimate/invoice), entity_id, action (created/status_change/sent/paid/converted/etc.), detail, created_at. This powers the pipeline history.
+   - Decide how the PIPELINE STAGE is represented (a derived view from lead/estimate/invoice statuses vs. an explicit stage field) — recommend the cleaner, less-duplicative approach and justify briefly.
+2. PIPELINE / KANBAN (/p/pipeline): the exact columns (per research + owner vision: New Lead -> Consultation -> Estimate Sent -> Approved -> Invoiced -> Paid, plus Lost), how each job/card is derived and what it shows, and how items advance (recommend simplest-robust: status-advance buttons first, drag-drop as a later enhancement).
+3. ESTIMATE -> INVOICE CONVERSION: an action/endpoint turning an approved estimate into a REAL invoice (copy line items, link estimate_id + lead_id, assign next invoice_number, set issue/due dates, carry deposit). Keep the estimate; create the invoice; log to activity_log.
+4. INVOICES MODULE (/p/invoices): mirror /p/estimates — list, create/edit, send, mark-paid, invoice detail, Stripe Connect payment link (REUSE the existing estimate Stripe flow), status lifecycle, overdue detection.
+5. LEAD / CLIENT RECORD: a lead detail view showing that lead's estimates + invoices + full activity history (the rollup).
+6. FIX the misleading "converts to an invoice" behavior (~line 6702) so it creates a real invoice record.
+7. ROUTES + NAV + ROLE GATING: add /p/invoices and /p/pipeline to the dispatcher, sidebar nav, ROUTE_MIN_ROLE (manager+ to write; employee view-only).
+
+PHASE IT (ZCode chokes on huge scope — keep each phase a self-contained buildable unit):
+- PHASE 1 (core, ship first): invoices + activity_log tables, invoice numbering, estimate->invoice conversion, /p/invoices CRUD + Stripe pay + status lifecycle, fix the naming, activity logging.
+- PHASE 2: /p/pipeline Kanban board + per-lead client-record rollup + drag-drop.
+
+CONSTRAINTS: mirror existing patterns EXACTLY (simpleShell/HTMX; htmxEsc() for ALL user data; template-literal safety — no backslash-apostrophes, no single-backslash regex, no raw ${} of untrusted data). Multi-tenant: scope EVERY query by user_id (= ctx.bid). Reference real worker.js line numbers/function names so ZCode can implement directly.
+
+Write the full spec to C:/Users/17173/Projects/branchlive/INVOICING_SPEC.md. End by stating which model you are actually running as (confirm NOT the Flash fallback).
