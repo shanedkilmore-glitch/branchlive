@@ -1,126 +1,127 @@
-SCOUT — AI ASSISTANT PANEL — BUILD COMPLETE
-============================================
-Worker: branchlive-portal (https://branchlive-portal.shane-f58.workers.dev)
-File:   worker.js (single-file Cloudflare Worker)
-Date:   2026-07-02
+PHASE 2 (Pipeline & Client Record) — COMPLETE. node --check PASSED. Not deployed/committed (Hermes handles that).
 
-────────────────────────────────────────────
-WHAT WAS BUILT
-────────────────────────────────────────────
-Scout — a collapsible AI assistant panel on the right edge of every signed-in
-/p/* dashboard page. Amber-monotone, DeepSeek-Flash-backed, with proactive
-nudges and graceful fallback.
+═══════════════════════════════════════════════════════════════════════
+1. NEW FUNCTIONS / HANDLERS (all in worker.js, inserted after handleEstimateConvert ~line 7676)
+═══════════════════════════════════════════════════════════════════════
 
-────────────────────────────────────────────
-1. UI — ScoutPanel (injected into simpleShell)
-────────────────────────────────────────────
-Self-injecting DOM + JS, gated on a `.sidebar` being present (signed-in pages
-only — never on the public landing or login screens). Lives in the shared
-simpleShell() so it appears on ALL /p/* pages.
+  • PIPELINE_STAGES (const, ~7687) — ordered array of the 6 board columns
+    {new, consultation, estimate_sent, approved, invoiced, paid}, each with
+    label + tonal background. 'lost' is a separate lane (rendered below).
 
-  • Fixed right panel, 300px wide, full height, bg #0a0a14, left border.
-  • Collapsed by default to a 40px vertical tab "🦀 Scout" on the right edge.
-  • Click tab → expands (slide-in animation); ✕ or Escape → collapses.
-  • Message bubbles: amber border-left for Scout, darker/right-aligned for user.
-  • Typing indicator (3 animated amber dots) while waiting for response.
-  • Auto-scrolls to the latest message.
-  • Input + send button; Enter to send.
-  • Mobile (≤920px): panel becomes an 86%-width off-canvas overlay.
-  • Knows the current page (derived from URL path → "overview", "leads", etc.)
+  • computePipelineStage(lead, est, inv) (~7708) — pure DERIVED-stage fn.
+    No pipeline_stage column is read or written. Highest-progressed state wins
+    (spec 1C). Full logic in section 2 below.
 
-2. PROACTIVE NUDGES
-  • 30s idle timer (resets on any click/keydown/scroll) → pushes a page-
-    specific hardcoded tip into the panel (no API call). One nudge per page
-    load, only while the panel is open.
-  • e.g. Calendar: "Tip: Click any appointment to see details and reschedule."
-  • e.g. Knowledge: "Tip: Add services with Category, Item, Price, and Notes."
+  • pipelineRowsFor(env, uid) (~7736) — fetches all leads + estimates +
+    invoices for the business in 3 batched queries (NOT N+1), picks the BEST
+    estimate + invoice per lead in JS, returns [{lead, est, inv, stage}].
+    All 3 queries scoped WHERE user_id = ? (= ctx.bid).
 
-────────────────────────────────────────────
-3. API — POST /api/scout
-────────────────────────────────────────────
-Cookie-authed (bl_session), wired into the cookie-authed dispatcher section
-alongside the other /p/*-facing endpoints. Resolves the active business via
-resolveContext() (honors the bl_business_id switcher cookie) so a team member
-gets the business's context, not their own empty rows.
+  • leadAgeDays(createdAt, today) (~7781) — whole-day age for the card.
 
-  Accepts:  { "question": "...", "page": "overview" }
-  Returns:  { "ok": true, "answer": "..." }
-  Auth:     session cookie required → else { ok:false, error:"Not logged in" }
+  • pipelineCardHtml(row, canEdit, today) (~7790) — one Kanban card: caller
+    name, service/job (truncated), $ value (invoice > estimate > none), age
+    badge, a stage-appropriate NEXT-ACTION button, + always-on "View" link to
+    the client record. htmxEsc on all user data.
 
-────────────────────────────────────────────
-4. DEEPSEEK FLASH INTEGRATION (handleScout)
-────────────────────────────────────────────
-Endpoint:  POST https://api.deepseek.com/chat/completions  (OpenAI-compatible)
-Model:     deepseek-chat  (fast, cheap non-reasoning model)
-System prompt: "You are Scout, the helpful in-dashboard assistant for Branch
-               Live…" — includes business name, industry, current page, and
-               account stats (leads/appointments/calls counts).
-Temperature: 0.7   Max tokens: 500   (quick answers, not essays)
+  • handlePipelineHtmx(request, env, uid, ctx) (~7846) — GET /p/pipeline.
+    Buckets cards by derived stage, renders a 6-column responsive grid + a
+    separate Lost lane + funnel rollups (open value / won / lost counts).
+    Employee view-only banner + buttons hidden when !roleMeets(ctx.role,'manager').
 
-SMART CONTEXT injected before sending the question:
-  • Business name + industry (from settings table).
-  • Current page (overview, leads, calendar, knowledge, …) with a friendly label.
-  • Recent activity summary: total/new/booked leads, confirmed + upcoming
-    appointments, calls handled by Emma.
-  (One batched D1 round-trip, scoped to the owning account.)
+  • handlePipelineAdvance(request, env, uid, body) (~7992) — POST
+    /api/pipeline/advance. Manager-only (gated at route). Transitions the
+    underlying record (the derivation source), never a stage field:
+      contact     -> lead.status='contacted'
+      reopen      -> lead.status='new'  (clears a lost lead)
+      approve_est -> latest estimate -> 'approved'
+      convert     -> calls Phase 1 handleEstimateConvert on latest approved est
+      send_inv    -> calls Phase 1 handleInvoiceSend on latest non-paid invoice
+    Each transition logged to activity_log. Scoped WHERE ... AND user_id=?.
 
-GRACEFUL FALLBACK — Scout ALWAYS replies:
-  • If DEEPSEEK_API_KEY is unset OR the API call fails → scoutFallback() returns
-    a short, page-aware canned answer (keyword-routed: knowledge/calendar/leads/
-    settings/billing). This mirrors the existing handleChat() pattern, so Scout
-    is functional immediately without a key and upgrades automatically once one
-    is added via `npx wrangler secret put DEEPSEEK_API_KEY`.
+  (Existing handleLeadDetailHtmx was EXTENDED, not rebuilt — see section 3.)
 
-────────────────────────────────────────────
-DESIGN — amber-monotone ONLY
-────────────────────────────────────────────
-  • Panel bg #0a0a14, border var(--border). No purple, no green badges.
-  • Scout messages: subtle amber border-left (var(--accent)).
-  • User messages: darker bg (#13131f), right-aligned.
-  • Tab + send button: amber accent gradient.
-  • Uses the existing CSS variables (--accent, --bg-card, --border, etc.).
-  • Respects the AGENTS.md language rule (no "contractor").
+═══════════════════════════════════════════════════════════════════════
+2. DERIVED-STAGE LOGIC (spec 1C — single source of truth)
+═══════════════════════════════════════════════════════════════════════
+No DB column added. Per lead, computePipelineStage picks the highest state:
+  1. lead.status === 'lost'                    -> 'lost'   (short-circuit)
+  2. has invoice & invoice.status==='paid'     -> 'paid'
+  3. has invoice (any status)                  -> 'invoiced'
+  4. has estimate status approved/invoiced/paid-> 'approved'
+  5. has estimate status 'sent'                -> 'estimate_sent'
+  6. lead.status contacted/scheduled/consult   -> 'consultation'
+  7. else                                      -> 'new'
+"Best" row selection in pipelineRowsFor: invoice prefers paid>any (latest on
+tie); estimate prefers approved/invoiced/paid > sent > draft. So a Stripe
+webhook marking an invoice paid flips the card to Paid automatically — no
+second write, no sync bug.
 
-────────────────────────────────────────────
-VERIFY (all passing)
-────────────────────────────────────────────
-  ✅ node --check worker.js              → SYNTAX_OK
-  ✅ npx wrangler deploy                 → Deployed (Version ce469213…)
-  ✅ curl /p/overview                    → HTTP 200, no 1101
-  ✅ Scout panel HTML present on /p/overview
-       (scout-tab, scout-panel, scout-messages, #scout-input, /api/scout fetch,
-        🦀 crab, SCOUT JS block — all confirmed in the rendered HTML)
-  ✅ POST /api/scout {question:"hello"}
-       → {"ok":true,"answer":"Your Overview shows today's stats…"}  (HTTP 200)
-  ✅ POST /api/scout {question:"How do I add services to my knowledge base?"}
-       → {"ok":true,"answer":"…Category, Item, Price, Notes…CSV bulk-import…"}
-       (smart fallback keyword routing confirmed)
-  ✅ POST /api/scout (no cookie)
-       → {"ok":false,"error":"Not logged in"}  (auth gating confirmed)
+═══════════════════════════════════════════════════════════════════════
+3. LEAD / CLIENT RECORD ROLLUP (spec 5)
+═══════════════════════════════════════════════════════════════════════
+Extended the existing /p/leads/:id (handleLeadDetailHtmx) — targeted edits,
+no rebuild. The Promise.all now also fetches leadInvoices + activityLog
+(both scoped user_id=? AND lead_id=?, activity_log ORDER BY created_at ASC).
+Added to the page:
+  • Invoices card (right column, after the Quotes card): table of date /
+    number / total / status for every invoice tied to the lead.
+  • Activity timeline (full-width card below the detail grid): chronological
+    feed of every activity_log row for the lead, each with an entity icon
+    (lead/estimate/invoice) + human detail + timestamp. CSS for a vertical
+    rail (.tl-list::before) shipped inline.
+Also: handleLeadStatusHtmx now logs status changes to activity_log (incl. the
+new 'lost' status), so the timeline reflects manual transitions.
 
-────────────────────────────────────────────
-TO ENABLE LIVE DEEPSEEK ANSWERS (optional)
-────────────────────────────────────────────
-Scout works now via graceful fallback. To upgrade to live DeepSeek Flash
-responses, add the secret:
-    npx wrangler secret put DEEPSEEK_API_KEY
-  (paste a key from https://platform.deepseek.com/)
-No code change or redeploy needed — handleScout detects the key automatically.
+═══════════════════════════════════════════════════════════════════════
+4. NAV / ROUTE / GATING EDITS
+═══════════════════════════════════════════════════════════════════════
+  • NAV_ITEMS: added pipeline entry (~2776) with a kanban-bar SVG icon.
+  • NAV_GROUPS: Business group now ['leads','calls','pipeline','estimates',
+    'invoices','analytics'] — pipeline sits with the other CRM tools.
+    (Pipeline is NOT in sidebarNav's minRoleFor map -> visible to all roles,
+     matching its employee-level read access.)
+  • ROUTE_MIN_ROLE: '/p/pipeline': 'employee' (~3001).
+  • VIEW_ONLY_FOR_EMPLOYEE: added '/p/pipeline' (~3020) — employees see the
+    board + cards but the advance buttons are hidden (and the POST route is
+    manager-gated as defense-in-depth).
+  • Dispatcher GET: path === '/p/pipeline' -> handlePipelineHtmx (~18447).
+  • Dispatcher POST: path === '/api/pipeline/advance' (~18725) — resolves
+    cookie session, requires roleMeets(role,'manager'), scoped to ctx.bid.
+  • statusPill + .pill-lost CSS: added 'lost' (dim, line-through).
+  • lead status allowed-list + dropdown + filter: added 'lost' everywhere it
+    was hardcoded (handleLeadStatusHtmx, detail-page <select>, leads-list
+    filter <option>).
 
-NOTE: deepseek-chat is the current valid model id (the legacy name remains
-usable through 2026-07-24 per DeepSeek's changelog). If DeepSeek retires it,
-update the `model` field in handleScout() to the then-current id (e.g.
-deepseek-v4-flash).
+═══════════════════════════════════════════════════════════════════════
+5. DRAG-AND-DROP: DEFERRED (shipped status-advance BUTTONS instead)
+═══════════════════════════════════════════════════════════════════════
+The spec said buttons-first, drag-drop as a clean progressive enhancement.
+Per the build instruction ("if risky, ship buttons and skip drag-drop"), I
+deferred drag-drop. Reasoning: clean DnD here needs the HTML Drag and Drop
+API (movable cards, drop zones per column, a second POST endpoint mapping a
+drop to one of the 5 advance actions), AND many "drops" don't map cleanly to
+a single record transition (e.g. dragging to "Invoiced" with no approved
+estimate has no valid action). The button approach is unambiguous (one button
+= one valid transition, each confirm()-prompted), works on touch, and avoids
+a half-working DnD layer. The advance endpoint is the natural foundation to
+add DnD later — it already accepts {lead_id, action}.
 
-────────────────────────────────────────────
-CODE LOCATIONS (worker.js)
-────────────────────────────────────────────
-  • Scout CSS            → simpleShell <style> block (~line 7073+)
-  • Scout panel HTML+JS → simpleShell, before </script></body></html>
-                           (self-injecting IIFE, gated on .sidebar)
-  • handleScout()        → after handleChat() (~line 10546+)
-  • scoutFallback()      → immediately after handleScout()
-  • /api/scout route     → cookie-authed dispatcher section (~line 13246+)
+═══════════════════════════════════════════════════════════════════════
+6. SAFETY CHECKS
+═══════════════════════════════════════════════════════════════════════
+  • Multi-tenant: EVERY new query scoped WHERE user_id = ? bound to uid
+    (= ctx.bid). handlePipelineAdvance re-verifies lead ownership before
+    every transition; convert/send delegate to Phase 1 fns that re-check.
+  • Template-literal safety: all user data via htmxEsc; no backticks inside
+    template literals; apostrophes/special chars as \u escapes (\u2019 \u2014
+    \u2026 \u2192 \u2713 \u2717 \u26a0\ufe0f \u203a); inline JS uses double
+    quotes; no single-backslash regex. lead.id is our own integer (safe in
+    onclick). Entity-icon codepoints use \u{1F4DE} brace form (valid JS,
+    node --check confirms).
+  • node --check worker.js => PASSED (run 3x, final after all edits).
+  • No git commit / no deploy.sh / no wrangler deploy / no reset / checkout.
+  • No Phase 1 code rebuilt; only targeted extensions to handleLeadDetailHtmx
+    + handleLeadStatusHtmx + statusPill + nav/gating constants.
 
-No files were deleted or overwritten destructively; all changes are additive
-edits to worker.js.
+Ready for Hermes review + deploy.

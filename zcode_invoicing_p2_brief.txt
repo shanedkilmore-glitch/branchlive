@@ -1,0 +1,22 @@
+TASK: Implement PHASE 2 of the Invoicing/Pipeline feature in Branch Live's worker.js, following the spec EXACTLY. Phase 1 (invoices table, activity_log, /p/invoices, estimate->invoice conversion) is ALREADY BUILT and deployed — do NOT rebuild it; build ON it.
+
+READ FIRST:
+- C:/Users/17173/Projects/branchlive/INVOICING_SPEC.md — build "Implementation Phases -> Phase 2" using detail sections 2 (Pipeline/Kanban), 5 (Lead/Client Record Rollup), and 1C (derived pipeline-stage strategy).
+- Your branchlive skill (.zcode/skills/branchlive) — mandatory wiki reads + template-literal pitfall.
+- In worker.js, grep + READ the Phase 1 code to build on it: `handleInvoicesHtmx`, `logActivity`, the `invoices` + `activity_log` tables, `handleEstimateConvert`; the existing `leads` handlers + `/p/leads` (`handleLeadsHtmx` or similar); `handleEstimatesHtmx`; the /p/ dispatcher; `sidebarNav` NAV_ITEMS/NAV_GROUPS; ROUTE_MIN_ROLE + VIEW_ONLY_FOR_EMPLOYEE; `resolveContext` (ctx.bid/ctx.role); `htmxEsc`. Grep for real locations.
+
+BUILD (Phase 2 only):
+1. PIPELINE / KANBAN board `/p/pipeline` (handlePipelineHtmx):
+   - Columns: New Lead -> Consultation -> Estimate Sent -> Approved -> Invoiced -> Paid, plus a Lost lane.
+   - DERIVED stage per spec 1C: do NOT add a pipeline_stage column. For each lead (user_id = ctx.bid), left-join its most relevant estimate + invoice and COMPUTE the stage as the highest progressed state (e.g. invoice paid -> Paid; invoice exists -> Invoiced; estimate approved -> Approved; estimate sent -> Estimate Sent; lead status contacted/consult -> Consultation; else New Lead; lead status 'lost' -> Lost).
+   - Card content: caller name, service/title, age (days since created), $ value (invoice/estimate total if any), and a NEXT-ACTION button appropriate to the stage (e.g. "Create Estimate", "Send Invoice", "Mark Paid", "View").
+   - Advancement: simple status-advance BUTTONS first (HTMX POST that moves the underlying record's status). Add drag-and-drop as a progressive enhancement ONLY if it can be done cleanly with the existing stack; if risky, ship buttons and skip drag-drop.
+2. LEAD / CLIENT RECORD rollup: on the lead detail view (extend the existing /p/leads detail, or add /p/leads/:id or a section), show that lead's estimates + invoices + a chronological activity_log timeline (query activity_log WHERE lead_id = ? ORDER BY created_at). This is the "client record".
+3. ROUTES + NAV + GATING: add /p/pipeline (and any new lead-detail route) to the dispatcher; add a "Pipeline" sidebar nav item; ROUTE_MIN_ROLE '/p/pipeline':'employee' + VIEW_ONLY_FOR_EMPLOYEE; write/advance actions require manager+.
+
+CRITICAL RULES:
+- Multi-tenant: scope EVERY query by user_id (= ctx.bid). Template-literal safety: htmxEsc() ALL user data; no backslash-apostrophes, no single-backslash regex, no raw ${} of untrusted data. Mirror existing dashboard page patterns (simpleShell/HTMX).
+- `node --check worker.js` MUST pass. Do NOT git commit, deploy, run deploy.sh, git reset, or git checkout. Hermes reviews + deploys.
+- Targeted edits; do not touch/rebuild Phase 1 code or reformat unrelated code.
+
+REPORT: functions/handlers added + locations, the derived-stage logic, the lead client-record rollup, nav/route/gating edits, whether drag-drop was included or deferred (and why), and confirm node --check passed.

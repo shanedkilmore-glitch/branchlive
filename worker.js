@@ -2773,6 +2773,7 @@ const NAV_ITEMS = {
   gallery:  { key:'gallery',  href: '/p/gallery',     label: 'Gallery',   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>' },
   analytics:{ key:'analytics',href: '/p/analytics',   label: 'Analytics', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="4" y2="12"/><line x1="10" y1="20" x2="10" y2="4"/><line x1="16" y1="20" x2="16" y2="14"/><line x1="22" y1="20" x2="22" y2="8"/></svg>' },
   estimates:{ key:'estimates',href: '/p/estimates',  label: 'Estimates', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/></svg>' },
+  pipeline:{ key:'pipeline',href: '/p/pipeline',    label: 'Pipeline',  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="7" rx="1"/></svg>' },
   invoices: { key:'invoices', href: '/p/invoices',    label: 'Invoices',  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>' },
   website:  { key:'website',  href: '/p/growth/website',     label: 'Website',    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>' },
   blog:     { key:'blog',     href: '/p/growth/blog',        label: 'Blog',      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>' },
@@ -2789,7 +2790,7 @@ const NAV_ITEMS = {
 // access, and any group left empty is omitted entirely.
 const NAV_GROUPS = [
   { name: 'Main',     keys: ['overview','calendar','knowledge','faq','gallery'] },
-  { name: 'Business', keys: ['leads','calls','analytics','estimates','invoices'] },
+  { name: 'Business', keys: ['leads','calls','pipeline','estimates','invoices','analytics'] },
   { name: 'Growth',   keys: ['website','blog','social'] },
   { name: 'Account',  keys: ['billing','team','settings','help'] },
 ];
@@ -2809,7 +2810,7 @@ function urgencyBadge(u) {
   return `<span class="urg-badge ${m.cls}"><span class="urg-dot">●</span> ${m.label}</span>`;
 }
 
-// Status pill — new / contacted / scheduled / booked / closed.
+// Status pill — new / contacted / scheduled / booked / closed / lost.
 function statusPill(s) {
   const v = String(s || 'new').toLowerCase();
   const map = {
@@ -2818,6 +2819,7 @@ function statusPill(s) {
     scheduled: 'pill-scheduled',
     booked:    'pill-booked',
     closed:    'pill-closed',
+    lost:      'pill-lost',
   };
   return `<span class="status-pill ${map[v] || 'pill-new'}">${htmxEsc(v)}</span>`;
 }
@@ -2996,6 +2998,7 @@ const ROUTE_MIN_ROLE = {
   '/p/billing':   'admin',
   '/p/estimates': 'manager',
   '/p/invoices':  'employee',
+  '/p/pipeline':  'employee',
   '/p/help':      'employee',
   '/p/leads':     'manager',
   '/p/calls':     'manager',
@@ -3014,7 +3017,7 @@ const ROUTE_MIN_ROLE = {
 
 // Pages where the 'employee' role is view-only (banner + locked inputs).
 const VIEW_ONLY_FOR_EMPLOYEE = new Set([
-  '/p/calendar', '/p/knowledge', '/p/gallery', '/p/faq', '/p/invoices',
+  '/p/calendar', '/p/knowledge', '/p/gallery', '/p/faq', '/p/invoices', '/p/pipeline',
 ]);
 
 // True when the user's role meets or exceeds the minimum.
@@ -3453,12 +3456,18 @@ async function handleLeadStatusHtmx(request, env, uid, leadId) {
   try {
     const form = await request.formData();
     const status = String(form.get('status') || 'new').toLowerCase();
-    const allowed = ['new', 'contacted', 'scheduled', 'booked', 'closed'];
+    const allowed = ['new', 'contacted', 'scheduled', 'booked', 'closed', 'lost'];
     if (!allowed.includes(status)) return json({ ok: false, error: 'Invalid status' });
+    const prev = await env.DB.prepare('SELECT status FROM leads WHERE id = ? AND user_id = ?').bind(leadId, uid).first();
     const res = await env.DB.prepare(
       'UPDATE leads SET status = ?, updated_at = ? WHERE id = ? AND user_id = ?'
     ).bind(status, nowISO(), leadId, uid).run();
     if (!res.meta || res.meta.changes === 0) return new Response('Lead not found', { status: 404 });
+    // Audit the transition (best-effort) so the client-record timeline + the
+    // pipeline reflect it on the next load. Only log when it actually changed.
+    if (prev && (prev.status || 'new') !== status) {
+      await logActivity(env, uid, leadId, 'lead', leadId, 'status_change', `Status: ${(prev.status || 'new')} \u2192 ${status}`);
+    }
     // PRG: 303 the browser back to the (now-updated) detail page. Must use an
     // ABSOLUTE URL — Response.redirect() throws on relative paths in the
     // Workers runtime (see adminRedirect). 303 not 302: this is a POST reply.
@@ -7663,6 +7672,383 @@ async function handleEstimateConvert(request, env, uid, estId) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// PIPELINE / KANBAN (Phase 2) — /p/pipeline
+//
+// Derived-stage strategy (spec §1C): NO pipeline_stage column. The stage is
+// computed per-lead from the lead's status + its most progressed estimate and
+// invoice, so a Stripe webhook marking an invoice paid instantly reflects on
+// the board without a second write. STAGES lists the board columns in order;
+// computePipelineStage() returns the key for one lead.
+// ═══════════════════════════════════════════════════════════════════════
+
+// Ordered board columns. Each: { key, label, tone }. 'lost' is a separate lane
+// (rendered below the main flow) because a lost lead isn't part of the funnel.
+const PIPELINE_STAGES = [
+  { key: 'new',            label: 'New Lead',       tone: 'rgba(212,165,116,.14)' },
+  { key: 'consultation',   label: 'Consultation',   tone: 'rgba(212,165,116,.10)' },
+  { key: 'estimate_sent',  label: 'Estimate Sent',  tone: 'rgba(212,165,116,.10)' },
+  { key: 'approved',       label: 'Approved',       tone: 'rgba(212,165,116,.14)' },
+  { key: 'invoiced',       label: 'Invoiced',       tone: 'rgba(212,165,116,.10)' },
+  { key: 'paid',           label: 'Paid',           tone: 'rgba(127,214,146,.10)' },
+];
+
+// Compute the pipeline stage for one lead from its status + the most relevant
+// estimate/invoice row. The "highest progressed state wins":
+//   status 'lost'                  -> 'lost'  (short-circuits everything)
+//   any invoice status 'paid'      -> 'paid'
+//   any invoice (exists)           -> 'invoiced'
+//   any estimate 'approved'/'invoiced'/'paid' -> 'approved'
+//   any estimate 'sent'            -> 'estimate_sent'
+//   lead status contacted/scheduled/consult   -> 'consultation'
+//   else                           -> 'new'
+// `est` / `inv` are the BEST row for the lead (see pipelineRowsFor): for the
+// invoice we prefer the most progressed (paid > sent > draft); for the estimate
+// we prefer the latest non-draft, falling back to the latest of any status.
+function computePipelineStage(lead, est, inv) {
+  const status = String(lead.status || 'new').toLowerCase();
+  if (status === 'lost') return 'lost';
+  // Invoice is the most decisive signal — it sits downstream of the estimate.
+  if (inv) {
+    const is = String(inv.status || '').toLowerCase();
+    if (is === 'paid') return 'paid';
+    // A draft invoice that was never sent still counts as "invoiced" — the
+    // business created it, so the relationship has moved past the estimate.
+    return 'invoiced';
+  }
+  if (est) {
+    const es = String(est.status || '').toLowerCase();
+    if (es === 'approved' || es === 'invoiced' || es === 'paid') return 'approved';
+    if (es === 'sent') return 'estimate_sent';
+    // A draft estimate means the business is actively quoting → consultation.
+    return 'consultation';
+  }
+  if (status === 'contacted' || status === 'scheduled' || status === 'consult') {
+    return 'consultation';
+  }
+  return 'new';
+}
+
+// Fetch every lead for the business and attach its best estimate + invoice for
+// stage derivation. Two batched passes (not N+1): one query each for the
+// relevant estimates + invoices, then pick the best row per lead in JS.
+// Returns [{ lead, est, inv, stage }].
+async function pipelineRowsFor(env, uid) {
+  const [leadsRes, estsRes, invsRes] = await Promise.all([
+    env.DB.prepare('SELECT id, caller_name, job_details, urgency, status, created_at FROM leads WHERE user_id = ? ORDER BY created_at DESC').bind(uid).all(),
+    env.DB.prepare("SELECT id, lead_id, title, total, status FROM estimates WHERE user_id = ? ORDER BY created_at DESC").bind(uid).all(),
+    env.DB.prepare('SELECT id, lead_id, invoice_number, total, status FROM invoices WHERE user_id = ? ORDER BY created_at DESC').bind(uid).all(),
+  ]);
+  const leads = leadsRes.results || [];
+  const ests = estsRes.results || [];
+  const invs = invsRes.results || [];
+
+  // Best estimate per lead: prefer the most progressed status, then the latest.
+  // Rank: approved/invoiced/paid (4) > sent (3) > draft (2) > anything (0).
+  const estRank = s => {
+    const v = String(s || '').toLowerCase();
+    if (v === 'approved' || v === 'invoiced' || v === 'paid') return 4;
+    if (v === 'sent') return 3;
+    if (v === 'draft') return 2;
+    return 0;
+  };
+  const bestEstByLead = {};
+  for (const e of ests) {
+    if (!e.lead_id) continue;
+    const cur = bestEstByLead[e.lead_id];
+    if (!cur || estRank(e.status) > estRank(cur.status)) bestEstByLead[e.lead_id] = e;
+  }
+  // Best invoice per lead: prefer paid, then any (the latest wins on ties, and
+  // the query is already DESC by created_at so the first seen is the latest).
+  const invRank = s => (String(s || '').toLowerCase() === 'paid' ? 5 : 1);
+  const bestInvByLead = {};
+  for (const inv of invs) {
+    if (!inv.lead_id) continue;
+    const cur = bestInvByLead[inv.lead_id];
+    if (!cur || invRank(inv.status) > invRank(cur.status)) bestInvByLead[inv.lead_id] = inv;
+  }
+
+  return leads.map(lead => {
+    const est = bestEstByLead[lead.id] || null;
+    const inv = bestInvByLead[lead.id] || null;
+    const stage = computePipelineStage(lead, est, inv);
+    return { lead, est, inv, stage };
+  });
+}
+
+// Whole-number age in days since the lead was created (UTC), for the card.
+// "today" lets the caller pin the reference (avoids re-reading Date per card).
+function leadAgeDays(createdAt, today) {
+  if (!createdAt) return 0;
+  const c = new Date(createdAt.endsWith('Z') ? createdAt : createdAt + 'Z');
+  if (isNaN(c.getTime())) return 0;
+  return Math.max(0, Math.floor((today - c.getTime()) / 86400000));
+}
+
+// One Kanban card. `canEdit` hides the next-action/advance buttons for
+// view-only employees (they still see the card + a View link).
+function pipelineCardHtml(row, canEdit, today) {
+  const esc = htmxEsc;
+  const { lead, est, inv, stage } = row;
+  const name = esc(lead.caller_name || 'Unknown caller');
+  const service = esc((lead.job_details || 'No job details').slice(0, 64)) + ((lead.job_details || '').length > 64 ? '\u2026' : '');
+  const value = inv ? Number(inv.total || 0) : (est ? Number(est.total || 0) : 0);
+  const age = leadAgeDays(lead.created_at, today);
+  const ageLabel = age <= 0 ? 'today' : age === 1 ? '1d' : age + 'd';
+  const valueLabel = value > 0 ? '<span class="mono pc-value">$' + value.toFixed(0) + '</span>' : '<span class="pc-value pc-none">no quote</span>';
+
+  // Next-action button appropriate to the stage. These POST to the cookie-authed
+  // advance endpoint, which moves the underlying record (see handlePipelineAdvance).
+  let action = '';
+  if (canEdit) {
+    if (stage === 'new' || stage === 'consultation') {
+      action = `<button class="pc-btn" onclick="advanceLead(${lead.id},'contact')">Mark contacted</button>`;
+    } else if (stage === 'estimate_sent') {
+      action = `<button class="pc-btn" onclick="advanceLead(${lead.id},'approve_est')">Mark approved</button>`;
+    } else if (stage === 'approved') {
+      // Need an estimate id to convert; fall back to a deep link if missing.
+      if (est && est.id) {
+        action = `<button class="pc-btn" onclick="advanceLead(${lead.id},'convert')">Convert to invoice</button>`;
+      } else {
+        action = `<a class="pc-btn" href="/p/invoices">Create invoice</a>`;
+      }
+    } else if (stage === 'invoiced') {
+      action = `<button class="pc-btn" onclick="advanceLead(${lead.id},'send_inv')">Send invoice</button>`;
+    } else if (stage === 'paid') {
+      action = `<span class="pc-paid">\u2713 Paid</span>`;
+    } else if (stage === 'lost') {
+      action = `<button class="pc-btn pc-btn-ghost" onclick="advanceLead(${lead.id},'reopen')">Reopen</button>`;
+    }
+  }
+  // Always offer a view link so employees + quick-inspection work.
+  const viewLink = `<a class="pc-view" href="/p/leads/${lead.id}" title="Open client record">View \u203a</a>`;
+
+  return `<div class="pc-card" data-lead="${lead.id}" data-stage="${esc(stage)}">
+  <div class="pc-card-head">
+    <span class="pc-name">${name}</span>
+    ${stage === 'lost' ? '<span class="pc-lost-tag">lost</span>' : ''}
+  </div>
+  <div class="pc-service">${service}</div>
+  <div class="pc-card-foot">
+    ${valueLabel}
+    <span class="pc-age" title="Days since captured">${ageLabel}</span>
+  </div>
+  <div class="pc-actions">
+    ${action}
+    ${viewLink}
+  </div>
+</div>`;
+}
+
+// GET /p/pipeline — Kanban board. Columns are the 6 funnel stages; the Lost
+// lane renders separately below. Each card's stage is derived (no DB column).
+// Employees are view-only (advance buttons hidden, banner shown).
+async function handlePipelineHtmx(request, env, uid, ctx) {
+  try {
+    const rows = await pipelineRowsFor(env, uid);
+    const canEdit = !ctx || roleMeets(ctx.role, 'manager');
+    const today = Date.now();
+
+    // Bucket cards by derived stage.
+    const buckets = {};
+    for (const st of PIPELINE_STAGES) buckets[st.key] = [];
+    buckets.lost = [];
+    for (const row of rows) {
+      (buckets[row.stage] || (buckets[row.stage] = [])).push(row);
+    }
+
+    // Funnel value rollups: total quoted/invoiced value per stage for the header.
+    const stageValue = key => (buckets[key] || []).reduce((s, r) => {
+      const v = r.inv ? Number(r.inv.total || 0) : (r.est ? Number(r.est.total || 0) : 0);
+      return s + v;
+    }, 0);
+    const funnelTotal = rows.reduce((s, r) => s + (r.inv ? Number(r.inv.total || 0) : (r.est ? Number(r.est.total || 0) : 0)), 0);
+    const wonTotal = (buckets.paid || []).reduce((s, r) => s + Number((r.inv && r.inv.total) || 0), 0);
+
+    const columnsHtml = PIPELINE_STAGES.map(st => {
+      const cards = (buckets[st.key] || []);
+      const count = cards.length;
+      const val = stageValue(st.key);
+      const cardsHtml = cards.length
+        ? cards.map(r => pipelineCardHtml(r, canEdit, today)).join('')
+        : '<div class="pc-empty">No leads here.</div>';
+      return `<div class="pc-col" data-stage="${st.key}" style="--col-tone:${st.tone}">
+  <div class="pc-col-head">
+    <span class="pc-col-label">${st.label}</span>
+    <span class="pc-col-count">${count}</span>
+  </div>
+  <div class="pc-col-value mono">${val > 0 ? '$' + val.toFixed(0) : '\u2014'}</div>
+  <div class="pc-col-body">${cardsHtml}</div>
+</div>`;
+    }).join('');
+
+    const lostCards = (buckets.lost || []);
+    const lostHtml = lostCards.length
+      ? lostCards.map(r => pipelineCardHtml(r, canEdit, today)).join('')
+      : '<div class="pc-empty">No lost leads.</div>';
+
+    const voBanner = canEdit ? '' : `<div class="vo-banner" style="background:rgba(212,165,116,.10);border:1px solid var(--border-soft);border-left:3px solid var(--accent-amber);border-radius:10px;padding:10px 14px;margin:0 0 16px;color:var(--text-muted)">You have view-only access to the pipeline. Ask a manager to advance leads.</div>`;
+
+    const body = `<div class="app">${sidebarNav('pipeline', undefined, ctx)}<div class="content" style="max-width:1280px">
+<span class="eyebrow">Pipeline</span>
+<h1>Your <em>pipeline</em></h1>
+<p class="sub">Every lead, from first call to paid invoice. The stage is computed from each lead\u2019s status, estimate, and invoice \u2014 no manual upkeep.</p>
+
+${voBanner}
+
+<div class="pc-rollup">
+  <div class="pc-rollup-card"><div class="pc-rollup-label">Open value</div><div class="pc-rollup-num mono">${fmtMoney(funnelTotal)}</div><div class="pc-rollup-sub">${rows.length} lead${rows.length === 1 ? '' : 's'}</div></div>
+  <div class="pc-rollup-card"><div class="pc-rollup-label">Won (paid)</div><div class="pc-rollup-num mono" style="color:#7fd692">${fmtMoney(wonTotal)}</div><div class="pc-rollup-sub">${(buckets.paid || []).length} paid</div></div>
+  <div class="pc-rollup-card"><div class="pc-rollup-label">Lost</div><div class="pc-rollup-num mono" style="color:var(--text-faint)">${lostCards.length}</div><div class="pc-rollup-sub">archived lane</div></div>
+</div>
+
+<div id="pc-fb" class="lead-action-fb" aria-live="polite" style="margin-bottom:8px"></div>
+
+<div class="pc-board">${columnsHtml}</div>
+
+<div class="pc-lost-lane">
+  <div class="pc-col-head"><span class="pc-col-label">Lost</span><span class="pc-col-count">${lostCards.length}</span></div>
+  <div class="pc-lost-body">${lostHtml}</div>
+</div>
+
+<style>
+.pc-rollup{display:flex;gap:12px;flex-wrap:wrap;margin:22px 0}
+.pc-rollup-card{flex:1;min-width:160px;background:var(--bg-elev,#13131f);border:1px solid var(--border,#211c14);border-radius:12px;padding:16px}
+.pc-rollup-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint)}
+.pc-rollup-num{font-size:1.7rem;font-weight:700;margin:4px 0;color:var(--accent)}
+.pc-rollup-sub{font-size:.8rem;color:var(--text-muted)}
+.pc-board{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-top:8px}
+@media (max-width:1100px){.pc-board{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:680px){.pc-board{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.pc-col{background:var(--col-tone,rgba(212,165,116,.08));border:1px solid var(--border-soft,#2e2618);border-radius:12px;display:flex;flex-direction:column;min-height:200px}
+.pc-col-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 2px}
+.pc-col-label{font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--cream-dim)}
+.pc-col-count{font-size:.72rem;color:var(--text-faint);background:rgba(241,234,217,.06);border:1px solid var(--border-soft);border-radius:9999px;padding:1px 8px}
+.pc-col-value{padding:0 14px 8px;font-size:.78rem;color:var(--accent)}
+.pc-col-body{display:flex;flex-direction:column;gap:10px;padding:0 10px 14px;flex:1}
+.pc-empty{font-size:.78rem;color:var(--text-faint);padding:14px 6px;text-align:center}
+.pc-card{background:var(--bg-elev,#13131f);border:1px solid var(--border,#211c14);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.pc-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pc-name{font-weight:600;color:var(--cream);font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pc-lost-tag{font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint);border:1px solid var(--border);border-radius:6px;padding:1px 6px}
+.pc-service{font-size:.78rem;color:var(--text-muted);line-height:1.4;min-height:1.4em}
+.pc-card-foot{display:flex;align-items:center;justify-content:space-between;font-size:.74rem;color:var(--text-faint)}
+.pc-value{color:var(--accent);font-weight:600}
+.pc-none{color:var(--text-faint);font-family:var(--font-sans)}
+.pc-age{background:rgba(241,234,217,.05);border-radius:6px;padding:1px 7px}
+.pc-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px}
+.pc-btn{font:inherit;font-size:.74rem;font-weight:600;color:var(--bg-primary,#0a0a12);background:var(--accent);border:none;border-radius:7px;padding:5px 10px;cursor:pointer;text-decoration:none;display:inline-block}
+.pc-btn:hover{background:var(--accent-bright)}
+.pc-btn-ghost{background:transparent;color:var(--cream-dim);border:1px solid var(--border-soft)}
+.pc-btn-ghost:hover{background:rgba(241,234,217,.05);color:var(--cream)}
+.pc-view{font-size:.74rem;color:var(--text-muted);text-decoration:none;margin-left:auto}
+.pc-view:hover{color:var(--accent)}
+.pc-paid{font-size:.78rem;color:#7fd692;font-weight:600}
+.pc-lost-lane{margin-top:18px;border:1px solid var(--border,#211c14);border-radius:12px;background:rgba(241,234,217,.02);padding-bottom:14px}
+.pc-lost-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;padding:4px 14px}
+</style>
+
+<script>
+function setPcFb(ok,msg){var el=document.getElementById('pc-fb');if(!el)return;el.textContent=(ok?'\u2713 ':'\u2717 ')+(msg||'');el.style.color=ok?'#7fd692':'var(--danger,#f87373)';if(ok){setTimeout(function(){el.textContent='';},2500);}}
+// Advance a lead along the pipeline. Posts to the cookie-authed endpoint,
+// which performs the underlying record transition (status flip, estimate
+// approval, invoice conversion/send). Reloads on success so the derived
+// stage recomputes and the card moves columns.
+function advanceLead(leadId, action){
+  var msg={
+    contact:'Mark this lead as contacted?',
+    approve_est:'Mark the latest estimate as approved by the customer?',
+    convert:'Convert the approved estimate to an invoice?',
+    send_inv:'Send the latest invoice payment link to the customer by SMS?',
+    reopen:'Reopen this lead (set back to New)?'
+  }[action]||'Continue?';
+  if(!confirm(msg))return;
+  setPcFb(true,'Working\u2026');
+  fetch('/api/pipeline/advance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lead_id:leadId,action:action})})
+    .then(function(r){return r.json();})
+    .then(function(d){if(d.ok){setPcFb(true,d.message||'Updated');setTimeout(function(){location.reload();},700);}
+      else{setPcFb(false,d.error||'Could not update');}})
+    .catch(function(){setPcFb(false,'Connection error');});
+}
+</script>
+</div></div>`;
+    return new Response(simpleShell('Pipeline', body), { headers: { 'Content-Type': 'text/html' } });
+  } catch (e) {
+    console.error('Pipeline htmx error:', e);
+    return new Response(simpleShell('Error', '<h1>\u26a0\ufe0f Error</h1><p style="color:var(--danger)">Could not load the pipeline.</p>'), { status: 500, headers: { 'Content-Type': 'text/html' } });
+  }
+}
+
+// POST /api/pipeline/advance — move a lead along the pipeline by transitioning
+// its underlying record. The board's stage is derived, so we never write a
+// stage field; we change the record that the derivation reads. Actions:
+//   contact     → lead.status = 'contacted'
+//   approve_est → latest estimate.status = 'approved'  (draft/sent only)
+//   convert     → call handleEstimateConvert on the latest approved estimate
+//   send_inv    → call handleInvoiceSend on the latest invoice (draft/sent)
+//   reopen      → lead.status = 'new' (clears a lost lead)
+// Manager+ only (gated at the route). Scoped to ctx.bid. Each transition is
+// logged to activity_log so the client-record timeline reflects it.
+async function handlePipelineAdvance(request, env, uid, body) {
+  try {
+    const leadId = parseInt(body && body.lead_id, 10);
+    const action = String(body && body.action || '');
+    if (!leadId || !action) return json({ ok: false, error: 'Missing lead_id or action' }, 400);
+    const lead = await env.DB.prepare('SELECT id, status FROM leads WHERE id = ? AND user_id = ?').bind(leadId, uid).first();
+    if (!lead) return json({ ok: false, error: 'Lead not found' }, 404);
+
+    if (action === 'contact') {
+      await env.DB.prepare("UPDATE leads SET status = 'contacted', updated_at = ? WHERE id = ? AND user_id = ?").bind(nowISO(), leadId, uid).run();
+      await logActivity(env, uid, leadId, 'lead', leadId, 'status_change', 'Status: ' + (lead.status || 'new') + ' \u2192 contacted');
+      return json({ ok: true, message: 'Marked contacted' });
+    }
+    if (action === 'reopen') {
+      await env.DB.prepare("UPDATE leads SET status = 'new', updated_at = ? WHERE id = ? AND user_id = ?").bind(nowISO(), leadId, uid).run();
+      await logActivity(env, uid, leadId, 'lead', leadId, 'status_change', 'Status: ' + (lead.status || 'new') + ' \u2192 new');
+      return json({ ok: true, message: 'Reopened' });
+    }
+    if (action === 'approve_est') {
+      // Latest non-draft estimate (the one the customer actually saw). Prefer
+      // sent, then fall back to the newest estimate of any status.
+      const est = await env.DB.prepare(
+        "SELECT id, title, status FROM estimates WHERE lead_id = ? AND user_id = ? ORDER BY (status='sent') DESC, created_at DESC LIMIT 1"
+      ).bind(leadId, uid).first();
+      if (!est) return json({ ok: false, error: 'No estimate to approve. Create one on the Estimates page first.' }, 400);
+      await env.DB.prepare("UPDATE estimates SET status = 'approved' WHERE id = ? AND user_id = ?").bind(est.id, uid).run();
+      await logActivity(env, uid, leadId, 'estimate', est.id, 'approved', 'Estimate #' + est.id + ' approved by customer');
+      return json({ ok: true, message: 'Estimate approved' });
+    }
+    if (action === 'convert') {
+      // Convert the latest approved estimate. Reuses the Phase 1 converter so
+      // numbering, item copy, and audit logging stay identical.
+      const est = await env.DB.prepare(
+        "SELECT id FROM estimates WHERE lead_id = ? AND user_id = ? AND status = 'approved' ORDER BY created_at DESC LIMIT 1"
+      ).bind(leadId, uid).first();
+      if (!est) return json({ ok: false, error: 'No approved estimate to convert. Approve one first.' }, 400);
+      const out = await handleEstimateConvert(request, env, uid, est.id);
+      const data = await out.json().catch(() => ({}));
+      if (!data.ok) return json({ ok: false, error: data.error || 'Could not convert estimate' }, 500);
+      return json({ ok: true, message: 'Invoice ' + (data.invoice_number || '') + ' created' });
+    }
+    if (action === 'send_inv') {
+      // Latest invoice for the lead that isn't paid/void. Reuses the Phase 1
+      // sender (Stripe link + SMS + draft→sent + activity log).
+      const inv = await env.DB.prepare(
+        "SELECT id, invoice_number, status FROM invoices WHERE lead_id = ? AND user_id = ? AND status NOT IN ('paid','void') ORDER BY created_at DESC LIMIT 1"
+      ).bind(leadId, uid).first();
+      if (!inv) return json({ ok: false, error: 'No invoice to send. Convert an approved estimate first.' }, 400);
+      const out = await handleInvoiceSend(request, env, uid, inv.id);
+      const data = await out.json().catch(() => ({}));
+      if (!data.ok) return json({ ok: false, error: data.error || 'Could not send invoice' }, 500);
+      return json({ ok: true, message: data.message || 'Invoice sent' });
+    }
+    return json({ ok: false, error: 'Unknown action' }, 400);
+  } catch (e) {
+    console.error('Pipeline advance error:', e);
+    return json({ ok: false, error: 'Could not advance lead' }, 500);
+  }
+}
+
 async function handlePublicSite(request, env, slug) {
   try {
     const url = new URL(request.url);
@@ -8816,6 +9202,7 @@ code,.mono{font-family:var(--font-mono);font-feature-settings:"tnum"}
 .pill-scheduled{background:rgba(241,234,217,.06);color:var(--cream-dim);border-color:var(--border-soft)}
 .pill-booked{background:rgba(212,165,116,.14);color:var(--accent);border-color:rgba(212,165,116,.3)}
 .pill-closed{background:rgba(241,234,217,.04);color:var(--text-faint);border-color:var(--border)}
+.pill-lost{background:rgba(241,234,217,.03);color:var(--text-faint);border-color:var(--border);text-decoration:line-through;text-decoration-color:rgba(168,154,130,.4)}
 
 /* Toolbar (search + actions) */
 .toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:18px 0 22px}
@@ -10021,6 +10408,7 @@ async function handleLeadsHtmx(request, env, uid, ctx) {
     <option value="scheduled">Scheduled</option>
     <option value="booked">Booked</option>
     <option value="closed">Closed</option>
+    <option value="lost">Lost</option>
   </select>
 </div>
 <div id="lead-list">${rows || '<div class="empty-state"><div class="empty-icon">📞</div><div class="empty-title">No leads yet</div><div class="empty-msg">When Emma captures a caller, their details land here automatically.</div></div>'}</div>
@@ -10214,9 +10602,13 @@ async function handleLeadDetailHtmx(request, env, uid, leadId, ctx) {
     const calls = (await env.DB.prepare(
       'SELECT id, caller_phone, duration_sec, summary, created_at FROM call_logs WHERE user_id = ? AND (lead_id = ? OR caller_phone = ?) ORDER BY created_at DESC LIMIT 20'
     ).bind(uid, leadId, lead.caller_phone || '').all()).results || [];
-    // Quotes tied to this lead (spec §7).
-    const [leadEstimates, leadSite] = await Promise.all([
+    // Quotes + invoices tied to this lead, plus the full activity timeline
+    // (spec §5 — the client record rollup). activity_log is the chronological
+    // cross-entity history (lead/estimate/invoice events) for this lead.
+    const [leadEstimates, leadInvoices, activityLog, leadSite] = await Promise.all([
       env.DB.prepare('SELECT id, title, total, status, created_at FROM estimates WHERE user_id = ? AND lead_id = ? ORDER BY created_at DESC').bind(uid, leadId).all(),
+      env.DB.prepare('SELECT id, invoice_number, total, status, issue_date, due_date, created_at FROM invoices WHERE user_id = ? AND lead_id = ? ORDER BY created_at DESC').bind(uid, leadId).all(),
+      env.DB.prepare('SELECT entity_type, entity_id, action, detail, created_at FROM activity_log WHERE user_id = ? AND lead_id = ? ORDER BY created_at ASC').bind(uid, leadId).all(),
       env.DB.prepare('SELECT slug FROM sites WHERE user_id = ?').bind(uid).first(),
     ]);
     const timeFmt = await getTimeFormat(env, uid);
@@ -10229,6 +10621,23 @@ async function handleLeadDetailHtmx(request, env, uid, leadId, ctx) {
       return `${day}, ${formatHour(date, timeFmt, '')}`;
     };
     const initials = n => { const p = String(n || '?').trim().split(/\s+/); return ((p[0] || '?')[0] + (p[1] || '')[0]).toUpperCase(); };
+    // Invoices tied to this lead (client-record rollup, spec §5). Mirrors the
+    // Quotes table shape: date, number, total, status badge.
+    const invoiceRowsHtml = (leadInvoices.results || []).map(qi => {
+      const d = (qi.issue_date || qi.created_at || '').slice(0, 10) || '\u2014';
+      const badge = { draft: 'Draft', sent: 'Sent', partial: 'Partial', paid: 'Paid', void: 'Void', overdue: 'Overdue' }[qi.status] || qi.status;
+      const badgeColor = qi.status === 'paid' ? '#7fd692' : (qi.status === 'sent' || qi.status === 'partial' ? 'var(--accent-amber)' : 'var(--text-muted)');
+      return `<tr><td style="color:var(--text-muted);white-space:nowrap">${d}</td><td><strong style="color:var(--cream)">${htmxEsc(qi.invoice_number || ('#' + qi.id))}</strong></td><td style="font-family:var(--font-mono);color:var(--accent-amber)">$${Number(qi.total || 0).toFixed(2)}</td><td style="color:${badgeColor}">${badge}</td></tr>`;
+    }).join('');
+    // Chronological activity timeline (spec §5). activity_log rows arrive ASC
+    // so the oldest event is first (the relationship reads top→bottom). Each
+    // entry gets an entity icon + the human detail (already a server string).
+    const ACT_ICON = { lead: '\u{1F4DE}', estimate: '\u{1F4D1}', invoice: '\u{1F9FE}' };
+    const activityItemsHtml = (activityLog.results || []).map(a => {
+      const icon = ACT_ICON[a.entity_type] || '\u2022';
+      const detail = a.detail ? htmxEsc(a.detail) : htmxEsc((a.action || '').replace(/_/g, ' '));
+      return `<li class="tl-item"><span class="tl-dot" aria-hidden="true">${icon}</span><div class="tl-body"><div class="tl-detail">${detail}</div><div class="tl-when mono">${fmtDate(a.created_at)}</div></div></li>`;
+    }).join('');
     // Wider, left-justified call list — summary, date, and duration get
     // their own lines with breathing room (was a cramped two-column row).
     const callRows = calls.map(c => {
@@ -10309,7 +10718,7 @@ async function handleLeadDetailHtmx(request, env, uid, leadId, ctx) {
       <h3 style="margin-top:0">Update status</h3>
       <form method="POST" action="/p/leads/${lead.id}" style="display:flex;flex-direction:column;gap:10px">
         <select name="status" style="width:100%">
-          ${['new','contacted','scheduled','booked','closed'].map(s => `<option value="${s}" ${(lead.status || 'new') === s ? 'selected' : ''}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>`).join('')}
+          ${['new','contacted','scheduled','booked','closed','lost'].map(s => `<option value="${s}" ${(lead.status || 'new') === s ? 'selected' : ''}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>`).join('')}
         </select>
         <button type="submit" class="btn-amber btn-sm">Save status</button>
       </form>
@@ -10329,8 +10738,31 @@ async function handleLeadDetailHtmx(request, env, uid, leadId, ctx) {
         : '<div class="note-box">No quotes sent to this lead yet.</div>'}
       <a class="btn btn-ghost btn-sm" href="/p/estimates" style="margin-top:12px">+ Create estimate</a>
     </div>
+    <div class="card">
+      <h3 style="margin-top:0">Invoices</h3>
+      ${(leadInvoices.results || []).length
+        ? '<table style="width:100%;font-size:.88rem"><thead><tr><th style="text-align:left">Date</th><th style="text-align:left">Number</th><th>Total</th><th>Status</th></tr></thead><tbody>' + invoiceRowsHtml + '</tbody></table>'
+        : '<div class="note-box">No invoices for this lead yet. Convert an approved estimate to create one.</div>'}
+      <a class="btn btn-ghost btn-sm" href="/p/invoices" style="margin-top:12px">Go to invoices</a>
+    </div>
   </div>
 </div>
+<div class="card" style="margin-top:20px">
+  <h3 style="margin-top:0">Activity timeline</h3>
+  <p style="color:var(--text-muted);font-size:.85em;margin:0 0 14px">The full history for this client, from first call to final payment.</p>
+  ${(activityLog.results || []).length
+    ? '<ul class="tl-list">' + activityItemsHtml + '</ul>'
+    : '<div class="note-box">No activity recorded yet. Status changes, quotes, invoices, and payments will appear here as they happen.</div>'}
+</div>
+<style>
+.tl-list{list-style:none;padding:0;margin:0;position:relative}
+.tl-list::before{content:"";position:absolute;left:15px;top:4px;bottom:4px;width:2px;background:var(--border-soft,#2e2618)}
+.tl-item{position:relative;display:flex;gap:14px;padding:8px 0}
+.tl-dot{flex-shrink:0;width:32px;height:32px;border-radius:50%;background:var(--bg-elev,#13131f);border:1px solid var(--border-soft,#2e2618);display:flex;align-items:center;justify-content:center;font-size:.9rem;z-index:1}
+.tl-body{flex:1;min-width:0;padding-top:4px}
+.tl-detail{color:var(--cream);font-size:.9rem;line-height:1.5}
+.tl-when{color:var(--text-faint);font-size:.74rem;margin-top:2px}
+</style>
 <script>
 // Inline feedback helper for the action buttons.
 function setFb(id, ok, msg){
@@ -18013,6 +18445,7 @@ export default {
           if (path === '/p/analytics') return handleAnalyticsHtmx(request, env, pCtx.bid, pCtx);
           if (path === '/p/estimates') return handleEstimatesHtmx(request, env, pCtx.bid, pCtx);
           if (path === '/p/invoices') return handleInvoicesHtmx(request, env, pCtx.bid, pCtx);
+          if (path === '/p/pipeline') return handlePipelineHtmx(request, env, pCtx.bid, pCtx);
           if (path === '/p/team') return handleTeamHtmx(request, env, pCtx);
           // /p/leads/:id — lead detail (GET). The status-update POST is handled
           // in the POST section below (this whole block is GET-only).
@@ -18286,6 +18719,17 @@ export default {
         const iCtx = await resolveContext(request, env, iUid);
         if (!roleMeets(iCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
         return handleInvoicePay(request, env, iCtx.bid, parseInt(invPayMatch[1], 10));
+      }
+      // ── Pipeline advance — cookie-authed (the /p/pipeline board has no Bearer
+      // token). Manager+ only: advancing a lead mutates underlying records
+      // (lead status, estimate approval, invoice convert/send). Scoped to ctx.bid.
+      if (path === '/api/pipeline/advance' && method === 'POST') {
+        const aUid = await getUidFromSessionCookie(request, env);
+        if (!aUid) return json({ ok: false, error: 'Not logged in' });
+        const aCtx = await resolveContext(request, env, aUid);
+        if (!roleMeets(aCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
+        const advBody = await request.json().catch(() => ({}));
+        return handlePipelineAdvance(request, env, aCtx.bid, advBody);
       }
       // AI email draft for the lead detail page — cookie-authed.
       const emailDraftMatch = path.match(/^\/api\/leads\/(\d+)\/email-draft-htmx$/);
