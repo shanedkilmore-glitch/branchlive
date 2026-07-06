@@ -17227,7 +17227,7 @@ function helpArticlePane(slug) {
   return `<article class="hc-article">
     <div class="hc-crumb"><a href="/p/help">Help Center</a> <span>&rsaquo;</span> <span>${htmxEsc(art.group)}</span></div>
     <h1>${htmxEsc(art.title)}</h1>
-    <img class="hc-infographic" src="https://branchlive.com/static/help/${htmxEsc(slug)}.png" alt="${htmxEsc(art.title)} infographic" loading="lazy" onerror="this.remove()">
+    <img class="hc-infographic" src="https://branchlive.com/static/help/${htmxEsc(slug)}.jpg" alt="${htmxEsc(art.title)} infographic" loading="lazy" onerror="this.remove()">
     ${body}
     ${helpScoutBox(helpScoutQuestion(slug))}
   </article>`;
