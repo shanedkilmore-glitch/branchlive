@@ -1558,7 +1558,7 @@ async function initDB(env) {
       // the multi-tenant ctx.bid pattern (= owning account's user_id).
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS common_facts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        business_id INTEGER,
+        user_id INTEGER,
         category TEXT,
         question TEXT,
         answer TEXT,
@@ -3657,7 +3657,7 @@ async function handleFaqAddHtmx(request, env, uid) {
     const body = await request.json();
     if (!body.question) return json({ ok: false, error: 'Question is required' });
     await env.DB.prepare(
-      'INSERT INTO common_facts (business_id, category, question, answer, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO common_facts (user_id, category, question, answer, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?)'
     ).bind(uid, body.category || '', body.question, body.answer || '', 0, nowISO()).run();
     return json({ ok: true });
   } catch (e) {
@@ -3676,7 +3676,7 @@ async function handleFaqUpdateHtmx(request, env, uid) {
     if (!id) return json({ ok: false, error: 'Item id is required' });
     if (!body.question) return json({ ok: false, error: 'Question is required' });
     const res = await env.DB.prepare(
-      'UPDATE common_facts SET category = ?, question = ?, answer = ? WHERE id = ? AND business_id = ?'
+      'UPDATE common_facts SET category = ?, question = ?, answer = ? WHERE id = ? AND user_id = ?'
     ).bind(body.category || '', body.question, body.answer || '', id, uid).run();
     if (!res.meta || res.meta.changes === 0) return json({ ok: false, error: 'Item not found' });
     return json({ ok: true });
@@ -3693,7 +3693,7 @@ async function handleFaqDeleteHtmx(request, env, uid) {
     const id = parseInt(body.id, 10);
     if (!id) return json({ ok: false, error: 'Item id is required' });
     const res = await env.DB.prepare(
-      'DELETE FROM common_facts WHERE id = ? AND business_id = ?'
+      'DELETE FROM common_facts WHERE id = ? AND user_id = ?'
     ).bind(id, uid).run();
     if (!res.meta || res.meta.changes === 0) return json({ ok: false, error: 'Item not found' });
     return json({ ok: true });
@@ -10599,7 +10599,7 @@ const FAQ_CATEGORIES = ['Hours', 'Pricing', 'Credentials', 'Process', 'Policies'
 async function handleFaqHtmx(request, env, uid, ctx) {
   try {
     const { results } = await env.DB.prepare(
-      'SELECT id, category, question, answer FROM common_facts WHERE business_id = ? ORDER BY sort_order, created_at LIMIT 500'
+      'SELECT id, category, question, answer FROM common_facts WHERE user_id = ? ORDER BY sort_order, created_at LIMIT 500'
     ).bind(uid).all();
     const items = results || [];
     const viewOnly = ctx && ctx.role === 'employee';
@@ -12952,7 +12952,7 @@ async function compileEmmaKnowledge(env, uid) {
   const { results } = await env.DB.prepare(
     `SELECT 'kb' AS src, category, item AS a, price AS b, notes AS c FROM knowledge WHERE user_id = ?
      UNION ALL
-     SELECT 'faq' AS src, category, question AS a, answer AS b, NULL AS c FROM common_facts WHERE business_id = ?
+     SELECT 'faq' AS src, category, question AS a, answer AS b, NULL AS c FROM common_facts WHERE user_id = ?
      ORDER BY src, category`
   ).bind(uid, uid).all();
   const rows = results || [];
