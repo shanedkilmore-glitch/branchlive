@@ -1,0 +1,18 @@
+TASK: Write a NotebookLM source markdown file for Branch Live's now-LIVE "Invoices & Pipeline" feature. This is a NotebookLM video source. Write the actual file.
+
+CONTEXT — the feature as actually built & deployed today (use these exact facts):
+- A visual KANBAN PIPELINE at /p/pipeline with stages: New Lead -> Consultation -> Estimate Sent -> Approved -> Invoiced -> Paid (plus a Lost lane). Each job is a card showing the caller, service, age, and value, with a next-action button; the stage is derived automatically from the lead/estimate/invoice state.
+- REAL INVOICES at /p/invoices: sequential numbers (INV-00001), line items, subtotal/tax/discount/deposit, issue + due dates (Net 15/30), statuses (draft/sent/partial/paid/overdue/void), Stripe payment links, overdue detection.
+- ESTIMATE -> INVOICE conversion: an approved estimate converts to a real invoice in one action (copies line items, keeps the linkage, sets a due date).
+- CLIENT RECORD: each lead's detail page (/p/leads) shows all its estimates + invoices + a full chronological ACTIVITY TIMELINE (first call -> consult -> estimate -> approved -> invoiced -> paid).
+- The whole point: turn every caller into a tracked job from first contact to final payment, like Jobber/Housecall Pro.
+
+READ FIRST for format/style consistency:
+- C:/Users/17173/Desktop/BranchLive-NotebookLM/24-estimates.md and 25-common-facts.md (match the numbered-MD structure/section conventions).
+- C:/Users/17173/Projects/branchlive/INVOICING_SPEC.md (technical reference).
+
+STYLE RULES (mandatory):
+- Industry-neutral examples ONLY: hair salons, nail salons, day spas, real estate agents, photography studios, cleaning services, beauty professionals. Rotate them; NEVER default to plumbing/contractors/trades; never repeat the same industry twice in a row.
+- Premium, warm, helpful tone for a busy small-business owner. Explainer-ready, one concept.
+
+DELIVERABLE: CREATE C:/Users/17173/Desktop/BranchLive-NotebookLM/26-invoices-pipeline.md — a complete, accurate source doc matching the numbered-MD format of the others (intro, the pipeline stages with what triggers each, real invoices, estimate->invoice conversion, the client record/history, why it matters). After writing, confirm the file path was saved. End by stating which model you are actually running as (confirm NOT the Flash fallback).

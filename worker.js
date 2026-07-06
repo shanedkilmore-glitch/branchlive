@@ -17358,6 +17358,7 @@ const HELP_SECTIONS = [
     ['blog',            'Blog'],
     ['analytics',       'Analytics'],
     ['estimates',       'Estimates & Invoices'],
+    ['invoices-pipeline','Invoices & Pipeline'],
     ['google-reviews',  'Syncing and Displaying Google Reviews'],
     ['csv-import',      'Bulk Importing Services via CSV'],
     ['gmail-oauth',     'Connecting Gmail for Automated Emails'],
@@ -18123,6 +18124,39 @@ Notes:    Natural stone or concrete pavers. Free on-site estimate.
 
 <blockquote class="hc-callout"><span class="hc-co-h">Prorated Charges</span><p>Adding or removing add-ons mid-billing cycle triggers automatic proration by Stripe. Any credit from cancelled features will be applied directly to your subsequent invoice.</p></blockquote>
 `;
+
+    case 'invoices-pipeline': return `<p class="hc-lead">Turn every caller into a tracked job &mdash; from the first phone call all the way to final payment. The Pipeline shows where every job stands; Invoices get you paid.</p>
+
+<h2>The Pipeline board</h2>
+<p>Open <a href="/p/pipeline">Pipeline</a> to see every job as a card moving through six stages:</p>
+<ol>
+  <li><strong>New Lead</strong> &mdash; a caller Emma just captured.</li>
+  <li><strong>Consultation</strong> &mdash; you have talked or booked a visit (e.g., a photography studio scheduling a pre-shoot call).</li>
+  <li><strong>Estimate Sent</strong> &mdash; you texted a quote and are waiting on approval.</li>
+  <li><strong>Approved</strong> &mdash; the client said yes; time to do the work.</li>
+  <li><strong>Invoiced</strong> &mdash; the work is done and the bill is out.</li>
+  <li><strong>Paid</strong> &mdash; money in.</li>
+</ol>
+<p>Each card shows the client, service, days waiting, and dollar value, with a one-tap <strong>next-action button</strong>. The stage updates itself from the real state of the job, so a card never gets stuck in the wrong column.</p>
+<blockquote class="hc-callout"><span class="hc-co-h">Tip</span><p>Watch the "days" counter &mdash; the fastest way to catch a lead going cold, like a salon consultation nobody followed up on.</p></blockquote>
+
+<h2>Real invoices</h2>
+<p>Open <a href="/p/invoices">Invoices</a> to bill for completed work. Every invoice gets:</p>
+<ul>
+  <li>A sequential number (<strong>INV-00001</strong>, INV-00002, and so on).</li>
+  <li>Line items, subtotal, tax, discount, and any deposit already collected.</li>
+  <li>An issue date and a due date (Net 15, Net 30, or due on receipt).</li>
+  <li>A status: draft, sent, partial, paid, overdue, or void &mdash; overdue is flagged automatically.</li>
+  <li>A Stripe payment link so clients pay online in a tap.</li>
+</ul>
+
+<h2>Estimate becomes invoice</h2>
+<p>Once an estimate is <strong>approved</strong> and the job is done, hit <strong>Convert to Invoice</strong>. Branch Live copies the line items, keeps everything linked, assigns the next invoice number, and sets the due date &mdash; no re-typing. A cleaning service can quote, get approval, do the clean, and bill in seconds.</p>
+
+<h2>The client record</h2>
+<p>Open any lead from <a href="/p/leads">Leads</a> to see that client's full story: every estimate, every invoice, and a chronological <strong>activity timeline</strong> &mdash; first call, consultation, estimate sent, approved, invoiced, paid. Nothing falls through the cracks.</p>
+
+<div class="hc-callout"><span class="hc-co-h">Why this matters</span><p>This is your whole money workflow &mdash; leads in, jobs tracked, invoices paid &mdash; without a separate accounting app.</p></div>`;
 
     case 'estimates': return `<p class="hc-lead">Turn a phone call into a paid job. Build a professional estimate, text it to your client, and get paid online &mdash; all without leaving your dashboard.</p>
 
