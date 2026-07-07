@@ -936,10 +936,11 @@ function formatHour(timeStr, format, fallback = 'TBD') {
 // message, and the app keeps working.
 const ADDONS = {
   website: { column: 'addon_website', label: 'Website Builder',  icon: '📱', price: 9.95, priceId: null },
-  reviews: { column: 'addon_reviews', label: 'Review Monitoring', icon: '⭐', price: 9.95, priceId: null },
+  reviews: { column: 'addon_reviews', label: 'Google Business Profile', icon: '⭐', price: 9.95, priceId: null },
   social:  { column: 'addon_social',  label: 'Social Media',     icon: '📣', price: 9.95, priceId: null },
   blog:    { column: 'addon_blog',    label: 'AI Blog Posts',    icon: '✍️', price: 14.95, priceId: null },
   email:   { column: 'addon_email',   label: 'Email Autoresponder', icon: '✉️', price: 9.95, priceId: null },
+  newsletter: { column: 'addon_newsletter', label: 'Email Newsletters', icon: '📧', price: 9.95, priceId: null },
 };
 
 // Growth Feature Preview pages — sales/preview interstitials served at
@@ -1105,6 +1106,31 @@ async function verifyStripeSignature(rawBody, sigHeader, secret) {
   return diff === 0 ? { ok: true } : { ok: false, error: 'Signature mismatch' };
 }
 
+// HMAC-SHA256 → hex. Shared by the newsletter unsubscribe-token signer and
+// any future feature that needs a keyed, verifiable token. Pure crypto.subtle
+// (no Node deps) so it runs in the Worker runtime.
+async function hmacSha256(secret, message) {
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(String(secret || '')),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message)));
+  let hex = '';
+  for (const b of mac) hex += b.toString(16).padStart(2, '0');
+  return hex;
+}
+
+// Constant-time compare for two hex strings. Returns false on length mismatch
+// (length is not secret for HMAC tokens). Used to verify unsubscribe tokens
+// without leaking the expected value via timing.
+function constantTimeEqualHex(a, b) {
+  a = String(a || ''); b = String(b || '');
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 // Encode the raw body to a hex SHA-256 idempotency key. Used for webhook
 // dedupe so a retried Stripe event is only applied once.
 async function sha256Hex(text) {
@@ -1150,7 +1176,7 @@ async function sendEmail(env, { to, subject, html, uid }) {
     const respText = await resp.text();
     let parsed = null;
     try { parsed = JSON.parse(respText); } catch (e) {}
-    console.log('Resend:', resp.status, respText);
+    // console.log('Resend:', resp.status, respText);
     if (resp.ok) {
       return { ok: true, id: (parsed && parsed.id) || null };
     }
@@ -1591,6 +1617,23 @@ async function initDB(env) {
         buffer_enabled INTEGER DEFAULT 0,
         buffer_min INTEGER DEFAULT 30
       )`),
+      // Appointment SMS follow-ups: one row per reminder/check-in attempt.
+      // type is 'reminder' (24h before) or 'checkin' (2h after); status is
+      // 'sent', 'failed', or 'opted_out'. The unique index guarantees at most
+      // one reminder and one check-in per appointment. Scoped by user_id (tenant).
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS appointment_sms_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        appointment_id INTEGER NOT NULL,
+        customer_phone TEXT NOT NULL,
+        type TEXT NOT NULL,
+        status TEXT NOT NULL,
+        sent_at TEXT,
+        message_body TEXT NOT NULL,
+        error_message TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (appointment_id) REFERENCES appointments(id)
+      )`),
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS password_resets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
@@ -1740,6 +1783,51 @@ async function initDB(env) {
       )`),
       // Index the per-user listing query (newest published first).
       env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_cblog_user ON business_blog_posts(user_id, published_at DESC)`),
+      // ── Email Newsletters add-on ──
+      // Subscriber list — harvested from leads/appointments and (later) manual
+      // import. UNIQUE(user_id, email) doubles as the ON CONFLICT target for
+      // the upsert, so we get dedupe + re-activation in one shot.
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        email TEXT NOT NULL,
+        name TEXT,
+        phone TEXT,
+        status TEXT DEFAULT 'active',
+        source TEXT DEFAULT 'lead',
+        source_id INTEGER,
+        created_at TEXT DEFAULT (datetime('now')),
+        unsubscribed_at TEXT,
+        UNIQUE(user_id, email)
+      )`),
+      // One row per newsletter draft/dispatch. content stores the FULL HTML
+      // (already wrapped in businessEmailShell) with literal {{SUBSCRIBER_EMAIL}}
+      // and {{UNSUB_TOKEN}} placeholders swapped per-recipient at send time.
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS newsletter_campaigns (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        content TEXT NOT NULL,
+        status TEXT DEFAULT 'draft',
+        scheduled_for TEXT,
+        sent_at TEXT,
+        recipients_count INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now'))
+      )`),
+      // Per-recipient delivery log — one row per (campaign, subscriber). The
+      // cron drains 'pending' rows in batches of 20/tick to stay under the
+      // Workers subrequest cap.
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS newsletter_sends (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        campaign_id INTEGER NOT NULL,
+        subscriber_id INTEGER NOT NULL,
+        status TEXT DEFAULT 'pending',
+        resend_id TEXT,
+        sent_at TEXT
+      )`),
+      env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_news_sends_pending ON newsletter_sends(campaign_id, status)`),
+      env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_news_subs_user ON newsletter_subscribers(user_id, status)`),
     ]);
 
     // Migration: add buffer columns if missing (idempotent — safe to run on existing DBs)
@@ -1767,6 +1855,9 @@ async function initDB(env) {
     try { await env.DB.prepare('ALTER TABLE settings ADD COLUMN addon_social INTEGER DEFAULT 0').run(); } catch(e) {}
     try { await env.DB.prepare('ALTER TABLE settings ADD COLUMN addon_blog INTEGER DEFAULT 0').run(); } catch(e) {}
     try { await env.DB.prepare('ALTER TABLE settings ADD COLUMN addon_email INTEGER DEFAULT 0').run(); } catch(e) {}
+    try { await env.DB.prepare('ALTER TABLE settings ADD COLUMN addon_newsletter INTEGER DEFAULT 0').run(); } catch(e) {}
+    try { await env.DB.prepare("ALTER TABLE settings ADD COLUMN newsletter_frequency TEXT DEFAULT 'monthly'").run(); } catch(e) {}
+    try { await env.DB.prepare("ALTER TABLE settings ADD COLUMN newsletter_approval_mode TEXT DEFAULT 'auto'").run(); } catch(e) {}
     // Migration: Vapi AI voice integration (replaces Twilio voice). One
     // assistant + one provisioned phone number per business.
     //   vapi_assistant_id     → id of the Vapi Assistant created for Emma
@@ -1840,6 +1931,39 @@ async function initDB(env) {
     // charges_enabled:true (onboarding complete). Idempotent ALTERs.
     try { await env.DB.prepare("ALTER TABLE settings ADD COLUMN stripe_account_id TEXT DEFAULT ''").run(); } catch(e) {}
     try { await env.DB.prepare('ALTER TABLE settings ADD COLUMN stripe_charges_enabled INTEGER DEFAULT 0').run(); } catch(e) {}
+
+    // Appointment SMS follow-ups (Feature #5). Per-business toggle + two
+    // customizable message templates (reminder + check-in). NULL → cron uses
+    // the built-in default. Idempotent ALTERs + indexes for the new table.
+    try { await env.DB.prepare('ALTER TABLE settings ADD COLUMN sms_followup_enabled INTEGER DEFAULT 0').run(); } catch(e) {}
+    try { await env.DB.prepare('ALTER TABLE settings ADD COLUMN sms_reminder_template TEXT DEFAULT NULL').run(); } catch(e) {}
+    try { await env.DB.prepare('ALTER TABLE settings ADD COLUMN sms_checkin_template TEXT DEFAULT NULL').run(); } catch(e) {}
+    try { await env.DB.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_appt_sms_uniq ON appointment_sms_logs(appointment_id, type)').run(); } catch(e) {}
+    try { await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_appt_sms_phone ON appointment_sms_logs(user_id, customer_phone)').run(); } catch(e) {}
+
+    // Voice Job Notes — owner dictation feature. The owner calls their Emma
+    // number from their cell to leave a note against a job. voice_notes_enabled
+    // turns the feature on; owner_phone is the caller ID we match against
+    // (falls back to forwarding_number when blank). job_notes is a separate
+    // table so multiple notes can accrue against a lead over time without
+    // touching the leads row.
+    try { await env.DB.prepare('ALTER TABLE settings ADD COLUMN voice_notes_enabled INTEGER DEFAULT 0').run(); } catch(e) {}
+    try { await env.DB.prepare("ALTER TABLE settings ADD COLUMN owner_phone TEXT DEFAULT ''").run(); } catch(e) {}
+    try {
+      await env.DB.batch([
+        env.DB.prepare(`CREATE TABLE IF NOT EXISTS job_notes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          lead_id INTEGER,
+          author TEXT DEFAULT 'Owner via Emma',
+          note_text TEXT NOT NULL,
+          recording_url TEXT,
+          vapi_call_id TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )`),
+        env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_job_notes_user_lead ON job_notes(user_id, lead_id)`),
+      ]);
+    } catch(e) { console.error('job_notes table migration error:', e); }
 
     // Migration: social_posts queue. One row per drafted or published post,
     // keyed by user_id so each business's queue is independent. Idempotent.
@@ -2482,6 +2606,33 @@ async function seedRiverside(env) {
     await env.DB.prepare('INSERT INTO appointment_types (user_id, name, duration_min, color) VALUES (1, ?, ?, ?)')
       .bind(name, dur, color).run();
   }
+
+  // ── Newsletter subscribers (seed) — pulled from the demo leads above so the
+  // dashboard is not empty for the demo account. Idempotent: clear first.
+  try {
+    await env.DB.prepare('DELETE FROM newsletter_subscribers WHERE user_id = 1').run();
+    await env.DB.prepare('DELETE FROM newsletter_campaigns WHERE user_id = 1').run();
+    await env.DB.prepare('DELETE FROM newsletter_sends').run();
+    const demoSubs = [
+      ['maria.gonzalez@email.com', 'Maria Gonzalez', '(215) 555-0142'],
+      ['jthompson@email.com', 'James Thompson', '(610) 555-0198'],
+      ['priya.patel@email.com', 'Priya Patel', '(484) 555-0123'],
+      ['emily.carter@email.com', 'Emily Carter', '(717) 555-0189'],
+      ['aaliyah.f@email.com', 'Aaliyah Foster', '(410) 555-0139'],
+      ['h.tanaka@email.com', 'Hiroshi Tanaka', '(717) 555-0158'],
+      ['brianna.cole@email.com', 'Brianna Cole', '(484) 555-0124'],
+      ['kwame.m@email.com', 'Kwame Mensah', '(732) 555-0190'],
+      ['rosa.d@email.com', 'Rosa Delgado', '(717) 555-0119'],
+      ['olivia.b@email.com', 'Olivia Bennett', '(732) 555-0129'],
+    ];
+    for (const [email, name, phone] of demoSubs) {
+      await env.DB.prepare(
+        "INSERT INTO newsletter_subscribers (user_id, email, name, phone, source, status) VALUES (1, ?, ?, ?, 'lead', 'active')"
+      ).bind(email.toLowerCase(), name, phone).run();
+    }
+  } catch (e) {
+    console.error('newsletter seed error:', e && e.message);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -2778,6 +2929,7 @@ const NAV_ITEMS = {
   website:  { key:'website',  href: '/p/growth/website',     label: 'Website',    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>' },
   blog:     { key:'blog',     href: '/p/growth/blog',        label: 'Blog',      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>' },
   social:   { key:'social',   href: '/p/growth/social',      label: 'Social',    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-8-8 18-2-7-8-3z"/></svg>' },
+  newsletters: { key:'newsletters', href: '/p/newsletters',  label: 'Newsletters', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>' },
   billing:  { key:'billing',  href: '/p/billing',     label: 'Billing',   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>' },
   help:     { key:'help',     href: '/p/help',        label: 'Help',      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' },
   outreach: { key:'outreach', href: '/p/outreach',   label: 'Outreach',  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>' },
@@ -2791,7 +2943,7 @@ const NAV_ITEMS = {
 const NAV_GROUPS = [
   { name: 'Main',     keys: ['overview','calendar','knowledge','faq','gallery'] },
   { name: 'Business', keys: ['leads','calls','pipeline','estimates','invoices','analytics'] },
-  { name: 'Growth',   keys: ['website','blog','social'] },
+  { name: 'Growth',   keys: ['website','blog','social','newsletters'] },
   { name: 'Account',  keys: ['billing','team','settings','help'] },
 ];
 
@@ -2841,12 +2993,12 @@ function brandMark() {
 // filters links by role: employees don't see Settings/Billing/Team; managers
 // don't see Settings/Billing. When ctx is absent (admin console, settings
 // page) every nav item is shown, preserving prior behavior.
-function sidebarNav(active, isAdmin, ctx) {
+function sidebarNav(active, ctx) {
   const role = (ctx && ctx.role) || 'admin';
   const minRoleFor = {
     settings: 'admin', billing: 'admin', team: 'manager',
     leads: 'manager', calls: 'manager', website: 'manager',
-    analytics: 'manager', outreach: 'manager', blog: 'manager', social: 'manager', estimates: 'manager',
+    analytics: 'manager', outreach: 'manager', blog: 'manager', social: 'manager', estimates: 'manager', newsletters: 'manager',
   };
   // Render a single nav link, applying the role gate + active state.
   const linkHtml = key => {
@@ -3007,6 +3159,7 @@ const ROUTE_MIN_ROLE = {
   '/p/outreach':  'manager',
   '/p/blog':      'manager',
   '/p/social':    'manager',
+  '/p/newsletters': 'manager',
   '/p/team':      'manager',
   '/p/calendar':  'employee',
   '/p/knowledge': 'employee',
@@ -3404,7 +3557,8 @@ function settingsHtmxBody({ row, user, saved, outreach }) {
       <div style="margin-top:14px">
         <label style="display:block;font-size:.78rem;font-family:var(--font-mono);letter-spacing:.04em;color:var(--text-muted);margin-bottom:7px;text-transform:uppercase">Google Place ID <span class="gpid-tip" style="text-transform:none;font-weight:400;letter-spacing:0;font-size:1em;color:var(--text-faint)">Find yours at <a href="https://developers.google.com/maps/documentation/places/web-service/place-id" target="_blank" rel="noopener" style="color:var(--accent)">Google's Place ID Finder</a></span></label>
         <input type="text" name="google_place_id" value="${htmxEsc(s.google_place_id)}" placeholder="ChIJ..." style="width:100%;box-sizing:border-box">
-        <p style="color:var(--text-faint);font-size:.78em;margin:6px 0 0">Used by the Review Monitoring add-on to pull your live Google reviews.</p>
+        <p style="color:var(--text-faint);font-size:.78em;margin:6px 0 0">Used by the Google Business Profile add-on to display your live Google reviews.</p>
+        ${s.google_place_id ? `<p style="color:var(--text-muted);font-size:.82em;margin:8px 0 0">⭐ Your Google reviews are live on your site. <em>Connect your Google account to reply to reviews and unlock all features.</em></p>` : ''}
       </div>
     </div>
     <div class="card" style="margin-top:16px">
@@ -3415,6 +3569,35 @@ function settingsHtmxBody({ row, user, saved, outreach }) {
       ${check('sms_consent', '📱 SMS appointment reminders', !!s.sms_consent)}
       <p style="color:var(--text-faint);font-size:.8em;margin:8px 0 0">SMS reminders require carrier approval (A2P 10DLC). Toggles locally until Twilio is live.</p>
     </div>
+    <div class="card" style="margin-top:16px">
+      <h3 style="margin-top:0">📱 Appointment SMS Follow-ups${tip("When on, Emma texts a reminder 24 hours before each confirmed appointment and a satisfaction check-in 2 hours after it ends. Leave a template blank to use the built-in default. A STOP opt-out footer is appended automatically.")}</h3>
+      ${check('sms_followup_enabled', 'Enable reminders & check-ins', !!s.sms_followup_enabled)}
+      ${field('24h Reminder template', `<textarea name="sms_reminder_template" rows="3" style="width:100%;box-sizing:border-box;font-size:.85em;font-family:var(--font-mono)">${htmxEsc(s.sms_reminder_template || '')}</textarea>`)}
+      <p style="color:var(--text-faint);font-size:.78em;margin:-4px 0 12px">Placeholders: {customer_name}, {title}, {date}, {time}, {business_name}, {business_phone}. Blank uses the default.</p>
+      ${field('2h Post-appointment check-in template', `<textarea name="sms_checkin_template" rows="3" style="width:100%;box-sizing:border-box;font-size:.85em;font-family:var(--font-mono)">${htmxEsc(s.sms_checkin_template || '')}</textarea>`)}
+      <p style="color:var(--text-faint);font-size:.78em;margin:-4px 0 0">Same placeholders as above. Blank uses the default. History for each lead shows on their profile page.</p>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3 style="margin-top:0">🎙️ Voice Job Notes${tip("Call your Emma number from your cell phone to dictate a note against a job. Emma recognizes your caller ID and switches into dictation mode, asking which customer the note is for. The note is saved to that lead (or held for you to assign later if no match is found).")}</h3>
+      ${check('voice_notes_enabled', 'Enable Voice Job Notes (recognize my caller ID)', !!s.voice_notes_enabled)}
+      ${field('Owner cell phone (the number you will call FROM)', `<input type="text" name="owner_phone" value="${htmxEsc(s.owner_phone || '')}" placeholder="e.g. +17173415677" style="width:100%;max-width:320px">`)}
+      <p style="color:var(--text-faint);font-size:.78em;margin:-4px 0 0">Emma matches this against your incoming caller ID. Leave blank to use your Forwarding Number. Use full digits (country code optional); formatting like dashes or spaces is ignored.</p>
+    </div>
+    ${s.addon_newsletter ? `
+    <div class="card" style="margin-top:16px">
+      <h3 style="margin-top:0">📧 Email Newsletters${tip("Subscribers are collected automatically from your leads and appointments. Choose how often we draft and send a newsletter, and whether it sends automatically or waits for your approval.")}</h3>
+      ${field('Cadence', (() => {
+        const f = String(s.newsletter_frequency || 'monthly').toLowerCase();
+        const opt = (v, label) => `<option value="${v}" ${f === v ? 'selected' : ''}>${label}</option>`;
+        return `<select name="newsletter_frequency" style="width:100%;max-width:240px">${opt('monthly','Monthly')}${opt('quarterly','Quarterly')}${opt('annual','Annual (January)')}</select>`;
+      })())}
+      ${field('Approval mode', (() => {
+        const m = String(s.newsletter_approval_mode || 'auto').toLowerCase();
+        const opt = (v, label) => `<label style="display:flex;align-items:center;gap:11px;padding:9px 0;cursor:pointer;font-size:.95em;color:var(--text-primary)"><input type="radio" name="newsletter_approval_mode" value="${v}" ${m === v ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--accent-amber);cursor:pointer"> ${htmxEsc(label)}</label>`;
+        return `<div>${opt('auto','Auto-send — generate and send automatically.')}${opt('manual','Draft and notify — hold sending until I review.')}</div>`;
+      })())}
+      <p style="color:var(--text-faint);font-size:.78em;margin:-4px 0 0">Manage drafts and see your subscriber list in <a href="/p/newsletters" style="color:var(--accent-amber)">Newsletters</a>.</p>
+    </div>` : ''}
     <div class="card" style="margin-top:16px">
       <h3 style="margin-top:0">Scheduling${tip("Buffer adds extra time after each appointment so you're not rushing between jobs (e.g., 30 minutes for travel). Default duration is how long a typical booking lasts.")}</h3>
       <div style="display:flex;gap:16px;flex-wrap:wrap">
@@ -3839,8 +4022,11 @@ async function handleSettingsHtmx(request, env) {
           google_calendar_api_key, google_calendar_id,
           buffer_min, week_start_day, default_duration_min, time_format,
           sms_consent, instagram_url, facebook_url, google_place_id,
-          facebook_page_token, instagram_business_id
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          facebook_page_token, instagram_business_id,
+          sms_followup_enabled, sms_reminder_template, sms_checkin_template,
+          voice_notes_enabled, owner_phone,
+          newsletter_frequency, newsletter_approval_mode
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(user_id) DO UPDATE SET
           business_name = excluded.business_name,
           forwarding_number = excluded.forwarding_number,
@@ -3863,7 +4049,14 @@ async function handleSettingsHtmx(request, env) {
           facebook_url = excluded.facebook_url,
           google_place_id = excluded.google_place_id,
           facebook_page_token = excluded.facebook_page_token,
-          instagram_business_id = excluded.instagram_business_id`
+          instagram_business_id = excluded.instagram_business_id,
+          sms_followup_enabled = excluded.sms_followup_enabled,
+          sms_reminder_template = excluded.sms_reminder_template,
+          sms_checkin_template = excluded.sms_checkin_template,
+          voice_notes_enabled = excluded.voice_notes_enabled,
+          owner_phone = excluded.owner_phone,
+          newsletter_frequency = excluded.newsletter_frequency,
+          newsletter_approval_mode = excluded.newsletter_approval_mode`
       ).bind(
         uid,
         g('business_name'), g('forwarding_number'),
@@ -3876,7 +4069,14 @@ async function handleSettingsHtmx(request, env) {
         form.get('sms_consent') ? 1 : 0,
         g('instagram_url'), g('facebook_url'),
         g('google_place_id'),
-        g('facebook_page_token'), g('instagram_business_id')
+        g('facebook_page_token'), g('instagram_business_id'),
+        form.get('sms_followup_enabled') ? 1 : 0,
+        g('sms_reminder_template') || null,
+        g('sms_checkin_template') || null,
+        form.get('voice_notes_enabled') ? 1 : 0,
+        g('owner_phone'),
+        (['monthly','quarterly','annual'].includes(g('newsletter_frequency')) ? g('newsletter_frequency') : 'monthly'),
+        (g('newsletter_approval_mode') === 'manual' ? 'manual' : 'auto')
       ).run();
     } catch (e) {
       console.error('HTMX settings save error:', e);
@@ -3929,7 +4129,7 @@ async function handleMe(request, env, uid) {
     if (!row) return apiError('User not found', 401);
     // Surface billing/add-on status so the frontend can gate features.
     const settings = await env.DB.prepare(
-      'SELECT stripe_plan, addon_website, addon_reviews, addon_social, addon_blog, addon_email FROM settings WHERE user_id = ?'
+      'SELECT stripe_plan, addon_website, addon_reviews, addon_social, addon_blog, addon_email, addon_newsletter FROM settings WHERE user_id = ?'
     ).bind(uid).first();
     return json({
       ok: true,
@@ -4217,9 +4417,25 @@ async function handleCreateLead(request, env, uid) {
     const jobDetails = body.job_details || '';
     const urgency = body.urgency || 'medium';
 
-    await env.DB.prepare(
+    const leadInsert = await env.DB.prepare(
       'INSERT INTO leads VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).bind(uid, callerName, callerPhone, callerEmail, jobDetails, urgency, 'new', '', now, now).run();
+    const newLeadId = (leadInsert && leadInsert.meta && leadInsert.meta.last_row_id) || null;
+
+    // Newsletter auto-harvest: every new lead with an email is upserted into
+    // the subscriber list. ON CONFLICT re-activates a previously-unsubscribed
+    // contact (CAN-SPAM-safe: an active subscriber is a no-op, never force-
+    // re-subscribed). Best-effort — never blocks lead creation.
+    if (callerEmail) {
+      try {
+        await env.DB.prepare(
+          `INSERT INTO newsletter_subscribers (user_id, email, name, phone, source, source_id)
+           VALUES (?, ?, ?, ?, 'lead', ?)
+           ON CONFLICT(user_id, email) DO UPDATE SET status = 'active'
+           WHERE status = 'unsubscribed'`
+        ).bind(uid, String(callerEmail).toLowerCase(), callerName || null, callerPhone || null, newLeadId).run();
+      } catch (e) { console.error('newsletter harvest (lead) error:', e && e.message); }
+    }
 
     // Send lead notification email
     const owner = await env.DB.prepare(
@@ -4416,6 +4632,18 @@ async function handleCalendarAdd(request, env, uid) {
         "SELECT caller_email FROM leads WHERE user_id = ? AND lower(caller_name) = lower(?) AND caller_email != '' ORDER BY id DESC LIMIT 1"
       ).bind(uid, body.customer_name).first();
       if (leadMatch) customerEmailForAppt = leadMatch.caller_email;
+    }
+    // Newsletter auto-harvest from appointments. Same upsert/re-activation
+    // semantics as the lead hook. Best-effort — never blocks booking.
+    if (customerEmailForAppt) {
+      try {
+        await env.DB.prepare(
+          `INSERT INTO newsletter_subscribers (user_id, email, name, phone, source, source_id)
+           VALUES (?, ?, ?, ?, 'appointment', ?)
+           ON CONFLICT(user_id, email) DO UPDATE SET status = 'active'
+           WHERE status = 'unsubscribed'`
+        ).bind(uid, String(customerEmailForAppt).toLowerCase(), body.customer_name || null, body.customer_phone || null, newApptId).run();
+      } catch (e) { console.error('newsletter harvest (appt) error:', e && e.message); }
     }
     // Auto-send a customer-facing confirmation when we have an email address.
     // Skip when the caller explicitly opted into send_email_reminder — that
@@ -5190,7 +5418,7 @@ async function provisionTenantOnCheckout(env, uid, sessionData) {
       `UPDATE settings SET
          timezone = 'America/New_York',
          addon_website = 0, addon_reviews = 0, addon_social = 0,
-         addon_blog = 0, addon_email = 0
+         addon_blog = 0, addon_email = 0, addon_newsletter = 0
        WHERE user_id = ?`
     ).bind(uid).run();
     created.settings = true;
@@ -5408,7 +5636,7 @@ async function handleStripeWebhook(request, env) {
         await env.DB.prepare(
           `UPDATE settings SET
              addon_website = 0, addon_reviews = 0, addon_social = 0,
-             addon_blog = 0, addon_email = 0,
+             addon_blog = 0, addon_email = 0, addon_newsletter = 0,
              stripe_subscription_id = NULL WHERE user_id = ?`
         ).bind(uid).run();
       }
@@ -5438,10 +5666,10 @@ async function syncAddonsFromSubscription(env, uid, subscription) {
   await env.DB.prepare(
     `UPDATE settings SET
        addon_website = ?, addon_reviews = ?, addon_social = ?,
-       addon_blog = ?, addon_email = ? WHERE user_id = ?`
+       addon_blog = ?, addon_email = ?, addon_newsletter = ? WHERE user_id = ?`
   ).bind(
     updates.addon_website, updates.addon_reviews, updates.addon_social,
-    updates.addon_blog, updates.addon_email, uid
+    updates.addon_blog, updates.addon_email, updates.addon_newsletter, uid
   ).run();
 }
 
@@ -6158,26 +6386,34 @@ async function fetchGoogleReviews(env, placeId) {
   const key = env.GOOGLE_PLACES_API_KEY;
   if (!key || !placeId) return [];
   try {
-    const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=reviews&key=${encodeURIComponent(key)}`;
+    const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=reviews,rating,user_ratings_total&key=${encodeURIComponent(key)}`;
     const resp = await fetch(url);
     if (!resp.ok) {
-      console.log('Google Places API HTTP error:', resp.status);
+      // console.log('Google Places API HTTP error:', resp.status);
       return [];
     }
     const data = await resp.json();
     // Legacy API surfaces API/key errors as { status: 'INVALID_REQUEST' | ... }
     // with no result.reviews. Treat anything without a reviews array as empty.
-    const raw = (data && data.result && Array.isArray(data.result.reviews))
-      ? data.result.reviews
+    const dataObj = data || {};
+    const raw = (dataObj.result && Array.isArray(dataObj.result.reviews))
+      ? dataObj.result.reviews
       : [];
     // Normalize + cap at 5 newest reviews.
-    return raw.slice(0, 5).map(r => ({
+    const reviews = raw.slice(0, 5).map(r => ({
       author_name: r.author_name || 'Anonymous',
       rating: Number.isFinite(r.rating) ? r.rating : 5,
       text: r.text || '',
       time: r.time || null,
       profile_photo_url: r.profile_photo_url || '',
     }));
+    // Aggregate rating + total — for the ratings badge on business sites.
+    const agg = {
+      rating: Number.isFinite(dataObj.result && dataObj.result.rating) ? dataObj.result.rating : null,
+      total: Number.isFinite(dataObj.result && dataObj.result.user_ratings_total) ? dataObj.result.user_ratings_total : null,
+    };
+    reviews._google = agg;
+    return reviews;
   } catch (e) {
     console.error('fetchGoogleReviews error:', e);
     return [];
@@ -6223,7 +6459,7 @@ async function syncReviews(env, uid) {
       synced++;
     } catch (e) {
       // UNIQUE collision or other constraint — skip; not fatal.
-      console.log('syncReviews insert skipped:', e.message);
+      // console.log('syncReviews insert skipped:', e.message);
     }
   }
 
@@ -6301,13 +6537,14 @@ async function handleReviewsSyncCron(request, env) {
 // overlay. Sample data is obviously-generic (sampleReviews/sampleBlogPosts).
 async function buildSiteData(env, uid, opts) {
   const previewAddons = (opts && opts.previewAddons) || {};
-  const [settings, kb, apptTypes, photos, posts, revRows] = await Promise.all([
+  const [settings, kb, apptTypes, photos, posts, revRows, googleInfo] = await Promise.all([
     env.DB.prepare('SELECT * FROM settings WHERE user_id = ?').bind(uid).first(),
     env.DB.prepare('SELECT category, item, price, notes FROM knowledge WHERE user_id = ? ORDER BY category, item LIMIT 60').bind(uid).all(),
     env.DB.prepare('SELECT name, duration_min FROM appointment_types WHERE user_id = ? ORDER BY name').bind(uid).all(),
     env.DB.prepare('SELECT id, data, caption, type FROM photos WHERE user_id = ? ORDER BY created_at DESC LIMIT 12').bind(uid).all(),
     env.DB.prepare('SELECT title, slug, content, published_at FROM business_blog_posts WHERE user_id = ? AND status = ? ORDER BY published_at DESC LIMIT 3').bind(uid, 'published').all(),
     env.DB.prepare('SELECT author_name, rating, text, profile_photo_url, reviewed_at FROM reviews WHERE user_id = ? ORDER BY rating DESC, reviewed_at DESC LIMIT 5').bind(uid).all(),
+    fetchGoogleReviews(env, s.google_place_id),
   ]);
   const s = settings || {};
   const kbRows = kb.results || [];
@@ -6562,13 +6799,18 @@ function siteSharedHtml(data, cfg) {
     ? `<span class="s-chip">👍 Facebook</span>`
     : `<a class="s-chip" href="${esc(data.facebook)}" target="_blank" rel="noopener">👍 Facebook</a>`);
   const socialLinksHtml = socials.length ? `<div class="s-chips">${socials.join('')}</div>` : '';
+  const googleAgg = (googleInfo && googleInfo._google) || {};
+  const googleRating = (googleAgg.rating != null && googleAgg.total != null) ? googleAgg : null;
+  const googleBadge = googleRating
+    ? `<div class="s-google-badge"><span class="s-google-stars">${'★'.repeat(Math.round(googleRating.rating))}</span><span class="s-google-num">${Number(googleRating.rating).toFixed(1)}</span> · <span class="s-google-count">${googleRating.total} Google reviews</span></div>`
+    : '';
   // Reviews: render real/sample rows when present; render nothing (empty
   // string) when the section is on but empty AND not previewing (previewing
   // injects samples so this branch only hits for real add-on owners with no
   // reviews yet).
-  const reviewsHtml = data.reviews && data.reviews.length
+  const reviewsHtml = googleBadge + (data.reviews && data.reviews.length
     ? data.reviews.map(r => `<blockquote class="s-review"><p>“${esc(r.text || '')}”</p>${r.author ? `<cite>— ${esc(r.author)}</cite>` : ''}</blockquote>`).join('')
-    : '';
+    : '');
   return { esc, telHref, bookBtn, bookUrl, heroHeadline, heroSub, heroTagline, stickyCta, servicesInner, apptChips, galleryHtml, blogHtml, hoursHtml, bookingInner, serviceAreaHtml, socialLinksHtml, reviewsHtml, previewing: data.previewing || {} };
 }
 
@@ -6853,7 +7095,7 @@ async function handleEstimatesHtmx(request, env, uid, ctx) {
       ? leadRows.map(l => `<option value="${l.id}">${htmxEsc(l.caller_name || ('Lead #' + l.id))}</option>`).join('')
       : '<option value="">(no active leads — create one first)</option>';
 
-    const body = `<div class="app">${sidebarNav('estimates', undefined, ctx)}<div class="content" style="max-width:980px">
+    const body = `<div class="app">${sidebarNav('estimates', ctx)}<div class="content" style="max-width:980px">
 <span class="eyebrow">Quotes & Invoices</span>
 <h1>Estimates</h1>
 <p class="sub">Send a quote via text. When approved, convert it to an official invoice to collect payment.</p>
@@ -7323,7 +7565,7 @@ async function handleInvoicesHtmx(request, env, uid, ctx) {
     // View-only banner for employees (mirrors the .vo-banner pattern).
     const voBanner = canEdit ? '' : `<div class="vo-banner" style="background:rgba(212,165,116,.10);border:1px solid var(--border-soft);border-left:3px solid var(--accent-amber);border-radius:10px;padding:10px 14px;margin:0 0 16px;color:var(--text-muted)">You have view-only access to invoices. Ask a manager to create or send them.</div>`;
 
-    const body = `<div class="app">${sidebarNav('invoices', undefined, ctx)}<div class="content" style="max-width:1000px">
+    const body = `<div class="app">${sidebarNav('invoices', ctx)}<div class="content" style="max-width:1000px">
 <span class="eyebrow">Billing</span>
 <h1>Invoices</h1>
 <p class="sub">Create an invoice, text a payment link to the customer, and mark it paid — or convert an approved estimate.</p>
@@ -7889,7 +8131,7 @@ async function handlePipelineHtmx(request, env, uid, ctx) {
 
     const voBanner = canEdit ? '' : `<div class="vo-banner" style="background:rgba(212,165,116,.10);border:1px solid var(--border-soft);border-left:3px solid var(--accent-amber);border-radius:10px;padding:10px 14px;margin:0 0 16px;color:var(--text-muted)">You have view-only access to the pipeline. Ask a manager to advance leads.</div>`;
 
-    const body = `<div class="app">${sidebarNav('pipeline', undefined, ctx)}<div class="content" style="max-width:1280px">
+    const body = `<div class="app">${sidebarNav('pipeline', ctx)}<div class="content" style="max-width:1280px">
 <span class="eyebrow">Pipeline</span>
 <h1>Your <em>pipeline</em></h1>
 <p class="sub">Every lead, from first call to paid invoice. The stage is computed from each lead\u2019s status, estimate, and invoice \u2014 no manual upkeep.</p>
@@ -8194,7 +8436,7 @@ async function handleWebsiteBuilderHtmx(request, env, uid, ctx) {
       ? `<p class="wb-live"><span class="badge badge-new">Live</span> <a href="/s/${htmxEsc(slug)}" target="_blank">${htmxEsc(origin)}/s/${htmxEsc(slug)}</a></p>`
       : (slug ? `<p class="wb-live"><span class="badge">Preview only</span></p>` : '');
 
-    const body = `<div class="app">${sidebarNav('website', undefined, ctx)}<div class="content wb-content">
+    const body = `<div class="app">${sidebarNav('website', ctx)}<div class="content wb-content">
 <span class="eyebrow">Website</span>
 <h1>AI Website Designer</h1>
 <p class="sub">Harness artificial intelligence to write custom CSS and HTML tailored specifically to your business, services, and photos.${slug ? '' : ' Save a business name in Settings first.'}</p>
@@ -8853,7 +9095,7 @@ npx wrangler secret put TEXTMAGIC_API_KEY</pre>
       ? `<p class="sub" style="margin-top:14px;font-size:.9rem">${convRate}% conversion (signed up ÷ contacted).</p>`
       : '';
 
-    const body = `<div class="app">${sidebarNav('outreach', undefined, ctx)}<div class="content" style="max-width:1100px">
+    const body = `<div class="app">${sidebarNav('outreach', ctx)}<div class="content" style="max-width:1100px">
   ${outreachContentInner({ funnel, convRate, convNote, searchCard, blastCard, rows })}
 </div></div>`;
     return new Response(simpleShell('Outreach', body), { headers: { 'Content-Type': 'text/html' } });
@@ -9128,7 +9370,7 @@ p.sub{color:var(--text-muted);margin-bottom:0}
 .stat-card{text-align:center;padding:28px 20px}
 .stat-num{font-family:var(--font-serif);font-size:2.8rem;font-weight:500;line-height:1;color:var(--cream);letter-spacing:-.02em}
 /* Tone classes collapse to cream — monotone warm palette. */
-.stat-num.purple,.stat-num.green,.stat-num.blue{color:var(--cream)}
+.stat-num.amber, .stat-num.green, .stat-num.blue { color: var(--cream); }
 .stat-lab{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--text-muted);margin-top:10px;font-weight:500}
 
 /* Tables — warm borders, subdued cream headers, mono numbers */
@@ -9265,7 +9507,7 @@ code,.mono{font-family:var(--font-mono);font-feature-settings:"tnum"}
 .cal-cell.muted .day-num{color:var(--text-faint)}
 .cal-cell .dots{display:flex;gap:3px;margin-top:5px;flex-wrap:wrap}
 .cal-dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
-.cal-dot.purple{background:var(--accent)}
+.cal-dot.amber{background:var(--accent)}
 .cal-dot.green{background:var(--accent-deep)}
 .day-appts{margin-top:8px}
 .day-appt{display:flex;gap:14px;align-items:center;padding:13px 16px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--bg-card)}
@@ -9787,12 +10029,12 @@ function switchBusiness(bid){var f=document.createElement('form');f.method='POST
   // died (load / render / toBlob / taint). The toast surfaces the step+error
   // so the user does not need to open devtools to see why no image arrived.
   function captureAnnotated(info){
-    console.log('[Scout-capture] captureAnnotated starting...');
+    // console.log('[Scout-capture] captureAnnotated starting...');
     return loadHtml2Canvas().then(function(){
-      console.log('[Scout-capture] html2canvas loaded:',typeof window.html2canvas);
+      // console.log('[Scout-capture] html2canvas loaded:',typeof window.html2canvas);
       if(!window.html2canvas)throw new Error('html2canvas missing after load');
       var src=annoCanvas; // may be null when called from Inspect
-      console.log('[Scout-capture] rendering documentElement; annoCanvas present:',!!src);
+      // console.log('[Scout-capture] rendering documentElement; annoCanvas present:',!!src);
       return window.html2canvas(document.documentElement,{
         backgroundColor:getComputedStyle(document.body).backgroundColor||'#0a0a12',
         logging:true,useCORS:true,allowTaint:false,scale:DPR,
@@ -9813,7 +10055,7 @@ function switchBusiness(bid){var f=document.createElement('form');f.method='POST
           doc.body.appendChild(c);
         }
       }).then(function(canvas){
-        console.log('[Scout-capture] html2canvas produced canvas:',canvas&&canvas.width,'x',canvas&&canvas.height);
+        // console.log('[Scout-capture] html2canvas produced canvas:',canvas&&canvas.width,'x',canvas&&canvas.height);
         return canvas;
       },function(renderErr){
         console.error('[Scout-capture] html2canvas render THREW:',renderErr&&renderErr.message);
@@ -9827,7 +10069,7 @@ function switchBusiness(bid){var f=document.createElement('form');f.method='POST
         try{
           canvas.toBlob(function(b){
             if(done)return;
-            if(b){done=true;clearTimeout(t);console.log('[Scout-capture] toBlob OK, size:',b.size);res(b);}
+            if(b){done=true;clearTimeout(t);// console.log('[Scout-capture] toBlob OK, size:',b.size);res(b);}
             else{
               // toBlob returned null — almost always a TAINTED canvas (a
               // cross-origin image without CORS was drawn). Try toDataURL as
@@ -9836,7 +10078,7 @@ function switchBusiness(bid){var f=document.createElement('form');f.method='POST
               console.error('[Scout-capture] toBlob returned NULL — trying toDataURL probe');
               try{
                 var url=canvas.toDataURL('image/png');
-                console.log('[Scout-capture] toDataURL worked (len '+url.length+') — canvas NOT tainted; null-blob was a browser quirk');
+                // console.log('[Scout-capture] toDataURL worked (len '+url.length+') — canvas NOT tainted; null-blob was a browser quirk');
                 dataURLToBlob(url).then(function(blob2){if(!done){done=true;clearTimeout(t);res(blob2);}},function(e2){if(!done){done=true;clearTimeout(t);rej(new Error('toBlob null + toDataURL->blob failed: '+(e2&&e2.message)));}});
               }catch(secErr){
                 done=true;clearTimeout(t);
@@ -10386,7 +10628,7 @@ async function handleLeadsHtmx(request, env, uid, ctx) {
     <span class="chevron" style="color:var(--text-faint)">›</span>
   </div>
 </a>`).join('');
-    const body = `<div class="app">${sidebarNav('leads', undefined, ctx)}<div class="content">
+    const body = `<div class="app">${sidebarNav('leads', ctx)}<div class="content">
 <span class="eyebrow">Leads</span>
 <h1>Your <em>leads</em></h1>
 <p class="sub">Every caller Emma captures — name, job, urgency, and status.</p>
@@ -10589,11 +10831,107 @@ function renderTranscriptSummaryHtml(transcript, existingSummary, isLogPage) {
 // transcript, related call history, and a notes box. Status can be advanced
 // via a small inline form (POST back to the same route).
 // ═══════════════════════════════════════════════════════════════════════
+// Lead-page widget for the Appointment SMS follow-ups feature (Feature #5).
+// Shows every reminder/check-in (sent, failed, or opted-out) tied to this
+// lead's phone number, newest first. Scoped by user_id (tenant) and joined to
+// appointments for the title/date context. Returns '' when there's no usable
+// phone — so the lead page degrades cleanly for email-only leads.
+async function renderLeadAppointmentFollowupWidget(env, uid, phone) {
+  const p = normalizePhoneE164(phone);
+  if (!p) return '';
+  const { results: logs } = await env.DB.prepare(
+    `SELECT l.type, l.status, l.sent_at, l.message_body, l.error_message,
+            a.title AS appt_title, a.date AS appt_date
+       FROM appointment_sms_logs l
+       JOIN appointments a ON l.appointment_id = a.id
+      WHERE l.user_id = ? AND l.customer_phone = ?
+      ORDER BY l.id DESC LIMIT 20`
+  ).bind(uid, p).all();
+  const rows = logs || [];
+  const items = rows.map(h => {
+    const typeLabel = h.type === 'reminder' ? '\uD83D\uDD14 Reminder' : '\uD83D\uDCAC Check-in';
+    // Amber-monotone badges: amber for sent, muted for failed/opted-out.
+    const badgeCls = h.status === 'sent' ? 'badge-booked' : 'badge-new';
+    const statusLabel = h.status.toUpperCase();
+    const when = h.sent_at ? new Date(h.sent_at.endsWith('Z') ? h.sent_at : h.sent_at.replace(' ', 'T') + 'Z') : null;
+    const whenStr = when && !isNaN(when.getTime())
+      ? when.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+      : '';
+    const apptLabel = h.appt_title ? `${htmxEsc(h.appt_title)}` + (h.appt_date ? ` (${htmxEsc(h.appt_date)})` : '') : '';
+    const err = h.error_message
+      ? `<div style="font-size:.78em;color:var(--danger);margin-top:2px">Error: ${htmxEsc(h.error_message)}</div>`
+      : '';
+    return `<li style="padding:8px 0;border-bottom:1px solid var(--border-soft,#2e2618)">
+      <div style="font-size:.82em;color:var(--text-muted);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <span>${typeLabel}${apptLabel ? ' \u2014 ' + apptLabel : ''}</span>
+        <span><span class="badge ${badgeCls}">${htmxEsc(statusLabel)}</span>${whenStr ? ' <span class="mono">' + htmxEsc(whenStr) + '</span>' : ''}</span>
+      </div>
+      <div style="font-size:.85em;color:var(--text-primary);margin-top:4px">${htmxEsc(h.message_body)}</div>
+      ${err}
+    </li>`;
+  }).join('');
+  return `<div class="card">
+    <h3 style="margin-top:0">\uD83D\uDCF1 Appointment SMS Follow-ups</h3>
+    ${rows.length
+      ? `<ul style="list-style:none;padding:0;margin:0">${items}</ul>`
+      : `<div class="note-box" style="margin:0">No SMS history recorded yet for this number.</div>`}
+  </div>`;
+}
+
+// Lead-page widget for Voice Job Notes (owner dictations). Renders the notes
+// captured by the owner calling their Emma number. Scoped by user_id + lead_id.
+// Returns '' when there are no notes so the card does not render at all. All
+// user-supplied text is htmxEsc'd; timestamps honor the account time format.
+async function renderJobNotesWidget(env, uid, leadId, timeFmt) {
+  const { results } = await env.DB.prepare(
+    'SELECT id, author, note_text, recording_url, created_at FROM job_notes WHERE user_id = ? AND lead_id = ? ORDER BY created_at DESC'
+  ).bind(uid, leadId).all();
+  const notes = results || [];
+  if (!notes.length) return '';
+  const fmtWhen = d => {
+    if (!d) return '';
+    const date = new Date(d.endsWith('Z') ? d : d.replace(' ', 'T') + 'Z');
+    if (isNaN(date.getTime())) return '';
+    const day = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `${day}, ${formatHour(date, timeFmt, '')}`;
+  };
+  const items = notes.map(n => {
+    const when = fmtWhen(n.created_at);
+    const author = n.author || 'Owner via Emma';
+    const recording = n.recording_url
+      ? `<a href="${htmxEsc(n.recording_url)}" target="_blank" rel="noopener" class="jn-rec">▶ Listen to recording</a>`
+      : '';
+    return `<div class="jn-item">
+  <div class="jn-head">
+    <span class="jn-author">${htmxEsc(author)}</span>
+    <span class="jn-meta"><span class="badge badge-booked">via Voice</span>${when ? ' <span class="mono">' + htmxEsc(when) + '</span>' : ''}</span>
+  </div>
+  <p class="jn-text">${htmxEsc(n.note_text)}</p>
+  ${recording}
+</div>`;
+  }).join('');
+  return `<div class="card">
+    <h3 style="margin-top:0">🎙️ Voice Job Notes</h3>
+    <p style="color:var(--text-muted);font-size:.85em;margin:0 0 12px">Notes the owner dictated by calling the Emma number.</p>
+    <div class="jn-list">${items}</div>
+  </div>
+  <style>
+  .jn-list{display:flex;flex-direction:column;gap:12px}
+  .jn-item{padding:12px;background:var(--bg-elev,#13131f);border:1px solid var(--border-soft,#2e2618);border-radius:10px}
+  .jn-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  .jn-author{font-size:.82em;font-weight:600;color:var(--accent-amber)}
+  .jn-meta{font-size:.74em;color:var(--text-muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .jn-text{margin:0;font-size:.9rem;line-height:1.6;color:var(--cream);white-space:pre-wrap;word-break:break-word}
+  .jn-rec{display:inline-block;margin-top:10px;font-size:.78em;color:var(--accent-amber);text-decoration:none}
+  .jn-rec:hover{text-decoration:underline}
+  </style>`;
+}
+
 async function handleLeadDetailHtmx(request, env, uid, leadId, ctx) {
   try {
     const lead = await env.DB.prepare('SELECT * FROM leads WHERE id = ? AND user_id = ?').bind(leadId, uid).first();
     if (!lead) {
-      const body = `<div class="app">${sidebarNav('leads', undefined, ctx)}<div class="content">
+      const body = `<div class="app">${sidebarNav('leads', ctx)}<div class="content">
 <a class="back-link" href="/p/leads">‹ Back to leads</a>
 <div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">Lead not found</div><div class="empty-msg">This lead may have been removed or doesn't belong to your account.</div>
 <a class="btn btn-ghost btn-sm" href="/p/leads" style="margin-top:18px">← All leads</a></div></div></div>`;
@@ -10612,6 +10950,12 @@ async function handleLeadDetailHtmx(request, env, uid, leadId, ctx) {
       env.DB.prepare('SELECT slug FROM sites WHERE user_id = ?').bind(uid).first(),
     ]);
     const timeFmt = await getTimeFormat(env, uid);
+    // Appointment SMS follow-up history for this lead's phone (Feature #5).
+    // Renders below the Contact card. '' when there's no phone or no logs.
+    const appointmentSmsWidget = await renderLeadAppointmentFollowupWidget(env, uid, lead.caller_phone);
+    // Voice Job Notes the owner dictated against this lead. '' when there are
+    // none, so the card does not render at all.
+    const jobNotesWidget = await renderJobNotesWidget(env, uid, leadId, timeFmt);
     // "Mon, Jan 2, 2024" + clock honoring the account's time_format.
     const fmtDate = d => {
       if (!d) return '—';
@@ -10666,7 +11010,7 @@ async function handleLeadDetailHtmx(request, env, uid, leadId, ctx) {
       }
     }
     const hasDraftTranscript = !!draftTranscript;
-    const body = `<div class="app">${sidebarNav('leads', undefined, ctx)}<div class="content">
+    const body = `<div class="app">${sidebarNav('leads', ctx)}<div class="content">
 <a class="back-link" href="/p/leads">‹ Back to leads</a>
 <span class="eyebrow">Lead #${lead.id}</span>
 <div style="display:flex;align-items:center;gap:16px;margin-bottom:6px">
@@ -10707,6 +11051,8 @@ async function handleLeadDetailHtmx(request, env, uid, leadId, ctx) {
       <div class="kv"><span class="k">Captured</span><span class="v">${fmtDate(lead.created_at)}</span></div>
       <div class="kv"><span class="k">Updated</span><span class="v">${fmtDate(lead.updated_at)}</span></div>
     </div>
+    ${appointmentSmsWidget}
+    ${jobNotesWidget}
     <div class="card">
       <h3 style="margin-top:0">Actions</h3>
       <div style="display:flex;flex-direction:column;gap:10px">
@@ -10937,7 +11283,7 @@ async function handleCallsHtmx(request, env, uid, ctx) {
 </tr>
 <tr class="call-row-body" id="call-${c.id}-body"><td colspan="4" style="padding:0;border:none"><div class="call-transcript">${leadBlock}${hasT ? renderTranscriptSummaryHtml(c.transcript, c.summary, true) + '<div class="transcript" style="margin:0;border-radius:0">' + htmxEsc(c.transcript) + '</div>' : '<div class="note-box" style="margin:12px 16px">No transcript for this call.</div>'}</div></td></tr>`;
     }).join('');
-    const body = `<div class="app">${sidebarNav('calls', undefined, ctx)}<div class="content">
+    const body = `<div class="app">${sidebarNav('calls', ctx)}<div class="content">
 <span class="eyebrow">Call logs</span>
 <h1>Every <em>call</em> Emma handled</h1>
 <p class="sub">Click any row to expand the full transcript.</p>
@@ -11118,7 +11464,7 @@ async function handleCalendarHtmx(request, env, uid, ctx) {
 .cal-cell.week-cell .wk-empty{color:var(--text-faint)}
 @media(max-width:768px){.cal-week-grid{grid-template-columns:1fr;gap:8px}.cal-cell.week-cell{min-height:auto}}
 </style>`;
-    const body = `${weekCss}<div class="app">${sidebarNav('calendar', undefined, ctx)}<div class="content">
+    const body = `${weekCss}<div class="app">${sidebarNav('calendar', ctx)}<div class="content">
 <span class="eyebrow">Calendar</span>
 <h1>${heading}</h1>
 <p class="sub">Appointments Emma has booked — switch between Month, Week, and Day views.</p>
@@ -11151,7 +11497,7 @@ async function handleAppointmentDetailHtmx(request, env, uid, apptId, ctx) {
     const backDay = url.searchParams.get('day') || '';
     const appt = await env.DB.prepare('SELECT * FROM appointments WHERE id = ? AND user_id = ?').bind(apptId, uid).first();
     if (!appt) {
-      const body = `<div class="app">${sidebarNav('calendar', undefined, ctx)}<div class="content">
+      const body = `<div class="app">${sidebarNav('calendar', ctx)}<div class="content">
 <a class="back-link" href="/p/calendar">‹ Back to calendar</a>
 <div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">Appointment not found</div><div class="empty-msg">This appointment may have been removed or doesn't belong to your account.</div>
 <a class="btn btn-ghost btn-sm" href="/p/calendar" style="margin-top:18px">← Calendar</a></div></div></div>`;
@@ -11249,7 +11595,7 @@ async function handleAppointmentDetailHtmx(request, env, uid, apptId, ctx) {
   </div>
 </div>`;
     }
-    const body = `<div class="app">${sidebarNav('calendar', undefined, ctx)}<div class="content">
+    const body = `<div class="app">${sidebarNav('calendar', ctx)}<div class="content">
 <a class="back-link" href="${backHref}">‹ Back to calendar</a>
 <span class="eyebrow">Appointment #${appt.id}</span>
 <div style="display:flex;align-items:center;gap:16px;margin-bottom:6px">
@@ -11380,7 +11726,7 @@ async function handleKnowledgeHtmx(request, env, uid, ctx) {
   ${rowActions}
 </tr>${editRow}`;
     }).join('');
-    const body = `<div class="app">${sidebarNav('knowledge', undefined, ctx)}<div class="content">
+    const body = `<div class="app">${sidebarNav('knowledge', ctx)}<div class="content">
 <span class="eyebrow">Knowledge base</span>
 <h1>What Emma <em>knows</em></h1>
 <p class="sub">Products and services Emma references when callers ask about pricing.</p>
@@ -11645,7 +11991,7 @@ async function handleFaqHtmx(request, env, uid, ctx) {
   ${rowActions}
 </tr>${editRow}`;
     }).join('');
-    const body = `<div class="app">${sidebarNav('faq', undefined, ctx)}<div class="content">
+    const body = `<div class="app">${sidebarNav('faq', ctx)}<div class="content">
 <span class="eyebrow">Common facts</span>
 <h1>Quick answers <em>Emma</em> uses</h1>
 <p class="sub">Frequent questions callers ask, grouped by category. Emma reads these on every call.</p>
@@ -11777,7 +12123,7 @@ fRenderPager(${totalPages});
 async function handleBillingHtmx(request, env, uid, ctx) {
   try {
     const [settings, sub] = await Promise.all([
-      env.DB.prepare('SELECT addon_website, addon_reviews, addon_social, addon_blog, addon_email, stripe_plan FROM settings WHERE user_id = ?').bind(uid).first(),
+      env.DB.prepare('SELECT addon_website, addon_reviews, addon_social, addon_blog, addon_email, addon_newsletter, stripe_plan FROM settings WHERE user_id = ?').bind(uid).first(),
       env.DB.prepare('SELECT plan, status, trial_start, trial_end FROM subscriptions WHERE user_id = ?').bind(uid).first(),
     ]);
     const addons = getAddons(env);
@@ -11799,7 +12145,7 @@ async function handleBillingHtmx(request, env, uid, ctx) {
     const trialNote = status === 'trial' && trialEnd
       ? `<div class="note-box" style="margin-bottom:18px;border-color:rgba(212,165,116,.4);color:var(--accent-amber)">🎁 You're on a 30-day free trial${daysLeft > 0 ? ` — <strong>${daysLeft} day${daysLeft === 1 ? '' : 's'} left</strong>` : ''}. No card required yet.</div>`
       : '';
-    const body = `<div class="app">${sidebarNav('billing', undefined, ctx)}<div class="content" style="max-width:760px">
+    const body = `<div class="app">${sidebarNav('billing', ctx)}<div class="content" style="max-width:760px">
 <span class="eyebrow">Billing & plan</span>
 <h1>Your <em>plan</em></h1>
 <p class="sub">One simple price. Add what you need, when you need it.</p>
@@ -11858,7 +12204,7 @@ async function handleGalleryHtmx(request, env, uid, ctx) {
     const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const cards = photos.map(p => `<div class="g-item" data-type="${p.type || 'during'}" onclick="glightbox(this)"><img src="${p.data}" alt="${esc(p.caption || 'Portfolio image')}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block"><span class="g-tag g-tag-${p.type || 'during'}">${p.type || 'during'}</span>${p.caption ? `<span class="g-cap">${esc(p.caption)}</span>` : ''}</div>`).join('');
     const style = `<style>.g-tabs{display:flex;gap:8px;margin:18px 0 24px;flex-wrap:wrap}.g-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}.g-item{position:relative;aspect-ratio:1;overflow:hidden;border-radius:14px;border:1px solid var(--border);background:var(--bg-card);cursor:zoom-in;transition:transform .3s cubic-bezier(.2,.7,.2,1),box-shadow .3s ease}.g-item:hover{transform:translateY(-3px);box-shadow:0 12px 32px -10px rgba(0,0,0,.6)}.g-item:hover img{opacity:.9}.g-item img{transition:opacity .3s ease}.g-tag{position:absolute;top:8px;left:8px;padding:3px 9px;border-radius:9999px;font-size:.66rem;font-weight:600;text-transform:uppercase;font-family:var(--font-mono);letter-spacing:.04em;backdrop-filter:blur(4px)}.g-tag-before{background:rgba(212,165,116,.9);color:#1a1205}.g-tag-during{background:rgba(96,165,250,.9);color:#06121f}.g-tag-after{background:rgba(52,211,153,.9);color:#051a0c}.g-cap{position:absolute;left:0;right:0;bottom:0;padding:10px 12px;font-size:.78rem;color:var(--text-primary);background:linear-gradient(transparent,rgba(0,0,0,.85));line-height:1.3}.g-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center;z-index:100;padding:24px;cursor:zoom-out;backdrop-filter:blur(6px)}.g-lightbox img{max-width:90vw;max-height:85vh;border-radius:12px;box-shadow:0 24px 80px -20px rgba(0,0,0,.8)}</style>`;
-    const body = `<div class="app">${sidebarNav('gallery', undefined, ctx)}<div class="content">
+    const body = `<div class="app">${sidebarNav('gallery', ctx)}<div class="content">
 <span class="eyebrow">Gallery</span>
 <h1>📸 Photo Gallery</h1>
 <p class="sub">Before, during &amp; after job shots — ready for your website and socials.</p>
@@ -12046,7 +12392,7 @@ async function handleOverviewHtmx(request, env, uid, ctx) {
     const statCard = (label, value, href) =>
       `<a class="card stat-card ov-stat" href="${href}"><div class="stat-num">${value}</div><div class="stat-lab">${label}</div><span class="ov-stat-go">›</span></a>`;
 
-    const body = `<div class="app">${sidebarNav('overview', undefined, ctx)}<div class="content">
+    const body = `<div class="app">${sidebarNav('overview', ctx)}<div class="content">
 <span class="eyebrow">Overview</span>
 <h1>Welcome back</h1>
 <p class="sub">Here's what's happening across <strong style="color:var(--text-primary)">${htmxEsc(greeting)}</strong> today.</p>
@@ -12961,7 +13307,7 @@ async function handleAnalyticsHtmx(request, env, uid, ctx) {
          FROM call_logs WHERE user_id = ?`
       ).bind(uid).first(),
       env.DB.prepare('SELECT COUNT(*) AS total FROM appointments WHERE user_id = ?').bind(uid).first(),
-      env.DB.prepare('SELECT stripe_plan, addon_website, addon_reviews, addon_social, addon_blog, addon_email FROM settings WHERE user_id = ?').bind(uid).first(),
+      env.DB.prepare('SELECT stripe_plan, addon_website, addon_reviews, addon_social, addon_blog, addon_email, addon_newsletter FROM settings WHERE user_id = ?').bind(uid).first(),
       env.DB.prepare('SELECT status FROM subscriptions WHERE user_id = ?').bind(uid).first(),
       env.DB.prepare(
         `SELECT strftime('%Y-%m', created_at) AS month, COUNT(*) AS count
@@ -13064,7 +13410,7 @@ async function handleAnalyticsHtmx(request, env, uid, ctx) {
     const statCard = (label, value, tone) =>
       `<div class="ax-stat"><div class="stat-num ${tone}">${value}</div><div class="stat-lab">${label}</div></div>`;
 
-    const body = `<div class="app">${sidebarNav('analytics', undefined, ctx)}<div class="content">
+    const body = `<div class="app">${sidebarNav('analytics', ctx)}<div class="content">
 <span class="eyebrow">Analytics</span>
 <h1>📊 Analytics</h1>
 <p class="sub">Your leads, close rate, call volume &amp; ROI — live from your data.</p>
@@ -13208,7 +13554,7 @@ async function handleTeamHtmx(request, env, ctx) {
 ${invites.map(iv => `<div class="team-row" style="padding:12px 22px"><div class="team-meta"><div class="team-name">${htmxEsc(iv.email)}</div><div class="team-email">Invited · ${roleBadge(iv.role)}</div></div>${isAdmin ? `<form method="POST" action="/api/team/revoke"><input type="hidden" name="token" value="${htmxEsc(iv.token)}"><button type="submit" class="btn btn-ghost btn-sm">Revoke</button></form>` : ''}</div>`).join('')}
 </div>` : '';
 
-    const body = `<div class="app">${sidebarNav('team', undefined, ctx)}<div class="content">
+    const body = `<div class="app">${sidebarNav('team', ctx)}<div class="content">
 <span class="eyebrow">Team</span>
 <h1>Team <em>members</em></h1>
 <p class="sub">Manage who can access <strong style="color:var(--text-primary)">${bName}</strong>.</p>
@@ -13784,7 +14130,7 @@ async function sendSms(env, { to, body }) {
   const authToken = env.TWILIO_AUTH_TOKEN;
   const from = env.TWILIO_PHONE_NUMBER;
   if (!accountSid || !authToken || !from) {
-    console.log('Twilio not configured — silent skip');
+    // console.log('Twilio not configured — silent skip');
     return false;
   }
   try {
@@ -13800,7 +14146,7 @@ async function sendSms(env, { to, body }) {
       }
     );
     const data = await resp.json();
-    console.log('Twilio:', resp.status, data.sid || data.message);
+    // console.log('Twilio:', resp.status, data.sid || data.message);
     return resp.ok;
   } catch (e) {
     console.error('Twilio error:', e.message);
@@ -13902,7 +14248,15 @@ function emmaSystemPrompt(s, compiledKnowledge = '') {
   const kbBlock = compiledKnowledge
     ? `\n\n--- KNOWLEDGE & FAQ ---\n${compiledKnowledge}\n----------------------\n\nUse the facts above to answer caller questions accurately. If a question is not covered, do not invent details — take a message instead.`
     : '';
-  return `You are Emma, the AI receptionist for ${name}, a ${industry} company serving ${area}. Be warm, professional, and efficient. Book appointments, capture lead details (name, phone, email, job, urgency), and answer questions about services from the knowledge base.${desc ? ` Services: ${desc}` : ''} Always collect the caller's name, callback number, email address, what they need done, and how urgent it is before ending the call. If they don't want to share their email, that's fine — move on.${kbBlock}`;
+  // Voice Job Notes: when Voice Job Notes is enabled, the business owner can
+  // call this same Emma number to dictate a note. An assistant-request override
+  // swaps in a dedicated dictation prompt for the owner's caller ID, but this
+  // base prompt also documents the behavior so Emma never treats the owner like
+  // a customer if the override is bypassed.
+  const voiceNotesBlock = (s && s.voice_notes_enabled === 1)
+    ? `\n\n--- VOICE JOB NOTES (OWNER CALLS) ---\nWhen the caller is the business owner (identified by caller ID matching the configured owner phone), treat the call as a dictation, NOT a customer call. Greet them warmly, ask which customer or job the note is for, then capture the note verbatim. Confirm the note back once they finish. If they say "never mind" or hang up, do not save anything.------------------------------------\n`
+    : '';
+  return `You are Emma, the AI receptionist for ${name}, a ${industry} company serving ${area}. Be warm, professional, and efficient. Book appointments, capture lead details (name, phone, email, job, urgency), and answer questions about services from the knowledge base.${desc ? ` Services: ${desc}` : ''} Always collect the caller's name, callback number, email address, what they need done, and how urgent it is before ending the call. If they don't want to share their email, that's fine — move on.${kbBlock}${voiceNotesBlock}`;
 }
 
 // Compile a business's knowledge + common_facts rows into a single text block
@@ -14017,7 +14371,7 @@ async function vapiProvision(env, settings) {
   //    one. This both avoids re-provisioning and dodges area-code stock issues.
   const existing = await detectExistingVapiNumber(env, settings);
   if (existing.ok) {
-    console.log('Vapi: reusing existing number', existing.phone_number);
+    // console.log('Vapi: reusing existing number', existing.phone_number);
     return existing;
   }
 
@@ -14029,7 +14383,7 @@ async function vapiProvision(env, settings) {
   let compiledKnowledge = '';
   if (ownerUid) {
     try { compiledKnowledge = await compileEmmaKnowledge(env, ownerUid); }
-    catch (e) { console.log('Vapi: knowledge compile failed, continuing without:', e && e.message); }
+    catch (e) { /* knowledge compile failed — continue without it */ }
   }
   const assistantBody = {
     name: 'Emma',
@@ -14053,7 +14407,7 @@ async function vapiProvision(env, settings) {
     });
     if (!upd.ok) {
       // Stale id (assistant deleted in Vapi dashboard) — recreate.
-      console.log('Vapi assistant update failed, recreating:', upd.error);
+      // console.log('Vapi assistant update failed, recreating:', upd.error);
       assistantId = null;
     }
   }
@@ -14266,7 +14620,54 @@ async function handleVapiWebhook(request, env) {
   }
   const message = payload.message || payload;
   const type = message.type;
-  console.log('Vapi webhook:', type);
+  // console.log('Vapi webhook:', type);
+
+  // 1. DYNAMIC ASSISTANT OVERRIDE FOR OWNERS (Voice Job Notes). When the
+  //    business has the feature on, we intercept the assistant-request that
+  //    fires BEFORE the call connects. If the inbound caller ID matches the
+  //    configured owner phone (owner_phone, falling back to forwarding_number),
+  //    we return a dedicated dictation assistant so Emma asks which job the
+  //    note is for instead of treating the owner like a customer. Returning {}
+  //    tells Vapi to use the normally-provisioned customer assistant.
+  if (type === 'assistant-request') {
+    try {
+      const owner = await resolveVapiOwner(env, message);
+      if (!owner) return json({});
+      const { settings } = owner;
+      if (settings && settings.voice_notes_enabled === 1) {
+        const callerPhone = (message.call && message.call.customer && message.call.customer.number)
+          || (message.customer && message.customer.number) || '';
+        const ownerPhone = (settings.owner_phone || settings.forwarding_number || '').trim();
+        // Match on the last 10 digits so formatting (country code, +, dashes)
+        // between caller ID and the stored number never causes a false miss.
+        const last10 = num => String(num || '').replace(/\D/g, '').slice(-10);
+        if (ownerPhone && callerPhone && last10(callerPhone) === last10(ownerPhone)) {
+          const businessName = (settings.business_name || 'your business');
+          return json({
+            assistant: {
+              firstMessage: `Hi! This is Emma. I see it is you, the owner of ${businessName}. Which customer or job would you like to leave a note for?`,
+              model: {
+                provider: VAPI_DEFAULTS.modelProvider,
+                model: VAPI_DEFAULTS.model,
+                messages: [{
+                  role: 'system',
+                  content: "You are Emma, the AI receptionist. The business owner is calling to dictate a job note. Do NOT treat them like a customer. Greet them warmly, ask which customer or job the note is for, then listen to the note. Confirm the note back once they finish. If they say \"never mind\" or end the call without a note, do not save anything. When summarizing, explicitly extract 'target_customer_name' (the customer the note is about) and 'note_text' (the dictation itself) into the structured data."
+                }]
+              },
+              voice: {
+                provider: VAPI_DEFAULTS.voiceProvider,
+                voiceId: VAPI_DEFAULTS.voiceId,
+              },
+              serverUrl: vapiServerUrl(env),
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Vapi assistant-request owner override error:', e);
+    }
+    return json({});
+  }
 
   // Only completed calls create leads / call logs. Other events are ack'd.
   if (type !== 'end-of-call-report') {
@@ -14277,14 +14678,74 @@ async function handleVapiWebhook(request, env) {
     const owner = await resolveVapiOwner(env, message);
     if (!owner) {
       // No matching business — likely a call on a number we don't manage.
-      console.log('Vapi webhook: no owner for assistantId/phoneNumberId');
+      // console.log('Vapi webhook: no owner for assistantId/phoneNumberId');
       return json({ ok: true });
     }
     const { uid, settings } = owner;
     const lead = extractLeadFromVapiCall(message);
 
-    // Create the lead first (so the call log can reference it).
+    // 2. OWNER-CALL NOTE ATTACHMENT (Voice Job Notes). If Voice Job Notes is on
+    //    AND this caller ID matches the owner phone, the call is a dictation,
+    //    not a customer lead. We bypass lead creation and instead attach the
+    //    dictated note to whichever lead best matches the spoken customer name.
+    //    When no lead matches, the note is still saved (lead_id NULL) so the
+    //    owner can assign it later. The owner call is also logged in call_logs.
     const now = nowISO();
+    const ownerPhoneRaw = (settings.owner_phone || settings.forwarding_number || '').trim();
+    const last10 = num => String(num || '').replace(/\D/g, '').slice(-10);
+    const isOwnerCall = settings.voice_notes_enabled === 1
+      && ownerPhoneRaw
+      && last10(lead.callerPhone) === last10(ownerPhoneRaw)
+      && last10(ownerPhoneRaw).length >= 10;
+
+    if (isOwnerCall) {
+      // Post-hoc extraction from the structured data the override prompt asked
+      // for, falling back to the call summary / transcript when the model did
+      // not emit structured fields.
+      const structured = (message.analysis && message.analysis.structuredData) || {};
+      const targetName = (structured.target_customer_name || '').trim();
+      const noteText = (structured.note_text || '').trim() || lead.summary || lead.transcript || '';
+      const recordingUrl = (message.artifact && message.artifact.recordingUrl) || '';
+      const vapiCallId = message.call && message.call.id ? String(message.call.id) : (message.id || '');
+
+      // "Never mind" / empty dictation guard: if there is nothing to save,
+      // ack the webhook without writing a job note.
+      const skipPhrases = /\b(never\s*mind|nevermind|cancel|disregard)\b/i;
+      const isEmpty = !noteText || skipPhrases.test(noteText);
+      if (isEmpty) {
+        // Still log that the owner called so there is a record.
+        await env.DB.prepare(
+          'INSERT INTO call_logs VALUES(NULL, ?, ?, ?, ?, ?, ?, ?)'
+        ).bind(uid, null, lead.callerPhone, message.call && message.call.durationSeconds || 0,
+          'Owner voice-notes call (no note captured)', lead.transcript, now).run();
+        return json({ ok: true, owner_call: true, note_saved: false });
+      }
+
+      // Match the spoken customer name against this business's leads
+      // (case-insensitive partial match, most recent first). Scoped by user_id
+      // for multi-tenant safety.
+      let targetLeadId = null;
+      if (targetName) {
+        const targetLead = await env.DB.prepare(
+          "SELECT id FROM leads WHERE user_id = ? AND lower(caller_name) LIKE lower(?) ORDER BY created_at DESC LIMIT 1"
+        ).bind(uid, '%' + targetName.trim() + '%').first();
+        if (targetLead) targetLeadId = targetLead.id;
+      }
+
+      await env.DB.prepare(
+        'INSERT INTO job_notes (user_id, lead_id, note_text, recording_url, vapi_call_id, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+      ).bind(uid, targetLeadId, noteText, recordingUrl, vapiCallId, now).run();
+
+      // Log the dictation call so the owner has a record in call history.
+      await env.DB.prepare(
+        'INSERT INTO call_logs VALUES(NULL, ?, ?, ?, ?, ?, ?, ?)'
+      ).bind(uid, targetLeadId, lead.callerPhone, message.call && message.call.durationSeconds || 0,
+        'Job Note Dictation (Owner)', lead.transcript, now).run();
+
+      return json({ ok: true, owner_call: true, note_saved: true, lead_id: targetLeadId });
+    }
+
+    // Create the lead first (so the call log can reference it).
     const leadRes = await env.DB.prepare(
       'INSERT INTO leads VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).bind(
@@ -15024,7 +15485,7 @@ async function handleAdminOverview(request, env, uid) {
       // Every subscription joined to its settings (for addon flags + plan).
       env.DB.prepare(
         `SELECT s.user_id, s.status, s.plan, s.trial_end, s.created_at,
-                st.addon_website, st.addon_reviews, st.addon_social, st.addon_blog, st.addon_email,
+                st.addon_website, st.addon_reviews, st.addon_social, st.addon_blog, st.addon_email, st.addon_newsletter,
                 st.stripe_plan, st.business_name
          FROM subscriptions s LEFT JOIN settings st ON st.user_id = s.user_id`
       ).all(),
@@ -15152,7 +15613,7 @@ async function handleAdminAccounts(request, env, uid) {
     // these for every column we need). Kept to one round-trip via Promise.all.
     const [usersRes, settingsRes, subRes, callCounts, leadCounts, lastLogin] = await Promise.all([
       env.DB.prepare(`SELECT id, email, name, company, phone, created_at FROM users ORDER BY created_at DESC LIMIT 500`).all(),
-      env.DB.prepare(`SELECT user_id, business_name, stripe_plan, addon_website, addon_reviews, addon_social, addon_blog, addon_email FROM settings`).all(),
+      env.DB.prepare(`SELECT user_id, business_name, stripe_plan, addon_website, addon_reviews, addon_social, addon_blog, addon_email, addon_newsletter FROM settings`).all(),
       env.DB.prepare(`SELECT user_id, status, plan, trial_end FROM subscriptions`).all(),
       env.DB.prepare(`SELECT user_id, COUNT(*) AS calls FROM call_logs GROUP BY user_id`).all(),
       env.DB.prepare(`SELECT user_id, COUNT(*) AS leads FROM leads GROUP BY user_id`).all(),
@@ -15593,7 +16054,7 @@ async function handleAdminAnalytics(request, env, uid) {
   if (denied) return denied;
   try {
     const [settingsRes, subRes] = await Promise.all([
-      env.DB.prepare(`SELECT user_id, addon_website, addon_reviews, addon_social, addon_blog, addon_email FROM settings`).all(),
+      env.DB.prepare(`SELECT user_id, addon_website, addon_reviews, addon_social, addon_blog, addon_email, addon_newsletter FROM settings`).all(),
       env.DB.prepare(`SELECT status FROM subscriptions`).all(),
     ]);
     const settings = settingsRes.results || [];
@@ -15825,6 +16286,404 @@ async function notifyBusinessOfPost(env, uid, post) {
     await sendEmail(env, { to: u.email, subject: `New blog post live: ${post.title}`, html, uid });
   } catch (e) {
     console.error('cblog notify error:', e && e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// EMAIL NEWSLETTERS — branded email shell, AI draft generator, dispatch.
+// Shares sendEmail() with the rest of the app but ships a business-branded
+// (not Branch-Live-branded) shell so recipients see the local business.
+// ═══════════════════════════════════════════════════════════════════════
+
+// Wrap inner content HTML in a customer-facing, business-branded email.
+// accent resolves to amber (#d4a574) when the site has none — never purple.
+// {{SUBSCRIBER_EMAIL}} / {{UNSUB_TOKEN}} are left literal here and swapped
+// per-recipient at send time so the stored campaign stays a single template.
+function businessEmailShell(content, settings, site) {
+  const s = settings || {};
+  const accent = (site && site.accent) || '#d4a574';
+  const name = (s.business_name || s.company || 'our team').trim();
+  const phone = s.forwarding_number || '';
+  const instagram = s.instagram_url || '';
+  const facebook = s.facebook_url || '';
+  const slug = (site && site.slug) || '';
+  let socialLinks = '';
+  if (facebook) socialLinks += `<a href="${htmxEsc(facebook)}" style="color:${accent};margin:0 10px;text-decoration:none;">Facebook</a>`;
+  if (instagram) socialLinks += `<a href="${htmxEsc(instagram)}" style="color:${accent};margin:0 10px;text-decoration:none;">Instagram</a>`;
+  const unsubHref = slug
+    ? `https://branchlive.com/s/${slug}/unsubscribe?email={{SUBSCRIBER_EMAIL}}&amp;token={{UNSUB_TOKEN}}`
+    : `https://branchlive.com/unsubscribe?email={{SUBSCRIBER_EMAIL}}&amp;token={{UNSUB_TOKEN}}`;
+  return `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background-color:#fafaf9;color:#1e293b;font-family:'Inter',-apple-system,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;padding:20px 0;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+  <tr><td style="background-color:${accent};padding:24px;text-align:center;">
+    <span style="color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.5px;">${htmxEsc(name)}</span>
+  </td></tr>
+  <tr><td style="padding:40px 32px;">
+    ${content}
+  </td></tr>
+  <tr><td style="padding:24px 32px;background-color:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;">
+    <p style="color:#64748b;font-size:14px;margin:0 0 12px;">Questions? Call us at <span style="color:${accent};font-weight:600;">${htmxEsc(phone)}</span></p>
+    ${socialLinks ? `<div style="margin-bottom:16px;">${socialLinks}</div>` : ''}
+    <p style="color:#94a3b8;font-size:12px;margin:0;">
+      You received this because you are a customer of ${htmxEsc(name)}.<br>
+      <a href="${unsubHref}" style="color:#64748b;text-decoration:underline;">Unsubscribe</a>
+    </p>
+    <p style="color:#cbd5e1;font-size:10px;margin-top:14px;letter-spacing:0.5px;text-transform:uppercase;">Powered by Branch Live</p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`;
+}
+
+// Deterministic fallback newsletter body when Workers AI is absent or errors.
+// Same shape the AI is asked to produce (greeting + review + service + CTA)
+// so the dev/preview feed is never empty.
+function deterministicNewsletterFallback(bizName, industry, reviews, service, bookUrl) {
+  const reviewBlock = (reviews && reviews[0])
+    ? `<p style="font-style:italic;color:#475569;border-left:3px solid #d4a574;padding-left:14px;margin:18px 0;">"${htmxEsc(String(reviews[0].text || '').slice(0, 240))}"<br><span style="color:#94a3b8;font-size:13px;">— ${htmxEsc(reviews[0].author_name || 'a happy customer')}</span></p>`
+    : `<p style="color:#475569;">Thank you to everyone who trusted ${htmxEsc(bizName)} this season — we love serving our ${htmxEsc(industry)} customers.</p>`;
+  const cta = bookUrl
+    ? `<p style="margin:24px 0 0;"><a href="https://branchlive.com${htmxEsc(bookUrl)}" style="background:#d4a574;color:#ffffff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Book your next appointment</a></p>`
+    : `<p style="margin:24px 0 0;color:#475569;">Call us to book your next appointment.</p>`;
+  return `<h2 style="color:#0f172a;margin:0 0 16px;">A quick update from ${htmxEsc(bizName)}</h2>
+<p style="color:#334155;line-height:1.6;">Hello friend — a short note to say thank you, share what is new, and make it easy to book your next visit.</p>
+${reviewBlock}
+<h3 style="color:#0f172a;margin:24px 0 10px;">Featured this month: ${htmxEsc(service.item || industry)}</h3>
+<p style="color:#334155;line-height:1.6;">${htmxEsc(service.notes || ('Our team is ready to help with ' + (industry || 'your needs') + '.'))}</p>
+${cta}`;
+}
+
+// Generate one newsletter draft for a business and persist it as status=draft.
+// Mirrors generateBusinessBlogPost: gathers context, calls env.AI, wraps the
+// inner HTML in businessEmailShell, and saves a campaign row. Returns
+// { ok, campaignId?, subject?, html?, title?, error? }. Never throws.
+async function generateNewsletterDraft(env, uid) {
+  const [settings, reviewsRes, photosRes, servicesRes, siteRow] = await Promise.all([
+    env.DB.prepare('SELECT business_name, industry, service_area, forwarding_number, instagram_url, facebook_url, newsletter_frequency FROM settings WHERE user_id = ?').bind(uid).first(),
+    env.DB.prepare('SELECT author_name, rating, text FROM reviews WHERE user_id = ? AND rating >= 4 ORDER BY reviewed_at DESC LIMIT 2').bind(uid).all(),
+    env.DB.prepare('SELECT data, caption FROM photos WHERE user_id = ? ORDER BY created_at DESC LIMIT 2').bind(uid).all(),
+    env.DB.prepare("SELECT item, notes FROM knowledge WHERE user_id = ? AND category = 'Services' ORDER BY RANDOM() LIMIT 1").bind(uid).first(),
+    env.DB.prepare('SELECT slug, accent FROM sites WHERE user_id = ? ORDER BY id LIMIT 1').bind(uid).first(),
+  ]);
+  const s = settings || {};
+  const slug = (siteRow && siteRow.slug) || '';
+  const accent = (siteRow && siteRow.accent) || null;
+  const bookUrl = slug ? `/s/${slug}/book` : '';
+  const reviews = (reviewsRes.results || []);
+  const service = servicesRes || {};
+  const industry = (s.industry || 'this business').trim();
+  const bizName = (s.business_name || 'our team').trim();
+  const season = currentSeason();
+  const freq = s.newsletter_frequency || 'monthly';
+
+  // Prompt — the model returns the INNER body (the shell wraps it).
+  const sys = 'You write warm, professional email newsletters for local service businesses. Output ONLY email-safe inline-styled HTML for the body (no html, head, or body tags). Use h2, h3, p, and inline styles. Keep it under 600 words. Do not include unsubscribe links. Do not invent fake statistics.';
+  const usr = `Write a ${freq} newsletter for ${bizName}, a ${industry} business${s.service_area ? ` serving ${s.service_area}` : ''}.
+Use this real material:
+- Top review: ${reviews[0] ? '"' + String(reviews[0].text || '').slice(0, 200) + '" — ' + (reviews[0].author_name || 'a customer') : 'no recent review; write a general thank-you to customers instead'}
+- Featured service: ${service.item || industry}${service.notes ? ' (' + service.notes + ')' : ''}
+- Season: ${season}
+
+Include 3 sections: (1) a warm greeting and what is new, (2) the review or a customer-win story, (3) the featured service. End with a clear call to action to book the next appointment at ${bookUrl || 'our website'}.`;
+
+  let innerHtml = '';
+  if (env.AI) {
+    try {
+      const ai = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
+        messages: [{ role: 'system', content: sys }, { role: 'user', content: usr }],
+        max_tokens: 900, temperature: 0.75
+      });
+      // Same response-shape ladder as the blog generator.
+      if (typeof ai === 'string') innerHtml = ai;
+      else if (ai && Array.isArray(ai.choices) && ai.choices[0]) innerHtml = (ai.choices[0].message && ai.choices[0].message.content) || '';
+      else if (ai && typeof ai.response === 'string') innerHtml = ai.response;
+      else if (ai && ai.result && typeof ai.result.response === 'string') innerHtml = ai.result.response;
+      else if (ai && typeof ai === 'object') innerHtml = String(ai.response || ai.output || '');
+    } catch (e) { console.error('newsletter AI error:', e && e.message); }
+  }
+  if (!innerHtml || !innerHtml.trim()) {
+    innerHtml = deterministicNewsletterFallback(bizName, industry, reviews, service, bookUrl);
+  }
+
+  const site = { slug, accent };
+  const html = businessEmailShell(innerHtml, s, site);
+  const subject = `${season} update from ${bizName}`;
+  const title = `${season} ${freq} — ${bizName}`;
+  let campaignId = null;
+  try {
+    const ins = await env.DB.prepare(
+      "INSERT INTO newsletter_campaigns (user_id, title, subject, content, status) VALUES (?, ?, ?, ?, 'draft')"
+    ).bind(uid, title, subject, html).run();
+    campaignId = (ins && ins.meta && ins.meta.last_row_id) || null;
+  } catch (e) {
+    console.error('newsletter campaign insert error:', e && e.message);
+    return { ok: false, error: 'Could not save draft' };
+  }
+  return { ok: true, campaignId, subject, html, title };
+}
+
+// Email the business owner that their newsletter draft is waiting for review.
+// Used in manual approval mode (auto mode skips this and queues immediately).
+async function notifyOwnerOfDraft(env, uid, res) {
+  try {
+    const u = await env.DB.prepare('SELECT email, name FROM users WHERE id = ?').bind(uid).first();
+    if (!u || !u.email) return;
+    const name = (u.name || '').trim() || 'there';
+    const html = emailShell(`
+      <div style="max-width:560px;margin:0 auto">
+        <p style="color:#f1f5f9;font-size:16px">Hi ${htmxEsc(name)},</p>
+        <p style="color:#cbd5e1;font-size:15px;line-height:1.6">Your newsletter draft is ready for review:</p>
+        <div style="background:#11162a;border:1px solid #1f2937;border-radius:12px;padding:20px 22px;margin:20px 0">
+          <p style="color:#e8c9a0;font-size:13px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 6px">Draft subject</p>
+          <p style="color:#f8fafc;font-size:18px;font-weight:600;margin:0">${htmxEsc(res.subject || 'Newsletter draft')}</p>
+          <p style="margin:14px 0 0"><a href="https://branchlive-portal.shane-f58.workers.dev/p/newsletters" style="color:#d4a574;text-decoration:none">Review and approve in your dashboard →</a></p>
+        </div>
+        <p style="color:#94a3b8;font-size:13px;line-height:1.6">This draft will not send until you approve it.</p>
+      </div>
+    `);
+    await sendEmail(env, { to: u.email, subject: 'Your newsletter draft is ready', html, uid });
+  } catch (e) {
+    console.error('newsletter draft notify error:', e && e.message);
+  }
+}
+
+// Email the business owner a summary once a campaign has finished dispatching.
+async function notifyOwnerOfSend(env, uid, campaignId) {
+  try {
+    const [u, c] = await Promise.all([
+      env.DB.prepare('SELECT email, name FROM users WHERE id = ?').bind(uid).first(),
+      env.DB.prepare('SELECT subject, recipients_count FROM newsletter_campaigns WHERE id = ?').bind(campaignId).first(),
+    ]);
+    if (!u || !u.email) return;
+    const name = (u.name || '').trim() || 'there';
+    const sent = await env.DB.prepare(
+      "SELECT COUNT(*) AS c FROM newsletter_sends WHERE campaign_id = ? AND status = 'sent'"
+    ).bind(campaignId).first();
+    const ok = (sent && sent.c) || 0;
+    const html = emailShell(`
+      <div style="max-width:560px;margin:0 auto">
+        <p style="color:#f1f5f9;font-size:16px">Hi ${htmxEsc(name)},</p>
+        <p style="color:#cbd5e1;font-size:15px;line-height:1.6">Your newsletter was just sent:</p>
+        <div style="background:#11162a;border:1px solid #1f2937;border-radius:12px;padding:20px 22px;margin:20px 0">
+          <p style="color:#e8c9a0;font-size:13px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 6px">Campaign</p>
+          <p style="color:#f8fafc;font-size:18px;font-weight:600;margin:0">${htmxEsc((c && c.subject) || 'Newsletter')}</p>
+          <p style="color:#94a3b8;font-size:13px;margin:10px 0 0">${ok} of ${((c && c.recipients_count) || ok)} delivered.</p>
+        </div>
+        <p style="color:#94a3b8;font-size:13px;line-height:1.6">See the full history in your dashboard.</p>
+      </div>
+    `);
+    await sendEmail(env, { to: u.email, subject: 'Your newsletter was sent', html, uid });
+  } catch (e) {
+    console.error('newsletter send notify error:', e && e.message);
+  }
+}
+
+// Create one 'pending' newsletter_sends row per active subscriber, then flip
+// the campaign to 'queued' so the dispatch loop picks it up next tick.
+// Zero subscribers is a valid state — we mark the campaign completed.
+async function queueCampaignForSend(env, uid, campaignId) {
+  const { results } = await env.DB.prepare(
+    "SELECT id FROM newsletter_subscribers WHERE user_id = ? AND status = 'active'"
+  ).bind(uid).all();
+  const subs = results || [];
+  if (!subs.length) {
+    await env.DB.prepare(
+      "UPDATE newsletter_campaigns SET status = 'completed', recipients_count = 0, sent_at = datetime('now') WHERE id = ?"
+    ).bind(campaignId).run();
+    return 0;
+  }
+  await env.DB.batch(subs.map(sub =>
+    env.DB.prepare(
+      "INSERT INTO newsletter_sends (campaign_id, subscriber_id, status) VALUES (?, ?, 'pending')"
+    ).bind(campaignId, sub.id)
+  ));
+  await env.DB.prepare(
+    "UPDATE newsletter_campaigns SET status = 'queued', recipients_count = ? WHERE id = ?"
+  ).bind(subs.length, campaignId).run();
+  return subs.length;
+}
+
+// Drain a batch of pending newsletter sends. limit keeps us safely under the
+// Workers subrequest cap (each send = 1 fetch + ~3 D1 calls). After each send
+// flips terminal, any campaign with no remaining pending rows is marked
+// 'completed' and the owner gets a summary email.
+async function dispatchNewsletterBatch(env, limit = 20) {
+  const { results } = await env.DB.prepare(
+    `SELECT ns.id AS send_id, ns.subscriber_id,
+            nc.id AS campaign_id, nc.user_id, nc.subject, nc.content,
+            nsub.email, nsub.name
+     FROM newsletter_sends ns
+     JOIN newsletter_campaigns nc ON nc.id = ns.campaign_id
+     JOIN newsletter_subscribers nsub ON nsub.id = ns.subscriber_id
+     WHERE ns.status = 'pending' AND nc.status IN ('queued','sending')
+     LIMIT ?`
+  ).bind(limit).all();
+  if (!(results && results.length)) return;
+
+  const campaignIds = [...new Set(results.map(r => r.campaign_id))];
+  await env.DB.prepare(
+    `UPDATE newsletter_campaigns SET status = 'sending' WHERE id IN (${campaignIds.map(() => '?').join(',')}) AND status = 'queued'`
+  ).bind(...campaignIds).run();
+
+  // Dedicated HMAC secret if set; fall back to STRIPE_WEBHOOK_SECRET so the
+  // feature works out of the box. The token is bound to (user_id:email).
+  const UNSUB_SECRET = env.NEWSLETTER_HMAC_SECRET || env.STRIPE_WEBHOOK_SECRET || 'bl-newsletter-fallback';
+  for (const r of results) {
+    try {
+      const email = String(r.email || '').toLowerCase();
+      const token = await hmacSha256(UNSUB_SECRET, `${r.user_id}:${email}`);
+      const html = String(r.content || '')
+        .replaceAll('{{SUBSCRIBER_EMAIL}}', encodeURIComponent(email))
+        .replaceAll('{{UNSUB_TOKEN}}', token);
+      const result = await sendEmail(env, {
+        to: r.email,
+        subject: r.subject,
+        html,
+        uid: r.user_id,
+      });
+      if (result.ok) {
+        await env.DB.prepare(
+          "UPDATE newsletter_sends SET status = 'sent', resend_id = ?, sent_at = datetime('now') WHERE id = ?"
+        ).bind(result.id || null, r.send_id).run();
+      } else {
+        await env.DB.prepare(
+          "UPDATE newsletter_sends SET status = 'failed' WHERE id = ?"
+        ).bind(r.send_id).run();
+      }
+    } catch (e) {
+      await env.DB.prepare(
+        "UPDATE newsletter_sends SET status = 'failed' WHERE id = ?"
+      ).bind(r.send_id).run();
+      console.error('newsletter send error:', e && e.message);
+    }
+  }
+
+  // Flip campaigns to 'completed' once nothing is pending, and notify owners.
+  for (const cid of campaignIds) {
+    const pending = await env.DB.prepare(
+      "SELECT COUNT(*) AS c FROM newsletter_sends WHERE campaign_id = ? AND status = 'pending'"
+    ).bind(cid).first();
+    const ownerRow = await env.DB.prepare('SELECT user_id FROM newsletter_campaigns WHERE id = ?').bind(cid).first();
+    if (!pending || pending.c === 0) {
+      await env.DB.prepare(
+        "UPDATE newsletter_campaigns SET status = 'completed', sent_at = datetime('now') WHERE id = ?"
+      ).bind(cid).run();
+      if (ownerRow && ownerRow.user_id) {
+        try { await notifyOwnerOfSend(env, ownerRow.user_id, cid); } catch (e) {}
+      }
+    }
+  }
+}
+
+// Daily-cadence draft generator + always-on dispatch. Called from scheduled().
+// Wrapped in its own try/catch by the caller so a newsletter failure never
+// breaks the blog cron (or vice-versa).
+async function runNewsletterCron(env) {
+  const now = new Date();
+  const dayOfMonth = now.getUTCDate();
+  const month = now.getUTCMonth();
+
+  // ── Phase 1: DRAFT GENERATION (only on day-of-month 1) ──
+  // Monthly: every month. Quarterly: Jan/Apr/Jul/Oct. Annual: January.
+  if (dayOfMonth === 1) {
+    let accounts = [];
+    try {
+      const r = await env.DB.prepare(
+        "SELECT user_id, newsletter_frequency, newsletter_approval_mode FROM settings WHERE addon_newsletter = 1"
+      ).all();
+      accounts = r.results || [];
+    } catch (e) { console.error('newsletter cron list error:', e && e.message); }
+
+    for (const acct of accounts) {
+      const uid = acct.user_id;
+      try {
+        const freq = acct.newsletter_frequency || 'monthly';
+        if (freq === 'quarterly' && ![0, 3, 6, 9].includes(month)) continue;
+        if (freq === 'annual' && month !== 0) continue;
+        // Idempotency: skip if a campaign already exists in this period.
+        const periodDays = freq === 'monthly' ? 30 : freq === 'quarterly' ? 90 : 365;
+        const recent = await env.DB.prepare(
+          'SELECT id FROM newsletter_campaigns WHERE user_id = ? AND created_at >= datetime(\'now\', ?)'
+        ).bind(uid, `-${periodDays} days`).first();
+        if (recent) continue;
+
+        const res = await generateNewsletterDraft(env, uid);
+        if (!res.ok) continue;
+
+        if ((acct.newsletter_approval_mode || 'auto') === 'auto') {
+          await queueCampaignForSend(env, uid, res.campaignId);
+        } else {
+          await notifyOwnerOfDraft(env, uid, res);
+        }
+      } catch (e) {
+        console.error('newsletter draft cron (uid ' + uid + '):', e && e.message);
+      }
+    }
+  }
+
+  // ── Phase 2: DISPATCH (every tick, batched) ──
+  try { await dispatchNewsletterBatch(env, 20); } catch (e) {
+    console.error('newsletter dispatch cron error:', e && e.message);
+  }
+}
+
+// GET /s/{slug}/unsubscribe?email=…&token=… — public, CAN-SPAM-compliant
+// unsubscribe. The token is HMAC-SHA256(secret, "user_id:email"); we resolve
+// the owner via slug, recompute, and constant-time compare. On match, the
+// subscriber row flips to 'unsubscribed' and we render a styled success page.
+async function handlePublicUnsubscribe(request, env, slug) {
+  try {
+    const url = new URL(request.url);
+    const email = (url.searchParams.get('email') || '').toLowerCase();
+    const token = url.searchParams.get('token') || '';
+    if (!email || !token) return new Response('Bad request', { status: 400, headers: { 'Content-Type': 'text/plain' } });
+
+    const site = await env.DB.prepare('SELECT user_id FROM sites WHERE slug = ?').bind(slug).first();
+    if (!site) return new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain' } });
+    const uid = site.user_id;
+
+    const UNSUB_SECRET = env.NEWSLETTER_HMAC_SECRET || env.STRIPE_WEBHOOK_SECRET || 'bl-newsletter-fallback';
+    const expected = await hmacSha256(UNSUB_SECRET, `${uid}:${email}`);
+    if (!constantTimeEqualHex(token, expected)) {
+      return new Response('Invalid or expired link', { status: 403, headers: { 'Content-Type': 'text/plain' } });
+    }
+
+    await env.DB.prepare(
+      "UPDATE newsletter_subscribers SET status = 'unsubscribed', unsubscribed_at = datetime('now') WHERE user_id = ? AND lower(email) = ?"
+    ).bind(uid, email).run();
+
+    // Resolve the business name for a friendly confirmation page.
+    const s = await env.DB.prepare('SELECT business_name FROM settings WHERE user_id = ?').bind(uid).first();
+    const name = (s && s.business_name) || 'the business';
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Unsubscribed</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230e0e18'/%3E%3Cg fill='%23d4a574'%3E%3Crect x='5' y='14' width='2' height='4' rx='1'/%3E%3Crect x='9' y='10' width='2' height='12' rx='1'/%3E%3Crect x='13' y='6' width='2' height='20' rx='1'/%3E%3Crect x='17' y='10' width='2' height='12' rx='1'/%3E%3Crect x='21' y='14' width='2' height='4' rx='1'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter Tight',system-ui,sans-serif;background:#fafaf9;color:#1e293b;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:48px 40px;max-width:480px;width:100%;text-align:center;box-shadow:0 12px 40px -16px rgba(15,23,42,.18)}
+.check{width:64px;height:64px;border-radius:50%;background:#d4a574;color:#fff;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 22px}
+h1{font-family:'Fraunces',Georgia,serif;font-weight:500;font-size:1.7rem;letter-spacing:-.015em;margin-bottom:12px;color:#0f172a}
+p{color:#475569;line-height:1.6;font-size:.95rem}
+.email{font-family:'JetBrains Mono',monospace;color:#94a3b8;font-size:.82rem;margin-top:14px}
+a.btn{display:inline-block;margin-top:24px;background:#d4a574;color:#fff;padding:11px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:.9rem}
+</style></head>
+<body><div class="card">
+<div class="check">✓</div>
+<h1>You are unsubscribed</h1>
+<p>${htmxEsc(name)} will not send you any more newsletters. This change takes effect immediately.</p>
+<p class="email">${htmxEsc(email)}</p>
+</div></body></html>`;
+    return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+  } catch (e) {
+    console.error('unsubscribe error:', e && e.message);
+    return new Response('Could not process unsubscribe', { status: 500, headers: { 'Content-Type': 'text/plain' } });
   }
 }
 
@@ -16206,7 +17065,7 @@ async function handleSocialHtmx(request, env, uid, ctx) {
 
     // Add-on OFF → upgrade prompt (mirror the Blog page's gate).
     if (!enabled) {
-      const body = `<div class="app">${sidebarNav('social', undefined, ctx)}<div class="content" style="max-width:680px">
+      const body = `<div class="app">${sidebarNav('social', ctx)}<div class="content" style="max-width:680px">
 <span class="eyebrow">Add-on</span>
 <h1>Social Media <em>Auto-Posts</em></h1>
 <p class="sub">Turn your reviews, completed jobs, and services into ready-to-publish Facebook & Instagram posts — automatically.</p>
@@ -16267,7 +17126,7 @@ async function handleSocialHtmx(request, env, uid, ctx) {
         ? `<div class="note-box" style="margin-bottom:18px;color:var(--text-muted)">Facebook connected. Instagram not configured (needs a Business Account ID in Settings).</div>`
         : `<div class="note-box" style="margin-bottom:18px;border-color:rgba(63,185,80,.3);color:#7fd692">Facebook & Instagram connected — ready to publish.</div>`);
 
-    const body = `<div class="app">${sidebarNav('social', undefined, ctx)}<div class="content" style="max-width:980px">
+    const body = `<div class="app">${sidebarNav('social', ctx)}<div class="content" style="max-width:980px">
 <span class="eyebrow">Add-on · Active</span>
 <h1>Social Media <em>Auto-Posts</em></h1>
 <p class="sub">Generate posts from your reviews, jobs, and services — then publish to Facebook & Instagram.</p>
@@ -16536,7 +17395,7 @@ async function handleGrowthPreview(request, env, uid, ctx, addonKey) {
 
     const bullets = explainer.bullets.map(b => `<li>${htmxEsc(b)}</li>`).join('');
 
-    const body = `<div class="app">${sidebarNav(addonKey, undefined, ctx)}<div class="content" style="max-width:1040px">
+    const body = `<div class="app">${sidebarNav(addonKey, ctx)}<div class="content" style="max-width:1040px">
 <span class="eyebrow">Growth Preview</span>
 <h1>${htmxEsc(explainer.headline)}</h1>
 <p class="sub" style="max-width:680px">${htmxEsc(explainer.sub)}</p>
@@ -16663,7 +17522,7 @@ async function handleBusinessBlogHtmx(request, env, uid, ctx) {
 
     // Add-on OFF → upgrade prompt (don't even read posts).
     if (!enabled) {
-      const body = `<div class="app">${sidebarNav('blog', undefined, ctx)}<div class="content" style="max-width:680px">
+      const body = `<div class="app">${sidebarNav('blog', ctx)}<div class="content" style="max-width:680px">
 <span class="eyebrow">Add-on</span>
 <h1>AI Blog <em>Posts</em></h1>
 <p class="sub">Three fresh, industry-relevant blog posts published to your website every week — automatically. You do nothing.</p>
@@ -16703,7 +17562,7 @@ async function handleBusinessBlogHtmx(request, env, uid, ctx) {
 </tr>`).join('')
       : `<tr><td colspan="2" style="text-align:center;color:var(--text-faint);padding:32px">No posts yet. The next one generates on Mon/Wed/Fri — or generate one now below.</td></tr>`;
 
-    const body = `<div class="app">${sidebarNav('blog', undefined, ctx)}<div class="content" style="max-width:760px">
+    const body = `<div class="app">${sidebarNav('blog', ctx)}<div class="content" style="max-width:760px">
 <span class="eyebrow">Add-on · Active</span>
 <h1>AI Blog <em>Posts</em></h1>
 <p class="sub">3 posts published automatically each week${businessName ? ` for ${htmxEsc(businessName)}` : ''}.</p>
@@ -16753,6 +17612,294 @@ async function handleBlogGenerate(request, env, uid) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// NEWSLETTER DASHBOARD (/p/newsletters) + API
+// ═══════════════════════════════════════════════════════════════════════
+
+// GET /p/newsletters — list subscribers, drafts, campaign history, settings.
+async function handleNewslettersHtmx(request, env, uid, ctx) {
+  try {
+    const [settings, site, subCount, draftRow, historyRes, sentRow] = await Promise.all([
+      env.DB.prepare('SELECT addon_newsletter, newsletter_frequency, newsletter_approval_mode, business_name, industry, service_area FROM settings WHERE user_id = ?').bind(uid).first(),
+      env.DB.prepare('SELECT slug, accent FROM sites WHERE user_id = ? ORDER BY id LIMIT 1').bind(uid).first(),
+      env.DB.prepare("SELECT COUNT(*) AS c FROM newsletter_subscribers WHERE user_id = ? AND status = 'active'").bind(uid).first(),
+      env.DB.prepare("SELECT id, subject, content, created_at FROM newsletter_campaigns WHERE user_id = ? AND status = 'draft' ORDER BY created_at DESC LIMIT 1").bind(uid).first(),
+      env.DB.prepare('SELECT id, subject, recipients_count, status, sent_at FROM newsletter_campaigns WHERE user_id = ? ORDER BY created_at DESC LIMIT 20').bind(uid).all(),
+      env.DB.prepare("SELECT COUNT(*) AS c FROM newsletter_sends ns JOIN newsletter_campaigns nc ON nc.id = ns.campaign_id WHERE nc.user_id = ? AND ns.status = 'sent'").bind(uid).first(),
+    ]);
+    const enabled = !!(settings && settings.addon_newsletter);
+    const businessName = (settings && settings.business_name) || '';
+    const freq = (settings && settings.newsletter_frequency) || 'monthly';
+    const mode = (settings && settings.newsletter_approval_mode) || 'auto';
+    const subs = (subCount && subCount.c) || 0;
+    const totalSent = (sentRow && sentRow.c) || 0;
+    const history = historyRes.results || [];
+
+    if (!enabled) {
+      // Add-on OFF → upgrade prompt mirroring the blog dashboard.
+      const body = `<div class="app">${sidebarNav('newsletters', ctx)}<div class="content" style="max-width:680px">
+<span class="eyebrow">Add-on</span>
+<h1>Email <em>Newsletters</em></h1>
+<p class="sub">Keep past customers coming back with a monthly newsletter written and sent for you.</p>
+<div class="card glow" style="margin-top:28px;padding:32px">
+  <div style="display:flex;align-items:center;gap:18px;margin-bottom:18px">
+    <span style="font-size:2rem">📧</span>
+    <div>
+      <div style="font-weight:600;font-size:1.1rem">Email Newsletters</div>
+      <div style="color:var(--text-muted);font-size:.9rem">AI-written, business-branded, sent on your cadence</div>
+    </div>
+    <span style="margin-left:auto;font-family:var(--font-mono);color:var(--accent-amber);font-weight:600">$9.95/mo</span>
+  </div>
+  <ul style="color:var(--text-muted);font-size:.92rem;line-height:1.9;padding-left:20px;margin-bottom:24px">
+    <li>Auto-builds your list from <strong style="color:var(--cream)">leads and appointments</strong></li>
+    <li>Monthly, quarterly, or annual cadence — your choice</li>
+    <li>Auto-send or approve-each-draft modes</li>
+    <li>Sent from your business name with one-click unsubscribe</li>
+  </ul>
+  <a class="btn" href="/p/billing">Enable in Billing →</a>
+</div>
+</div></div>`;
+      return new Response(simpleShell('Email Newsletters', body), { headers: { 'Content-Type': 'text/html' } });
+    }
+
+    // Add-on ON → render the dashboard.
+    const draftBlock = draftRow ? `
+<div class="card glow" style="margin-top:24px;padding:24px">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+    <div>
+      <span class="eyebrow" style="color:var(--accent-amber)">Draft ready</span>
+      <h3 style="margin:6px 0 0;font-size:1.2rem">${htmxEsc(draftRow.subject)}</h3>
+      <p style="color:var(--text-faint);font-size:.78rem;margin:4px 0 0">Created ${(draftRow.created_at || '').slice(0,16).replace('T',' ')}</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <input id="nl-test-email" type="email" placeholder="you@example.com" style="padding:8px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:.85rem;width:200px">
+      <button class="btn btn-ghost btn-sm" id="nl-test-btn" onclick="nlTest(${draftRow.id})">📨 Send test</button>
+      <button class="btn btn-sm" id="nl-send-btn" onclick="nlSend(${draftRow.id})">✓ Approve and send</button>
+    </div>
+  </div>
+  <iframe id="nl-preview" srcdoc="${htmxEsc(draftRow.content).replace(/"/g, '&quot;')}" style="width:100%;height:420px;border:1px solid var(--border);border-radius:10px;background:#fff" title="Newsletter preview"></iframe>
+  <div id="nl-msg" style="margin:12px 0 0;font-size:.88rem"></div>
+</div>` : `
+<div class="card glow" style="margin-top:24px;padding:24px;text-align:center">
+  <span class="eyebrow">No draft yet</span>
+  <h3 style="margin:8px 0 6px">Generate your first newsletter</h3>
+  <p style="color:var(--text-muted);font-size:.9rem;max-width:420px;margin:0 auto 18px">We will draft a newsletter from your recent reviews and services. Review it, send a test, then approve to broadcast.</p>
+  <button class="btn" id="nl-gen-btn" onclick="nlGen()">✨ Generate a draft now</button>
+  <div id="nl-msg" style="margin:14px 0 0;font-size:.88rem"></div>
+</div>`;
+
+    const historyRows = history.length
+      ? history.map(c => {
+          const statusCls = c.status === 'completed' ? 'color:var(--success)' : c.status === 'failed' ? 'color:var(--danger)' : 'color:var(--accent-amber)';
+          const when = (c.sent_at || c.created_at || '').slice(0, 16).replace('T', ' ');
+          return `<tr>
+  <td><strong style="color:var(--cream)">${htmxEsc(c.subject)}</strong></td>
+  <td style="font-family:var(--font-mono);color:var(--text-muted)">${c.recipients_count || 0}</td>
+  <td style="font-family:var(--font-mono);font-size:.8rem;color:var(--text-muted)">${when}</td>
+  <td><span style="text-transform:capitalize;font-weight:600;font-size:.82rem;${statusCls}">${htmxEsc(c.status)}</span></td>
+</tr>`;
+        }).join('')
+      : `<tr><td colspan="4" style="text-align:center;color:var(--text-faint);padding:32px">No campaigns yet.</td></tr>`;
+
+    const cadenceLabel = freq.charAt(0).toUpperCase() + freq.slice(1) + ' (' + (mode === 'auto' ? 'Auto-send' : 'Draft & notify') + ')';
+
+    const body = `<div class="app">${sidebarNav('newsletters', ctx)}<div class="content" style="max-width:880px">
+<span class="eyebrow">Add-on · Active</span>
+<h1>Email <em>Newsletters</em></h1>
+<p class="sub">${businessName ? htmxEsc(businessName) + ' — ' : ''}keep past customers engaged and booking.</p>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin:24px 0">
+  <div class="card" style="padding:18px">
+    <div style="font-size:.74rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em">Active subscribers</div>
+    <div style="font-family:var(--font-mono);font-size:1.9rem;color:var(--accent-amber);font-weight:600;margin-top:6px">${subs}</div>
+  </div>
+  <div class="card" style="padding:18px">
+    <div style="font-size:.74rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em">Cadence</div>
+    <div style="font-size:1.05rem;color:var(--cream);font-weight:600;margin-top:6px">${htmxEsc(cadenceLabel)}</div>
+  </div>
+  <div class="card" style="padding:18px">
+    <div style="font-size:.74rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em">Total sent</div>
+    <div style="font-family:var(--font-mono);font-size:1.9rem;color:var(--accent-amber);font-weight:600;margin-top:6px">${totalSent}</div>
+  </div>
+</div>
+
+${draftBlock}
+
+<h3 style="margin:28px 0 10px">Subscriber list <span style="color:var(--text-faint);font-weight:400;font-size:.85rem">(showing first 25)</span></h3>
+<div id="nl-subs-wrap">
+  <input id="nl-subs-q" type="search" placeholder="Search by name or email…" oninput="nlSubs()" style="width:100%;max-width:340px;padding:9px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:.88rem;margin-bottom:14px">
+  <div id="nl-subs-table"></div>
+</div>
+
+<h3 style="margin:28px 0 10px">Campaign history</h3>
+<table>
+  <thead><tr><th>Subject</th><th>Recipients</th><th>Date</th><th>Status</th></tr></thead>
+  <tbody>${historyRows}</tbody>
+</table>
+
+<p class="sub" style="margin-top:22px;font-size:.82rem;color:var(--text-faint)">Subscribers are collected automatically from your leads and appointments. Adjust cadence and approval mode in <a href="/settings-htmx" style="color:var(--accent-amber)">Settings</a>.</p>
+
+<script>
+function nlMsg(txt,ok){var el=document.getElementById('nl-msg');if(!el)return;el.innerHTML=ok
+  ?'<div style="color:var(--success)">✓ '+txt+'</div>'
+  :'<div style="color:var(--danger)">✗ '+txt+'</div>';}
+async function nlGen(){
+  var b=document.getElementById('nl-gen-btn');if(b){b.disabled=true;b.textContent='Writing…';}
+  try{var r=await fetch('/api/newsletters/generate',{method:'POST'});var d=await r.json();
+    if(d.ok){nlMsg('Draft created. Reloading…',true);setTimeout(function(){location.reload();},900);}
+    else{nlMsg(d.error||'Could not generate',false);if(b){b.disabled=false;b.textContent='✨ Generate a draft now';}}
+  }catch(e){nlMsg('Connection error',false);if(b){b.disabled=false;b.textContent='✨ Generate a draft now';}}}
+async function nlTest(cid){
+  var inp=document.getElementById('nl-test-email');if(!inp)return;
+  var to=inp.value.trim();if(!to){nlMsg('Enter an email first',false);return;}
+  var b=document.getElementById('nl-test-btn');if(b){b.disabled=true;b.textContent='Sending…';}
+  try{var r=await fetch('/api/newsletters/send-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({campaign_id:cid,to_email:to})});var d=await r.json();
+    if(d.ok){nlMsg('Test sent to '+to,true);}
+    else{nlMsg(d.error||'Could not send',false);}
+  }catch(e){nlMsg('Connection error',false);}if(b){b.disabled=false;b.textContent='📨 Send test';}}
+async function nlSend(cid){
+  var b=document.getElementById('nl-send-btn');if(!b)return;
+  if(!confirm('Send this newsletter to every active subscriber? This cannot be undone.'))return;
+  b.disabled=true;b.textContent='Queuing…';
+  try{var r=await fetch('/api/newsletters/send-now',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({campaign_id:cid})});var d=await r.json();
+    if(d.ok){nlMsg('Queued '+(d.recipients||0)+' recipients. Sending now…',true);setTimeout(function(){location.reload();},1500);}
+    else{nlMsg(d.error||'Could not queue',false);b.disabled=false;b.textContent='✓ Approve and send';}
+  }catch(e){nlMsg('Connection error',false);b.disabled=false;b.textContent='✓ Approve and send';}}
+var nlT;
+function nlSubs(){clearTimeout(nlT);nlT=setTimeout(nlSubsNow,300);}
+async function nlSubsNow(){
+  var q=(document.getElementById('nl-subs-q').value||'').trim();
+  var wrap=document.getElementById('nl-subs-table');if(!wrap)return;
+  try{var r=await fetch('/p/newsletters/subscribers'+(q?('?q='+encodeURIComponent(q)):''));var html=await r.text();wrap.innerHTML=html;}
+  catch(e){wrap.innerHTML='<p style="color:var(--danger)">Could not load.</p>';}}
+nlSubsNow();
+</script>
+</div></div>`;
+    return new Response(simpleShell('Email Newsletters', body), { headers: { 'Content-Type': 'text/html' } });
+  } catch (e) {
+    console.error('Newsletter htmx error:', e);
+    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load your newsletters.</p>'), { status: 500, headers: { 'Content-Type': 'text/html' } });
+  }
+}
+
+// GET /p/newsletters/subscribers?q=… — HTMX search fragment (table rows only).
+async function handleNewsletterSubscribersHtmx(request, env, uid, ctx) {
+  try {
+    const url = new URL(request.url);
+    const q = (url.searchParams.get('q') || '').trim().toLowerCase();
+    let rows;
+    if (q) {
+      rows = await env.DB.prepare(
+        `SELECT name, email, status, source, created_at FROM newsletter_subscribers
+         WHERE user_id = ? AND (lower(email) LIKE ? OR lower(COALESCE(name,'')) LIKE ?)
+         ORDER BY created_at DESC LIMIT 25`
+      ).bind(uid, `%${q}%`, `%${q}%`).all();
+    } else {
+      rows = await env.DB.prepare(
+        'SELECT name, email, status, source, created_at FROM newsletter_subscribers WHERE user_id = ? ORDER BY created_at DESC LIMIT 25'
+      ).bind(uid).all();
+    }
+    const subs = rows.results || [];
+    if (!subs.length) {
+      return new Response('<p style="color:var(--text-faint);padding:18px;text-align:center">No subscribers yet. They are added automatically as leads and appointments come in.</p>', { headers: { 'Content-Type': 'text/html' } });
+    }
+    const html = `<table><thead><tr><th>Name</th><th>Email</th><th>Source</th><th>Status</th></tr></thead><tbody>${subs.map(s => {
+      const st = s.status === 'active' ? 'color:var(--success)' : s.status === 'unsubscribed' ? 'color:var(--text-faint)' : 'color:var(--danger)';
+      return `<tr>
+  <td style="color:var(--cream)">${htmxEsc(s.name || '—')}</td>
+  <td style="font-family:var(--font-mono);font-size:.82rem;color:var(--text-muted)">${htmxEsc(s.email)}</td>
+  <td style="font-size:.82rem;color:var(--text-muted)">${htmxEsc(s.source || '—')}</td>
+  <td><span style="text-transform:capitalize;font-size:.8rem;font-weight:600;${st}">${htmxEsc(s.status)}</span></td>
+</tr>`;
+    }).join('')}</tbody></table>`;
+    return new Response(html, { headers: { 'Content-Type': 'text/html' } });
+  } catch (e) {
+    console.error('Newsletter subscribers htmx error:', e);
+    return new Response('<p style="color:var(--danger)">Could not load subscribers.</p>', { status: 500, headers: { 'Content-Type': 'text/html' } });
+  }
+}
+
+// POST /api/newsletters/save — autosave edits to a draft (subject/content only).
+async function handleNewsletterSave(request, env, uid) {
+  try {
+    const body = await request.json();
+    const cid = parseInt(body.campaign_id, 10);
+    if (!cid) return json({ ok: false, error: 'campaign_id required' }, 400);
+    const sets = [];
+    const vals = [];
+    if (typeof body.subject === 'string' && body.subject.trim()) { sets.push('subject = ?'); vals.push(body.subject.trim()); }
+    if (typeof body.content === 'string') { sets.push('content = ?'); vals.push(body.content); }
+    if (!sets.length) return json({ ok: true, changed: false });
+    vals.push(cid, uid);
+    const r = await env.DB.prepare(
+      `UPDATE newsletter_campaigns SET ${sets.join(', ')} WHERE id = ? AND user_id = ? AND status = 'draft'`
+    ).bind(...vals).run();
+    if (!r.meta || r.meta.changes === 0) return json({ ok: false, error: 'Not found or not editable' }, 404);
+    return json({ ok: true });
+  } catch (e) {
+    console.error('Newsletter save error:', e);
+    return json({ ok: false, error: 'Could not save' }, 500);
+  }
+}
+
+// POST /api/newsletters/send-test — single test send to one address, no DB row.
+async function handleNewsletterSendTest(request, env, uid) {
+  try {
+    const body = await request.json();
+    const cid = parseInt(body.campaign_id, 10);
+    const to = String(body.to_email || '').trim();
+    if (!cid || !to) return json({ ok: false, error: 'campaign_id and to_email required' }, 400);
+    const c = await env.DB.prepare(
+      'SELECT subject, content FROM newsletter_campaigns WHERE id = ? AND user_id = ?'
+    ).bind(cid, uid).first();
+    if (!c) return json({ ok: false, error: 'Campaign not found' }, 404);
+    // Per-recipient token substitution (same path as the dispatcher).
+    const UNSUB_SECRET = env.NEWSLETTER_HMAC_SECRET || env.STRIPE_WEBHOOK_SECRET || 'bl-newsletter-fallback';
+    const emailLower = to.toLowerCase();
+    const token = await hmacSha256(UNSUB_SECRET, `${uid}:${emailLower}`);
+    const html = String(c.content || '')
+      .replaceAll('{{SUBSCRIBER_EMAIL}}', encodeURIComponent(emailLower))
+      .replaceAll('{{UNSUB_TOKEN}}', token);
+    const result = await sendEmail(env, { to, subject: '[TEST] ' + c.subject, html, uid });
+    if (!result.ok) return json({ ok: false, error: result.error || 'Send failed' }, 500);
+    return json({ ok: true });
+  } catch (e) {
+    console.error('Newsletter send-test error:', e);
+    return json({ ok: false, error: 'Could not send test' }, 500);
+  }
+}
+
+// POST /api/newsletters/send-now — approve a draft → queue for dispatch.
+async function handleNewsletterSendNow(request, env, uid) {
+  try {
+    const body = await request.json();
+    const cid = parseInt(body.campaign_id, 10);
+    if (!cid) return json({ ok: false, error: 'campaign_id required' }, 400);
+    const c = await env.DB.prepare(
+      "SELECT id FROM newsletter_campaigns WHERE id = ? AND user_id = ? AND status = 'draft'"
+    ).bind(cid, uid).first();
+    if (!c) return json({ ok: false, error: 'Draft not found or already sent' }, 404);
+    const recipients = await queueCampaignForSend(env, uid, cid);
+    return json({ ok: true, recipients });
+  } catch (e) {
+    console.error('Newsletter send-now error:', e);
+    return json({ ok: false, error: 'Could not queue campaign' }, 500);
+  }
+}
+
+// POST /api/newsletters/generate — manual "regenerate draft" from the UI.
+async function handleNewsletterGenerate(request, env, uid) {
+  try {
+    const s = await env.DB.prepare('SELECT addon_newsletter FROM settings WHERE user_id = ?').bind(uid).first();
+    if (!s || !s.addon_newsletter) return json({ ok: false, error: 'Email Newsletters add-on is not enabled' }, 403);
+    const res = await generateNewsletterDraft(env, uid);
+    return json(res, res.ok ? 200 : 500);
+  } catch (e) {
+    console.error('Newsletter generate error:', e);
+    return json({ ok: false, error: 'Could not generate draft' }, 500);
+  }
+}
+
 // /p/blog/:postslug — a business reads one of their own posts in the
 // dashboard (read-only). Falls back to the public blog if their site is
 // published; otherwise renders inline.
@@ -16762,7 +17909,7 @@ async function handleBusinessBlogDetailHtmx(request, env, uid, postSlug, ctx) {
       `SELECT * FROM business_blog_posts WHERE user_id = ? AND slug = ?`
     ).bind(uid, postSlug).first();
     if (!post) {
-      return new Response(simpleShell('Not found', `<div class="app">${sidebarNav('blog', undefined, ctx)}<div class="content"><h1>404</h1><p style="color:var(--text-muted)">That post doesn't exist.</p><p style="margin-top:18px"><a class="btn btn-ghost btn-sm" href="/p/blog">← Back to blog</a></p></div></div>`), { status: 404, headers: { 'Content-Type': 'text/html' } });
+      return new Response(simpleShell('Not found', `<div class="app">${sidebarNav('blog', ctx)}<div class="content"><h1>404</h1><p style="color:var(--text-muted)">That post doesn't exist.</p><p style="margin-top:18px"><a class="btn btn-ghost btn-sm" href="/p/blog">← Back to blog</a></p></div></div>`), { status: 404, headers: { 'Content-Type': 'text/html' } });
     }
     const [settings, site] = await Promise.all([
       env.DB.prepare('SELECT business_name FROM settings WHERE user_id = ?').bind(uid).first(),
@@ -16770,7 +17917,7 @@ async function handleBusinessBlogDetailHtmx(request, env, uid, postSlug, ctx) {
     ]);
     const businessName = (settings && settings.business_name) || '';
     const publicHref = (site && site.slug && site.published) ? `/s/${site.slug}/blog/${post.slug}` : null;
-    const body = `<div class="app">${sidebarNav('blog', undefined, ctx)}<div class="content" style="max-width:720px">
+    const body = `<div class="app">${sidebarNav('blog', ctx)}<div class="content" style="max-width:720px">
 <a class="btn btn-ghost btn-sm" href="/p/blog" style="margin-bottom:18px">← All posts</a>
 <h1 style="font-family:var(--font-serif);font-weight:500;font-size:2.1rem;letter-spacing:-.02em;line-height:1.15;margin-bottom:8px">${htmxEsc(post.title)}</h1>
 <div style="color:var(--text-muted);font-size:.88rem;margin-bottom:28px">${(post.published_at || '').slice(0, 10)}${businessName ? ' · ' + htmxEsc(businessName) : ''}</div>
@@ -18265,7 +19412,7 @@ function helpLandingPane() {
 async function handleHelpHtmx(request, env, ctx) {
   const styles = helpCenterStyles();
   const pane = helpLandingPane();
-  const body = `${styles}<div class="app">${sidebarNav('help', undefined, ctx)}<div class="content">
+  const body = `${styles}<div class="app">${sidebarNav('help', ctx)}<div class="content">
 <div class="hc-layout">
   ${helpTopicNav(HELP_DEFAULT_SLUG)}
   <div>${helpMobileNav(null)}${pane}</div>
@@ -18277,7 +19424,7 @@ async function handleHelpHtmx(request, env, ctx) {
 async function handleHelpArticleHtmx(request, env, slug, ctx) {
   // Unknown slug -> 404 page (still in the shell so nav stays usable).
   if (!HELP_ARTICLES[slug]) {
-    const body = `${helpCenterStyles()}<div class="app">${sidebarNav('help', undefined, ctx)}<div class="content">
+    const body = `${helpCenterStyles()}<div class="app">${sidebarNav('help', ctx)}<div class="content">
 <div class="hc-layout">
   ${helpTopicNav(HELP_DEFAULT_SLUG)}
   <div>${helpMobileNav(null)}${helpArticlePane(slug)}</div>
@@ -18287,7 +19434,7 @@ async function handleHelpArticleHtmx(request, env, slug, ctx) {
   }
   const styles = helpCenterStyles();
   const pane = helpArticlePane(slug);
-  const body = `${styles}<div class="app">${sidebarNav('help', undefined, ctx)}<div class="content">
+  const body = `${styles}<div class="app">${sidebarNav('help', ctx)}<div class="content">
 <div class="hc-layout">
   ${helpTopicNav(slug)}
   <div>${helpMobileNav(slug)}${pane}</div>
@@ -18300,6 +19447,202 @@ async function handleHelpArticleHtmx(request, env, slug, ctx) {
 // ADMIN DASHBOARD &mdash; page handlers (/p/admin/*)
 // =======================================================================
 
+
+// ═══════════════════════════════════════════════════════════════════════
+// APPOINTMENT SMS FOLLOW-UPS (Feature #5)
+// Automated reminder (24h before) + check-in (2h after) texts for confirmed
+// appointments. Templates are per-business (settings); dispatch reuses the
+// existing sendSms() helper. Opt-outs are tracked in appointment_sms_logs
+// (status='opted_out') — there is no seasonal_followups table in this codebase.
+// All queries are scoped by user_id (multi-tenant). Idempotent + best-effort:
+// one account/appointment failure never aborts the cron batch.
+// ═══════════════════════════════════════════════════════════════════════
+
+// Default templates (used when a business leaves the settings fields blank).
+const APPT_SMS_DEFAULTS = {
+  reminder: 'Hi {customer_name}, this is a reminder for your appointment "{title}" on {date} at {time}.',
+  checkin:  'Hi {customer_name}, thanks for choosing {business_name}! Were you satisfied with our service today? Reply to let us know.',
+};
+
+// Compile a message template against a parameter bag, then append the STOP
+// compliance footer (carrier requirement for A2P 10DLC). Placeholders that
+// have no value degrade gracefully (customer_name -> "there", title -> appt).
+function compileAppointmentSms(template, params) {
+  const firstName = String(params && params.customerName || 'there').trim().split(/\s+/)[0] || 'there';
+  const body = String(template || APPT_SMS_DEFAULTS.reminder)
+    .replace(/\{customer_name\}/g, firstName)
+    .replace(/\{title\}/g, String(params && params.title || 'Appointment'))
+    .replace(/\{date\}/g, String(params && params.date || ''))
+    .replace(/\{time\}/g, String(params && params.time || ''))
+    .replace(/\{business_name\}/g, String(params && params.businessName || 'us'))
+    .replace(/\{business_phone\}/g, String(params && params.businessPhone || ''));
+  return body + '\n\nReply STOP to opt out.';
+}
+
+// Has this appointment already received a given message type (reminder/checkin)?
+// The unique index on (appointment_id, type) makes a duplicate impossible, but
+// we check first so the cron skips cleanly without hitting a constraint error.
+async function hasSentLog(env, appointmentId, type) {
+  const row = await env.DB.prepare(
+    'SELECT id FROM appointment_sms_logs WHERE appointment_id = ? AND type = ?'
+  ).bind(appointmentId, type).first();
+  return !!row;
+}
+
+// Send one follow-up SMS via the existing sendSms() helper and record the
+// outcome (sent/failed) in appointment_sms_logs. sendSms returns a boolean;
+// a false (e.g. Twilio not configured) is logged as 'failed' so the cron
+// retries on the next tick until it succeeds.
+async function dispatchAndLog(env, uid, appointmentId, phone, type, body) {
+  let ok = false;
+  let errMsg = null;
+  try {
+    ok = await sendSms(env, { to: phone, body });
+    if (!ok) errMsg = 'sendSms returned false (provider not configured or rejected)';
+  } catch (e) {
+    errMsg = String(e && e.message || e).slice(0, 255);
+  }
+  if (ok) {
+    await env.DB.prepare(
+      `INSERT INTO appointment_sms_logs (user_id, appointment_id, customer_phone, type, status, sent_at, message_body)
+       VALUES (?, ?, ?, ?, 'sent', datetime('now'), ?)`
+    ).bind(uid, appointmentId, phone, type, body).run();
+  } else {
+    await env.DB.prepare(
+      `INSERT INTO appointment_sms_logs (user_id, appointment_id, customer_phone, type, status, message_body, error_message)
+       VALUES (?, ?, ?, ?, 'failed', ?, ?)`
+    ).bind(uid, appointmentId, phone, type, body, errMsg).run();
+  }
+  return ok;
+}
+
+// Is this customer phone opted out (previously replied STOP)? Opt-outs live in
+// appointment_sms_logs as status='opted_out', scoped per business. An
+// un-normalizable phone is treated as opted-out (safe default — never text).
+async function isSmsOptedOut(env, uid, phone) {
+  const normalized = normalizePhoneE164(phone);
+  if (!normalized) return true;
+  const row = await env.DB.prepare(
+    `SELECT id FROM appointment_sms_logs
+      WHERE user_id = ? AND customer_phone = ? AND status = 'opted_out'
+      LIMIT 1`
+  ).bind(uid, normalized).first();
+  return !!row;
+}
+
+// Record a one-time opted-out marker for an appointment so the widget shows
+// the skip on the lead page. No-op if any reminder/checkin row already exists
+// (the unique index would also block a second reminder row anyway).
+async function logOptedOut(env, uid, appointmentId, phone) {
+  const already = await hasSentLog(env, appointmentId, 'reminder');
+  if (already) return;
+  const normalized = normalizePhoneE164(phone) || phone;
+  await env.DB.prepare(
+    `INSERT INTO appointment_sms_logs (user_id, appointment_id, customer_phone, type, status, sent_at, message_body)
+     VALUES (?, ?, ?, 'reminder', 'opted_out', datetime('now'), 'Skipped: customer opted out (STOP)')`
+  ).bind(uid, appointmentId, normalized).run();
+}
+
+// Local time for a business timezone, as a JS Date. Used so the cron evaluates
+// appointment windows in the business's own clock (appointments are stored in
+// local time), not UTC. Falls back to America/New_York.
+function getLocalTime(timezone) {
+  const tz = timezone || 'America/New_York';
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    year: 'numeric', month: 'numeric', day: 'numeric',
+    hour: 'numeric', minute: 'numeric', second: 'numeric',
+    hour12: false,
+  }).formatToParts(new Date());
+  const m = {};
+  for (const p of parts) m[p.type] = p.value;
+  return new Date(`${m.year}-${m.month.padStart(2, '0')}-${m.day.padStart(2, '0')}T${m.hour.padStart(2, '0')}:${m.minute.padStart(2, '0')}:${m.second.padStart(2, '0')}`);
+}
+
+// Cron processor: for each business with sms_followup_enabled=1, scan confirmed
+// appointments in a +/-1 day local window and send any due reminder/check-in.
+// Per-account + per-appointment try/catch keep one failure from stopping others.
+async function runAppointmentFollowupsCron(env) {
+  const { results: activeSettings } = await env.DB.prepare(
+    `SELECT user_id, business_name, forwarding_number, vapi_phone_number, timezone,
+            sms_followup_enabled, sms_reminder_template, sms_checkin_template
+       FROM settings WHERE sms_followup_enabled = 1`
+  ).all();
+  const accounts = activeSettings || [];
+  if (!accounts.length) return;
+
+  for (const s of accounts) {
+    const uid = s.user_id;
+    try {
+      const localNow = getLocalTime(s.timezone);
+      // Three local dates cover Yesterday/Today/Tomorrow in every timezone.
+      const todayStr = localNow.toISOString().slice(0, 10);
+      const yesterday = new Date(localNow.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const tomorrow  = new Date(localNow.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+      const { results: appointments } = await env.DB.prepare(
+        `SELECT id, customer_name, customer_phone, title, date, time, duration_min
+           FROM appointments
+          WHERE user_id = ? AND status = 'confirmed'
+            AND date IN (?, ?, ?)`
+      ).bind(uid, yesterday, todayStr, tomorrow).all();
+
+      const timeFmt = await getTimeFormat(env, uid);
+
+      for (const appt of (appointments || [])) {
+        try {
+          const phone = normalizePhoneE164(appt.customer_phone);
+          if (!phone) continue;
+
+          const optedOut = await isSmsOptedOut(env, uid, phone);
+          if (optedOut) {
+            await logOptedOut(env, uid, appt.id, phone);
+            continue;
+          }
+
+          // Appointment times are stored as local naive strings — interpret
+          // them in the business timezone by parsing as local (no Z suffix).
+          const apptTime = new Date(`${appt.date}T${appt.time || '00:00'}:00`);
+          const durMin = Number(appt.duration_min) > 0 ? Number(appt.duration_min) : 60;
+          const apptEnd = new Date(apptTime.getTime() + durMin * 60 * 1000);
+          const displayTime = formatHour(appt.time || '', timeFmt, '');
+          const tplParams = {
+            customerName: appt.customer_name,
+            title: appt.title,
+            date: appt.date,
+            time: displayTime,
+            businessName: s.business_name,
+            businessPhone: s.forwarding_number || s.vapi_phone_number,
+          };
+
+          // A. Reminder: due in the 24h leading up to the start (with a small
+          //    guard band so a cron tick right at 24h still catches it).
+          const hoursToStart = (apptTime.getTime() - localNow.getTime()) / (1000 * 60 * 60);
+          if (hoursToStart >= 0 && hoursToStart <= 24.5) {
+            if (!(await hasSentLog(env, appt.id, 'reminder'))) {
+              const tpl = s.sms_reminder_template || APPT_SMS_DEFAULTS.reminder;
+              await dispatchAndLog(env, uid, appt.id, phone, 'reminder', compileAppointmentSms(tpl, tplParams));
+            }
+          }
+
+          // B. Check-in: due 2h after the appointment ends (up to 6h, so a few
+          //    missed cron ticks still catch it the same day).
+          const hoursFromEnd = (localNow.getTime() - apptEnd.getTime()) / (1000 * 60 * 60);
+          if (hoursFromEnd >= 2.0 && hoursFromEnd <= 6.0) {
+            if (!(await hasSentLog(env, appt.id, 'checkin'))) {
+              const tpl = s.sms_checkin_template || APPT_SMS_DEFAULTS.checkin;
+              await dispatchAndLog(env, uid, appt.id, phone, 'checkin', compileAppointmentSms(tpl, tplParams));
+            }
+          }
+        } catch (e) {
+          console.error(`appt-sms cron appt error (uid ${uid}, appt ${appt.id}):`, e && e.message);
+        }
+      }
+    } catch (e) {
+      console.error(`appt-sms cron account error (uid ${uid}):`, e && e.message);
+    }
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // MAIN ROUTER
@@ -18365,6 +19708,10 @@ export default {
         // /s/{slug} so the longer path wins.
         const estimateMatch = path.match(/^\/s\/([a-z0-9-]+)\/estimate\/(\d+)$/);
         if (estimateMatch) return handlePublicEstimate(request, env, estimateMatch[1], parseInt(estimateMatch[2], 10));
+        // Newsletter unsubscribe — public, token-gated (HMAC). Matched before
+        // the bare /s/{slug} so the longer path wins.
+        const unsubMatch = path.match(/^\/s\/([a-z0-9-]+)\/unsubscribe$/);
+        if (unsubMatch) return handlePublicUnsubscribe(request, env, unsubMatch[1]);
         const siteMatch = path.match(/^\/s\/([a-z0-9-]+)$/);
         if (siteMatch) return handlePublicSite(request, env, siteMatch[1]);
         // Sitemap of all published business sites — submitted to search engines.
@@ -18481,6 +19828,10 @@ export default {
           if (path === '/p/invoices') return handleInvoicesHtmx(request, env, pCtx.bid, pCtx);
           if (path === '/p/pipeline') return handlePipelineHtmx(request, env, pCtx.bid, pCtx);
           if (path === '/p/team') return handleTeamHtmx(request, env, pCtx);
+          // /p/newsletters — dashboard (gated by addon_newsletter internally).
+          if (path === '/p/newsletters') return handleNewslettersHtmx(request, env, pCtx.bid, pCtx);
+          // /p/newsletters/subscribers — HTMX search fragment (table rows).
+          if (path === '/p/newsletters/subscribers') return handleNewsletterSubscribersHtmx(request, env, pCtx.bid, pCtx);
           // /p/leads/:id — lead detail (GET). The status-update POST is handled
           // in the POST section below (this whole block is GET-only).
           if (path.startsWith('/p/leads/')) {
@@ -19185,6 +20536,20 @@ export default {
         return handleBlogGenerate(request, env, uid);
       }
 
+      // Email Newsletters add-on — save draft, send test, approve+queue, generate.
+      if (path === '/api/newsletters/save' && method === 'POST') {
+        return handleNewsletterSave(request, env, uid);
+      }
+      if (path === '/api/newsletters/send-test' && method === 'POST') {
+        return handleNewsletterSendTest(request, env, uid);
+      }
+      if (path === '/api/newsletters/send-now' && method === 'POST') {
+        return handleNewsletterSendNow(request, env, uid);
+      }
+      if (path === '/api/newsletters/generate' && method === 'POST') {
+        return handleNewsletterGenerate(request, env, uid);
+      }
+
       // Job photos — before / during / after
       if (path === '/api/photos/upload' && method === 'POST') {
         return handlePhotoUpload(request, env, uid);
@@ -19247,15 +20612,32 @@ export default {
   // means this fires 4×/hour, so we gate on "top of the hour" (minute 0-14) and
   // Mon/Wed/Fri to avoid over-generating. Each account is isolated in its own
   // try/catch so one failure never aborts the batch.
+  //
+  // Appointment SMS follow-ups (Feature #5) also run here on every cron tick:
+  // reminders 24h before + check-ins 2h after each confirmed appointment.
   async scheduled(controller, env, ctx) {
     try {
       await initDB(env);
+
+      // Appointment SMS follow-ups — best-effort; never lets a failure here
+      // stop the blog cron (or vice-versa).
+      try { await runAppointmentFollowupsCron(env); } catch (e) {
+        console.error('appt-sms cron error:', e && e.message);
+      }
+
+      // Newsletter engine — runs every tick. Dispatch drains pending sends
+      // in batches; draft generation self-gates to day-of-month 1. Wrapped in
+      // its own try/catch so it never blocks the blog cron below.
+      try { await runNewsletterCron(env); } catch (e) {
+        console.error('newsletter cron error:', e && e.message);
+      }
+
       // Day gate: 1=Mon, 3=Wed, 5=Fri (UTC). The cron is hourly at worst, and
       // generating once per such day is enough for 3/week.
       const now = new Date();
       const dow = now.getUTCDay();
       if (dow !== 1 && dow !== 3 && dow !== 5) {
-        console.log('cblog cron: not a publish day (dow=' + dow + '), skipping.');
+        // console.log('cblog cron: not a publish day (dow=' + dow + '), skipping.');
         return;
       }
 
@@ -19264,7 +20646,7 @@ export default {
         'SELECT user_id FROM settings WHERE addon_blog = 1'
       ).all();
       const accounts = results || [];
-      console.log(`cblog cron: ${accounts.length} account(s) with the add-on.`);
+      // console.log(`cblog cron: ${accounts.length} account(s) with the add-on.`);
 
       let generated = 0;
       for (const acct of accounts) {
@@ -19282,18 +20664,18 @@ export default {
           const res = await generateBusinessBlogPost(env, uid);
           if (res.ok) {
             generated += 1;
-            console.log(`cblog cron: generated "${res.post.title}" for uid ${uid}.`);
+            // console.log(`cblog cron: generated "${res.post.title}" for uid ${uid}.`);
             // Best-effort notify (degrades gracefully if email unset).
             notifyBusinessOfPost(env, uid, res.post);
           } else {
-            console.log(`cblog cron: skipped uid ${uid}: ${res.error || 'unknown'}`);
+            // console.log(`cblog cron: skipped uid ${uid}: ${res.error || 'unknown'}`);
           }
         } catch (e) {
           // Isolate per-account failures so the loop keeps going.
           console.error(`cblog cron error (uid ${uid}):`, e && e.message);
         }
       }
-      console.log(`cblog cron: done. ${generated} post(s) generated.`);
+      // console.log(`cblog cron: done. ${generated} post(s) generated.`);
     } catch (e) {
       console.error('Scheduled handler error:', e);
     }
