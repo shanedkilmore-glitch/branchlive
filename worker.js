@@ -8418,7 +8418,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--amber)}
     <p class="fineprint">By booking you agree to our <a href="/terms/">Terms</a> and <a href="/privacy/">Privacy Policy</a>. SMS reminders are sent via the Branch Live platform on behalf of Riverside Services. Carriers are not liable for delayed or undelivered messages.</p>
   </div>
 </main>
-<div class="foot">© ${new Date().getFullYear()} Branch Live · <a href="/">branchlive.com</a> · support@branchlive.com</div>
+<div class="foot">© ${new Date().getFullYear()} Branch Live · <a href="/">branchlive.com</a> · support&#64;branchlive.com</div>
 <script>
 function demoBook(e){
   e.preventDefault();
@@ -8500,9 +8500,9 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:0.85em;border
   <p>Your information is handled per our <a href="/privacy/">Privacy Policy</a>. We do not share mobile information with third parties for marketing purposes.</p>
 
   <h2>Contact</h2>
-  <p>Branch Live — Dillsburg, PA<br>Email: hello@branchlive.com<br>Support: support@branchlive.com</p>
+  <p>Branch Live — Dillsburg, PA<br>Email: hello&#64;branchlive.com<br>Support: support&#64;branchlive.com</p>
 </div>
-<footer>© ${year} Branch Live · <a href="/privacy/">Privacy Policy</a> · support@branchlive.com</footer>
+<footer>© ${year} Branch Live · <a href="/privacy/">Privacy Policy</a> · support&#64;branchlive.com</footer>
 </body>
 </html>`;
   return new Response(html, { headers: { 'Content-Type': 'text/html', 'Cache-Control': 'public, max-age=0, must-revalidate' } });
@@ -8564,15 +8564,15 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:0.85em;border
   <p>Reply <strong>STOP</strong> (or CANCEL, END, QUIT, UNSUBSCRIBE, REVOKE, STOPALL) to any message at any time to unsubscribe. You will receive a one-time confirmation and then no further messages. Reply <strong>START</strong> to resubscribe.</p>
 
   <h3>Help</h3>
-  <p>Reply <strong>HELP</strong> or <strong>INFO</strong> to any message for assistance, or email hello@branchlive.com. Message and data rates may apply.</p>
+  <p>Reply <strong>HELP</strong> or <strong>INFO</strong> to any message for assistance, or email hello&#64;branchlive.com. Message and data rates may apply.</p>
 
   <h3>Non-sharing of mobile information</h3>
   <p><strong>No mobile information will be shared with third parties or affiliates for marketing or promotional purposes. Text messaging originator opt-in data and consent are not shared with any third parties.</strong></p>
 
   <h2>Contact</h2>
-  <p>Branch Live — Dillsburg, PA<br>Email: hello@branchlive.com<br>Support: support@branchlive.com</p>
+  <p>Branch Live — Dillsburg, PA<br>Email: hello&#64;branchlive.com<br>Support: support&#64;branchlive.com</p>
 </div>
-<footer>© ${year} Branch Live · <a href="/terms/">Terms of Service</a> · support@branchlive.com</footer>
+<footer>© ${year} Branch Live · <a href="/terms/">Terms of Service</a> · support&#64;branchlive.com</footer>
 </body>
 </html>`;
   return new Response(html, { headers: { 'Content-Type': 'text/html', 'Cache-Control': 'public, max-age=0, must-revalidate' } });

@@ -1121,8 +1121,10 @@ footer{position:relative;z-index:10;margin-top:auto;border-top:1px solid color-m
           <a href="mailto:hello@branchlive.com" class="ml underline-grow">hello@branchlive.com</a>
           <div class="ml">Dillsburg, PA</div>
           <!-- Plain-text support email (NOT a mailto: link) so carrier A2P 10DLC
-               compliance crawlers can index it. Do not obfuscate or wrap in JS. -->
-          <div class="ml" style="font-family:var(--font-mono);font-size:0.8rem;margin-top:0.25rem">support@branchlive.com</div>
+               compliance crawlers can index it. The &#64; entity renders as @ but
+               is not rewritten by Cloudflare email obfuscation. Do not obfuscate
+               or wrap in JS. -->
+          <div class="ml" style="font-family:var(--font-mono);font-size:0.8rem;margin-top:0.25rem">support&#64;branchlive.com</div>
         </div>
       </div>
 
