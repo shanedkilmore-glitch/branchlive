@@ -1,0 +1,20 @@
+TASK: Fix a BUILD-BREAKING bug in Branch Live worker.js that YOUR newsletter build introduced. The worker no longer deploys.
+
+🔴 This is a FIX task. Find the bug, fix it, VERIFY the build passes, report. Do NOT rewrite the feature, do NOT commit/deploy.
+
+THE BUG:
+- `npx esbuild worker.js --bundle --format=esm --outfile=nul` FAILS with: `Unexpected "export"` at worker.js:19651 (the `export default {` line).
+- BUT `node --check worker.js` PASSES.
+- The file has an ODD number of backticks (2415) — one stray/extra backtick.
+- This means: somewhere in the newsletter code you added (roughly lines 16500–19645 — dispatchNewsletterBatch, runNewsletterCron, generateNewsletterDraft, handleNewslettersHtmx ~L17620, handleNewsletterSubscribersHtmx, businessEmailShell, the /s/{slug}/unsubscribe route, and the settings additions), there is EITHER an unterminated/stray backtick inside a string or comment, OR a regex-vs-division ambiguity (a `/` that esbuild reads as a regex literal and swallows tokens, OR a stray `` ` `` inside a normal '...' or "..." string). node tolerates it; esbuild does not.
+
+HOW TO FIND IT:
+1. Run `npx esbuild worker.js --bundle --format=esm --outfile=nul` — see it fail.
+2. Search your newsletter additions for: a backtick inside a single/double-quoted string; a template literal that opens but the matching close is missing or mis-typed; a regex like `/.../ ` next to template content; any `${...}` with an unescaped backtick inside.
+3. The MOST LIKELY spot: an HTML template string where a `` ` `` was typed instead of a normal quote, or a regex/quote clash. Check line ~17680 area and the businessEmailShell / unsubscribe HTML.
+
+VERIFY (mandatory, iterate until it passes):
+- `npx esbuild worker.js --bundle --format=esm --outfile=nul` must exit 0 (no error).
+- `node --check worker.js` must still pass.
+
+REPORT: the exact line + what the stray/mismatched character was, and confirm esbuild now builds clean.

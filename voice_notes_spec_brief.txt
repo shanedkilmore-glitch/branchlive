@@ -1,0 +1,26 @@
+TASK: Write a concise, buildable IMPLEMENTATION SPEC for the "Voice Job Notes" feature in Branch Live's worker.js. DESIGN/SPEC ONLY — do NOT edit any code.
+
+THE FEATURE (owner-approved flow): A business owner finishes a job, calls their Emma number from their phone. Emma recognizes the caller ID as the OWNER (not a customer) and triggers a "job note" conversation: she asks which job/lead, the owner dictates the note, Emma transcribes it via Vapi and attaches it to the lead record. No voice menus, no keywords — just a natural conversation.
+
+READ FIRST:
+- C:/Users/17173/Projects/branchlive/worker.js — GREP + UNDERSTAND these EXACT existing functions (find their real line numbers):
+  - `handleVapiWebhook` (~L14332) — the Vapi webhook handler. EVERY call hits this. It currently treats all calls as customer calls (creates leads). Learn how it extracts caller ID + transcript, and how it matches to a business (`resolveVapiOwner`).
+  - `resolveVapiOwner` — how the webhook finds the owning business for a call. Understand what fields it returns (uid, settings).
+  - `extractLeadFromVapiCall` — how the transcript is extracted from the Vapi message payload.
+  - `vapiProvision` + `emmaSystemPrompt` — how the assistant is provisioned. We likely DON'T need a new assistant — just route via caller ID.
+  - The `settings` table schema (grep ALTER TABLE settings) — note the `forwarding_number` column (the owner's actual phone) + `vapi_phone_number` (Emma's number), and any other owner-phone columns.
+  - SMS follow-up handlers (grep sendSms) — understand SMS auth/ownership patterns for reference.
+  - `vapiRequest` — how we send requests to the Vapi API.
+  - `leads` table — specifically how leads are searched by name/phone.
+
+- The branchlive skill (.zcode/skills/branchlive) — mandatory wiki reads + template-literal pitfall.
+
+BUILD THE SPEC (write to C:/Users/17173/Projects/branchlive/VOICE_JOB_NOTES_SPEC.md):
+1. OWNER DETECTION: how Emma knows the caller is the owner. The Vapi webhook receives a `message.customer.number`. Compare against `settings.forwarding_number` (or a new `settings.owner_phone` column if forwarding_number isn't the right field). If it matches → owner call, route to job-note flow. If not → existing customer-call flow. (This is the critical differentiator.)
+2. EMMA'S CONVERSATION for job notes: the system prompt addition — "When the caller is the business owner, greet them warmly, ask which job they want to leave a note for, then capture the note." Include how Emma handles: (a) existing leads (she searches by name), (b) the note text itself, (c) if the owner says "never mind" or hangs up early (graceful).
+3. DATA MODEL: a `job_notes` table: id, lead_id, user_id, author (default "Owner via Emma"), note_text (the transcribed dictation), created_at. OR extend the existing leads table with a notes/dictation field. Recommend the cleaner option. Idempotent DDL in initDB.
+4. NOTE ATTACHMENT: after the call ends, the Vapi webhook is now ALSO handling owner calls. When the caller is the owner, DON'T create a lead — instead, create a job_note attached to the lead they specified during the conversation. How Emma identifies *which* lead during the call (structured data from Vapi's tool-calling? or post-hoc text extraction from the transcript? Be specific.)
+5. LEAD PAGE WIDGET: a small `renderJobNotesWidget(env, leadId)` that shows any voice notes associated with a lead, with timestamps + an audio playback hint ("Tap to listen" — Vapi recordings are available). Render it in `handleLeadDetailHtmx`.
+6. SETTINGS: a small "Voice Job Notes" section in Settings with a toggle (similar to SMS Follow-ups). `settings.voice_notes_enabled` INTEGER DEFAULT 0.
+
+CONSTRAINTS: mirror existing patterns EXACTLY. Every D1 query scoped by user_id. Template-literal safety (htmxEsc, no backslash-apostrophes). This is a FULL feature build — spec the complete implementation. End by confirming you are running as the requested model (Gemini 3.1 Pro), not the Flash fallback.

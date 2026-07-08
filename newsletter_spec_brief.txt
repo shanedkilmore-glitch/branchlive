@@ -1,0 +1,32 @@
+TASK: Refine the existing Email Newsletters spec (specs/email-newsletters.md) into a buildable IMPLEMENTATION DOCUMENT for ZCode. DESIGN/SPEC ONLY — do NOT edit any code.
+
+READ FIRST:
+- C:/Users/17173/Projects/branchlive/specs/email-newsletters.md — the full feature spec (352 lines, subscriber harvesting, campaign management, AI draft generation, batch sending, unsubscribe compliance, Stripe billing). Use it as your primary source — do NOT redesign.
+- In C:/Users/17173/Projects/branchlive/worker.js, grep + read the EXACT locations where this feature needs to hook in:
+  - initDB (~L1489): where the 3 new tables + settings columns go
+  - ADDONS array (~L936): where the newsletter add-on entry goes
+  - The existing `sendEmail()` function (grep for it — confirm it exists and learn its signature)
+  - handleSettingsHtmx (~L3800) + the settings INSERT/ON CONFLICT block: where the 3 new fields bind
+  - The blog post AI generator (grep for `generateBusinessBlogPost` or `generateNewsletter` or `aiGenerate`): newsletter AI drafts need to mirror the existing AI content generation pattern
+  - The Resend API key pattern (grep RESEND_API_KEY): newsletter sends need Email API access
+  - handleStripeWebhook: where addon billing updates happen
+  - The /settings-htmx template: where the newsletter toggle + cadence + approval mode UI goes
+  - Existing cron patterns (scheduled handler ~L19250): where the newsletter cron fires
+  - The public unsubscribe route pattern (grep unsubscribe or /s/): public routes
+
+- Your branchlive skill — mandatory wiki reads + template-literal pitfall.
+
+DELIVER a concise implementation doc (write to C:/Users/17173/Projects/branchlive/NEWSLETTER_IMPL.md) covering:
+1. DDL: the 3 new tables (newsletter_subscribers + campaign + sends) + new settings columns — exact CREATE TABLE + ALTER TABLE statements, placed in initDB with idempotency.
+2. ADDONS entry + Stripe billing wiring.
+3. Subscriber auto-harvesting: where to hook into lead/appointment creation to populate newsletter_subscribers (with the ON CONFLICT upsert pattern from the spec).
+4. AI draft generation: a function that builds newsletter content from recent reviews + photos + services + CTA, mirroring the existing AI blog post generation pattern. Call it generateNewsletterDraft(env, uid).
+5. Cron: how the newsletter scheduler fires (daily, checks cadence, generates drafts, dispatches sends) — where in the existing scheduled() handler it goes, how it batches (20 per tick per the spec's 50-subrequest limit).
+6. The /p/newsletters dashboard page (list campaigns, create/edit drafts, subscriber list, send test, approve + send) + API endpoints.
+7. Settings UI: the toggle, cadence dropdown, approval mode radio.
+8. Unsubscribe: the GET /s/{slug}/unsubscribe public route with HMAC token verification + status update.
+9. Any simplifications vs the spec: e.g. Resend vs Gmail detection — the spec says reuse sendEmail() which auto-detects; confirm this pattern is correct.
+
+CRITICAL: every hook MUST reference a REAL function name or a specific grep-able pattern in worker.js. Multi-tenant: EVERY query scoped by user_id. Template-literal safety mandatory (htmxEsc, no backslash-apostrophes).
+
+End by stating which model you are running as (confirm NOT the Flash fallback).

@@ -1,0 +1,21 @@
+TASK: Implement Email Newsletters in Branch Live worker.js. FULL IMPLEMENTATION — write code, RUN verification.
+
+🔴 IMPLEMENT EVERYTHING IN THIS RUN. Do NOT refine the spec. Do NOT present a plan. Write the code changes to worker.js and run `node --check`. This is the BUILD step, not the SPEC step.
+
+READ:
+- C:/Users/17173/Projects/branchlive/NEWSLETTER_IMPL.md — the implementation plan (verified hooks)
+- C:/Users/17173/Projects/branchlive/specs/email-newsletters.md — the feature spec
+- branchlive skill — wiki reads + template-literal pitfall
+
+BUILD:
+1. initDB: 3 tables (newsletter_subscribers, newsletter_campaigns, newsletter_sends) + addon_newsletter column
+2. ADDONS entry + Stripe syncAddonsFromSubscription UPDATE extension
+3. Subscriber auto-harvest from leads + appointments (ON CONFLICT upsert)
+4. generateNewsletterDraft(env, uid) using Cloudflare Workers AI (Llama 3.3 70B, NOT DeepSeek) — mirror generateBusinessBlogPost pattern
+5. /p/newsletters dashboard page (list, create/edit drafts, subscriber list, test send, approve+send)
+6. Cron: add to scheduled() handler — daily cadence check, batch sending (20/tick)
+7. Settings: toggle + frequency dropdown + approval mode
+8. Unsubscribe: GET /s/{slug}/unsubscribe with HMAC token
+9. sendEmail() reuse for delivery
+
+REPORT: what you built, node --check passed. Do NOT commit/deploy.

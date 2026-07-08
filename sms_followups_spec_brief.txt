@@ -1,0 +1,26 @@
+TASK: Refine the existing SMS Follow-ups spec (specs/sms-followups.md) into a buildable IMPLEMENTATION DOCUMENT for ZCode. DESIGN/SPEC ONLY — do NOT edit any code.
+
+READ FIRST:
+- C:/Users/17173/Projects/branchlive/specs/sms-followups.md — the full feature spec (440 lines, appointment-based automated SMS reminders + check-ins, written for Twilio). All schema, algorithm, template system, settings UI, opt-out handling, and lead-page widget are already designed. Use it as your primary source — DO NOT redesign from scratch.
+- In C:/Users/17173/Projects/branchlive/worker.js, grep + read the EXACT locations where this feature needs to hook in:
+  - initDB (~line 1489): where the new table + settings columns go
+  - The existing scheduled/cron handler (grep for "scheduled" or "cron" — the worker has a `*/15 * * * *` cron trigger already; find where it enters)
+  - sendSms() at ~line 13782 (reuse this, do NOT build a new SMS path)
+  - handleLeadDetailHtmx (the lead-page handler where the SMS log widget renders — find its exact function name/location)
+  - handleSettingsHtmx (the settings form save handler — find it to know where the 3 new fields bind)
+  - normalizePhone() (the E.164 helper — find it to confirm it exists)
+  - The /settings-htmx template body (where the toggle + template fields go)
+  - The existing `seasonal_followups` table (the opt-out table the spec references — grep to confirm it exists + has the right schema)
+- Your branchlive skill (.zcode/skills/branchlive) — mandatory wiki reads + template-literal pitfall.
+
+DELIVER a concise implementation document (write to C:/Users/17173/Projects/branchlive/SMS_FOLLOWUPS_IMPL.md) covering:
+1. Exact DDL additions with where in initDB (real line ref after grepping). Include both the new appointment_sms_logs table AND the 3 ALTER TABLE settings ADD COLUMN statements (wrapped in try/catch for idempotency per the D1 pattern).
+2. The cron integration — EXACTLY where the new cron handler fires (the current worker cron entry point), and what the runAppointmentFollowupsCron signature should be (it needs env + the DB).
+3. The helpers to add (normalizePhone, compileAppointmentSms, hasSentLog, dispatchAndLog, isSmsOptedOut, logOptedOut) with function signatures + where to place them.
+4. Settings integration: the 3 new settings fields, the HTML template additions for the toggle + two textareas, the form save bind list updates.
+5. Lead-page widget: where to call renderLeadAppointmentFollowupWidget + where to insert it in the template.
+6. Any simplifications vs the original spec (e.g. the spec references TextMagic — note we'll use ONLY Twilio; the opt-out table is seasonal_followups; confirm provider dispatch via the existing sendSms path).
+
+CRITICAL: every hook MUST reference a REAL function name or a specific grep-able pattern in worker.js so ZCode knows exactly where to place each piece. No hand-waving.
+
+End by stating which model you are actually running as (confirm NOT the Flash fallback).

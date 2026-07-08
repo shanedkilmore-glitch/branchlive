@@ -1,0 +1,25 @@
+TASK: Implement the Appointment SMS Follow-ups feature in Branch Live's worker.js, following the implementation spec EXACTLY. PHASE 1 only (the core: table, helpers, cron, settings, lead widget). Tight scope.
+
+🔴 IMPLEMENT EVERYTHING IN THIS RUN — write the code and RUN the verification commands. Do NOT stop after presenting a plan. If you find yourself planning, immediately proceed to write the code.
+
+READ FIRST:
+- C:/Users/17173/Projects/branchlive/SMS_FOLLOWUPS_IMPL.md — the EXACT implementation spec (5.5KB, 6 sections: DDL, helpers, cron handler, settings, lead widget, simplifications). BUILD TO THIS.
+- C:/Users/17173/Projects/branchlive/specs/sms-followups.md — the original feature spec for reference.
+- Your branchlive skill (.zcode/skills/branchlive) — mandatory wiki reads + the template-literal pitfall. The multi-tenant pattern: EVERY query scoped by user_id = ctx.bid.
+- In worker.js, grep + read the ACTUAL functions the spec hooks into: initDB (~L1489), the cron `scheduled` handler (L19250), `handleLeadDetailHtmx` (L10592), `handleSettingsHtmx` (L3800) + the settings INSERT/ON CONFLICT block, `normalizePhoneE164` (L8511), `sendSms` (L13782), the /settings-htmx template, the appointments table (status='confirmed', L1577).
+
+BUILD (Phase 1 — what the impl spec covers):
+1. initDB: ADD the `appointment_sms_logs` table (idempotent CREATE TABLE IF NOT EXISTS + the unique index) + the 3 ALTER TABLE settings ADD COLUMN statements (sms_followup_enabled, sms_reminder_template, sms_checkin_template) wrapped in try/catch per the D1 idempotent-migration pattern.
+2. Helpers: add `compileAppointmentSms`, `hasSentLog`, `dispatchAndLog`, `isSmsOptedOut`, `logOptedOut` — mirror the spec's exact function signatures. Use the existing `sendSms` (NOT a new SMS path). Use the existing `normalizePhoneE164`. IMPORTANT: the spec's `seasonal_followups` table does NOT exist — the impl spec adapted the opt-out logic to track opt-outs via `appointment_sms_logs` (status='opted_out'). Follow THAT approach, not the original spec.
+3. Cron: integrate `runAppointmentFollowupsCron(env)` into the existing scheduled handler (L19250). Use the cron's existing pattern — call it with env, and keep it async + best-effort (one failure never stops the cron for other accounts). Use the timezone-aware candidate selection algorithm from the spec (fetch confirmed appointments within a 3-day local window, check reminder/checkin windows, never send duplicates).
+4. Settings: add the toggle + two textarea fields to the /settings-htmx template; update the settings INSERT/ON CONFLICT + bind list to save the 3 new fields.
+5. Lead-page widget: add `renderLeadAppointmentFollowupWidget` and call it + insert it in `handleLeadDetailHtmx`.
+
+CRITICAL RULES:
+- Multi-tenant: scope EVERY query by user_id.
+- Template-literal safety: htmxEsc() ALL user data; NO backslash-apostrophes, NO single-backslash regex, NO raw ${} of untrusted data.
+- `node --check worker.js` MUST pass. Fix any syntax error before reporting.
+- Do NOT git commit, deploy, run deploy.sh, git reset, or git checkout. Hermes reviews + deploys.
+- Targeted edits only; do not touch unrelated code.
+
+REPORT: the new table + migration columns, each new helper function + location, the cron integration point, the settings UI + save changes, the lead-widget changes, and confirm `node --check worker.js` passed.

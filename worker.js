@@ -8291,6 +8291,149 @@ async function handlePipelineAdvance(request, env, uid, body) {
   }
 }
 
+// Public demo booking page — /s/demo-booking. A standalone, always-on sample of
+// the booking form customers see before booking an appointment, shown to carrier
+// A2P 10DLC reviewers so they can verify the SMS opt-in flow end to end. It does
+// NOT write to the DB; it mirrors the language on the live /privacy opt-in flow.
+function handleDemoBookingPage() {
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Book an Appointment — Demo · Branch Live</title>
+<meta name="description" content="Sample booking form showing the SMS opt-in flow customers see before booking an appointment with a Branch Live service business.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cline x1='16' y1='24' x2='16' y2='13' stroke='%23d4a574' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M16 12 Q8 10 6 6 Q8 10 16 12' fill='%23d4a574' opacity='0.9'/%3E%3Cpath d='M16 12 Q24 10 26 6 Q24 10 16 12' fill='%23d4a574' opacity='0.9'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#06060c;--panel:#0e0e18;--panel2:#1a1a2e;--text:#f1f5f9;--muted:#94a3b8;--faint:#64748b;--amber:#d4a574;--border:#252540;--danger:#ef4444}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter Tight',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh;display:flex;flex-direction:column}
+a{color:var(--amber);text-decoration:none}
+a:hover{text-decoration:underline}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border)}
+.nav .brand{display:flex;align-items:center;gap:8px;font-weight:700}
+.nav .dots{display:inline-flex;gap:3px}
+.nav .dots i{display:block;width:3px;height:14px;background:var(--amber);border-radius:1.5px;opacity:.85}
+.nav .dots i:nth-child(2),.nav .dots i:nth-child(4){height:8px;margin-top:3px;opacity:.55}
+.nav .tag{font-size:.72rem;color:var(--faint);font-family:'JetBrains Mono',monospace;letter-spacing:.05em;text-transform:uppercase}
+.wrap{max-width:560px;margin:0 auto;padding:36px 20px 0;width:100%;flex:1}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin-bottom:10px}
+h1{font-family:'Fraunces',serif;font-size:2rem;letter-spacing:-0.02em;margin-bottom:8px}
+h1 em{font-style:italic;color:var(--amber)}
+.sub{color:var(--muted);margin-bottom:28px;font-size:.95rem}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:26px 24px;margin-bottom:20px}
+.demo-note{display:flex;align-items:flex-start;gap:10px;background:rgba(212,165,116,.08);border:1px solid rgba(212,165,116,.3);border-radius:12px;padding:12px 14px;margin-bottom:24px;font-size:.85rem;color:var(--text)}
+.demo-note span{font-size:1.1em}
+label{display:block;font-size:.78rem;font-family:'JetBrains Mono',monospace;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;margin-top:16px}
+label:first-child{margin-top:0}
+input,select,textarea{width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:12px 14px;font-size:.95rem;font-family:inherit;transition:border-color .2s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--amber)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sms-box{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:20px}
+.sms-line{display:flex;align-items:flex-start;gap:12px;font-size:.88rem;color:var(--muted);line-height:1.6;cursor:pointer}
+.sms-line input[type=checkbox]{width:20px;height:20px;min-width:20px;margin-top:2px;accent-color:var(--amber);cursor:pointer;flex-shrink:0}
+.sms-line strong{color:var(--text);font-weight:600}
+.sms-flow{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);font-size:.82rem;color:var(--faint)}
+.sms-flow ol{margin:8px 0 0 18px;padding:0}
+.sms-flow li{margin-bottom:6px}
+.sms-flow code{background:var(--panel2);border:1px solid var(--border);padding:1px 6px;border-radius:4px;color:var(--amber);font-family:'JetBrains Mono',monospace;font-size:.82em}
+.btn{display:block;width:100%;margin-top:22px;padding:14px;background:var(--amber);color:#06060c;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center}
+.btn:hover{filter:brightness(1.08)}
+.fineprint{font-size:.78rem;color:var(--faint);margin-top:14px;line-height:1.6}
+.fineprint a{color:var(--muted)}
+.foot{max-width:560px;margin:0 auto;padding:24px 20px 40px;width:100%;font-size:.82rem;color:var(--faint);text-align:center;border-top:1px solid var(--border)}
+.foot a{color:var(--muted)}
+@media(max-width:480px){.row{grid-template-columns:1fr}h1{font-size:1.6rem}}
+</style>
+</head>
+<body>
+<div class="nav">
+  <div class="brand">
+    <span class="dots"><i></i><i></i><i></i><i></i><i></i></span>
+    Riverside Services
+  </div>
+  <span class="tag">Sample · Demo Business</span>
+</div>
+<main class="wrap">
+  <div class="demo-note"><span>👁️</span><div><strong>Carrier review sample.</strong> This is a live preview of the booking form customers see. It is not wired to a real calendar — submitting it only confirms the opt-in language below. To view the production opt-in policy in full, see our <a href="/privacy/#sms-mobile-messaging">Privacy Policy</a>.</div></div>
+
+  <div class="eyebrow">Book online</div>
+  <h1>Schedule your <em>appointment</em></h1>
+  <p class="sub">Pick a time that works for you and we will send a text confirmation. This is a demo business on the Branch Live platform.</p>
+
+  <div class="card">
+    <label for="n">Full name</label>
+    <input id="n" type="text" placeholder="Jamie Rivera" autocomplete="name">
+
+    <div class="row">
+      <div>
+        <label for="p">Mobile phone</label>
+        <input id="p" type="tel" placeholder="(717) 555-0123" autocomplete="tel">
+      </div>
+      <div>
+        <label for="e">Email (optional)</label>
+        <input id="e" type="email" placeholder="you@example.com" autocomplete="email">
+      </div>
+    </div>
+
+    <label for="s">Service</label>
+    <select id="s">
+      <option>Consultation</option>
+      <option>Estimate</option>
+      <option>Appointment</option>
+    </select>
+
+    <div class="row">
+      <div>
+        <label for="d">Preferred date</label>
+        <input id="d" type="date">
+      </div>
+      <div>
+        <label for="t">Preferred time</label>
+        <input id="t" type="time">
+      </div>
+    </div>
+
+    <label for="x">Notes (optional)</label>
+    <textarea id="x" rows="2" placeholder="Anything we should know?"></textarea>
+
+    <div class="sms-box">
+      <label class="sms-line">
+        <input type="checkbox" id="sms">
+        <span><strong>Yes, text me appointment reminders.</strong> I consent to receive SMS messages from Riverside Services about my appointment — confirmations, reminders, reschedule notices, and follow-ups. Message frequency varies (typically 1 to 4 per appointment). Reply <strong>STOP</strong> to cancel at any time. Message and data rates may apply.</span>
+      </label>
+      <div class="sms-flow">
+        <strong style="color:var(--muted)">How opt-in works (double opt-in, no pre-checked box):</strong>
+        <ol>
+          <li>You book an appointment and provide your mobile number above.</li>
+          <li>You receive one confirmation text: <code>Reply YES to get appointment reminders from Riverside Services. Reply STOP to cancel.</code></li>
+          <li>You are added to the SMS list <strong>only if you reply YES</strong>. No automatic opt-in, ever.</li>
+          <li>Reply <code>STOP</code> to opt out, <code>HELP</code> for help, or <code>START</code> to resubscribe.</li>
+        </ol>
+      </div>
+    </div>
+
+    <button class="btn" id="book" onclick="return demoBook(event)">Request Appointment →</button>
+    <p class="fineprint" id="ok" style="display:none">✓ Got it — in a live booking this would text you the confirmation and YES prompt above. This demo does not store your details.</p>
+    <p class="fineprint">By booking you agree to our <a href="/terms/">Terms</a> and <a href="/privacy/">Privacy Policy</a>. SMS reminders are sent via the Branch Live platform on behalf of Riverside Services. Carriers are not liable for delayed or undelivered messages.</p>
+  </div>
+</main>
+<div class="foot">© ${new Date().getFullYear()} Branch Live · <a href="/">branchlive.com</a> · support@branchlive.com</div>
+<script>
+function demoBook(e){
+  e.preventDefault();
+  var btn=document.getElementById('book');
+  btn.textContent='Sent ✓';
+  btn.disabled=true;
+  document.getElementById('ok').style.display='block';
+  return false;
+}
+</script>
+</body>
+</html>`;
+  return new Response(html, { headers: { 'Content-Type': 'text/html', 'Cache-Control': 'public, max-age=0, must-revalidate' } });
+}
+
 async function handlePublicSite(request, env, slug) {
   try {
     const url = new URL(request.url);
@@ -19712,6 +19855,10 @@ export default {
         // the bare /s/{slug} so the longer path wins.
         const unsubMatch = path.match(/^\/s\/([a-z0-9-]+)\/unsubscribe$/);
         if (unsubMatch) return handlePublicUnsubscribe(request, env, unsubMatch[1]);
+        // Public demo booking form — a literal slug, matched BEFORE the bare
+        // /s/{slug} regex so 'demo-booking' is not swallowed by it. Exists so
+        // carrier A2P 10DLC reviewers can inspect the customer SMS opt-in flow.
+        if (path === '/s/demo-booking') return handleDemoBookingPage();
         const siteMatch = path.match(/^\/s\/([a-z0-9-]+)$/);
         if (siteMatch) return handlePublicSite(request, env, siteMatch[1]);
         // Sitemap of all published business sites — submitted to search engines.

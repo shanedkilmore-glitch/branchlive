@@ -1,0 +1,26 @@
+TASK: Implement the Voice Job Notes feature in Branch Live's worker.js, following the spec EXACTLY. Full feature — data model, owner detection, Emma conversation, lead widget, settings.
+
+🔴 IMPLEMENT EVERYTHING IN THIS RUN — write the code and RUN the verification commands. Do NOT stop after presenting a plan. If you find yourself planning, immediately proceed to write the code.
+
+READ FIRST:
+- C:/Users/17173/Projects/branchlive/VOICE_JOB_NOTES_SPEC.md — the COMPLETE implementation spec (9.5KB). BUILD TO THIS.
+- Your branchlive skill (.zcode/skills/branchlive) — mandatory wiki reads + the template-literal pitfall. Multi-tenant: EVERY query scoped by user_id.
+- In worker.js, grep + READ the ACTUAL functions to modify: `handleVapiWebhook` (~L14358), `resolveVapiOwner`, `extractLeadFromVapiCall`, `vapiProvision`, `emmaSystemPrompt`, `handleLeadDetailHtmx` (~L10592), `handleSettingsHtmx` (~L3800), `initDB` (~L1489), the settings table schema (grep ALTER TABLE settings).
+- The spec sections: §1 Data Model (job_notes table), §2 Owner Detection & Emma's Conversation (caller ID match → emmaSystemPrompt addition), §3 Note Attachment (post-hoc text extraction from transcript to find lead), §4 Lead Page Widget (renderJobNotesWidget), §5 Settings (toggle + owner_phone field).
+
+BUILD (full feature, per the spec):
+1. initDB: ADD the `job_notes` table (id LPK, lead_id FK, user_id, note_text, transcript, vapi_call_id, created_at) + ALTER TABLE settings ADD COLUMN `owner_phone` TEXT + `voice_notes_enabled` INTEGER DEFAULT 0.
+2. OWNER DETECTION in handleVapiWebhook: BEFORE the existing customer-call flow, check `message.customer.number` against the business's `owner_phone` (or `forwarding_number` if owner_phone is empty). If it matches → this is an OWNER call. Branch the logic: DON'T create a lead; INSTEAD call a new `handleVoiceJobNote(env, message, uid, settings)` that extracts the transcript and matches a lead.
+3. emmaSystemPrompt: ADD a brief section: "When the caller is the business owner (identified by caller ID): greet them warmly, ask which job they want to leave a note for, then capture the note. If they say 'never mind' or hang up, nothing is saved."
+4. NOTE ATTACHMENT logic: after the call ends, parse the transcript to find a lead match (by name — search leads WHERE user_id=? AND caller_name LIKE ?). If a lead is found, INSERT into job_notes. If no lead found, save the note anyway with lead_id=NULL (the owner can assign it later from the dashboard). Log success/failure in the response.
+5. LEAD PAGE WIDGET: add `renderJobNotesWidget(env, uid, leadId)` (HTMX-safe, htmxEsc all user data) + call it in handleLeadDetailHtmx. Show: the note text, timestamp, and a "via Voice" badge.
+6. SETTINGS: add the toggle (voice_notes_enabled) + owner_phone field to the settings template + the INSERT/ON CONFLICT bind list. The owner_phone field helps them specify which number they'll call FROM (in case it's different from forwarding_number).
+
+CRITICAL RULES:
+- Multi-tenant: scope EVERY query by user_id.
+- Template-literal safety: htmxEsc() ALL user data; NO backslash-apostrophes, NO single-backslash regex, NO raw ${} of untrusted data.
+- `node --check worker.js` MUST pass.
+- Do NOT git commit, deploy, run deploy.sh, git reset, or git checkout. Hermes reviews + deploys.
+- Targeted edits only; do not touch unrelated code.
+
+REPORT: the job_notes table DDL, the owner-detection logic in handleVapiWebhook, the Emma prompt addition, the note-attachment parse logic, the lead widget + settings changes, and confirm node --check passed.
