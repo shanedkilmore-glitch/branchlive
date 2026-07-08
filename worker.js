@@ -8434,6 +8434,150 @@ function demoBook(e){
   return new Response(html, { headers: { 'Content-Type': 'text/html', 'Cache-Control': 'public, max-age=0, must-revalidate' } });
 }
 
+// Worker-served Terms of Service. WHY a worker copy (not just /terms/index.html
+// on Pages): Cloudflare Pages "Email Address Obfuscation" rewrites every
+// @-address into a JS-only data-cfemail blob that carrier A2P 10DLC compliance
+// crawlers cannot read. Worker responses bypass that feature, so the contact
+// email here renders as true plain text. Content mirrors terms/index.html.
+function handleTermsPage() {
+  const year = new Date().getFullYear();
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Terms of Service — Branch Live</title>
+<meta name="description" content="Branch Live Terms of Service — terms and conditions for using our AI receptionist and SMS messaging services.">
+<style>
+:root{--bg:#06060c;--text:#e4e4e7;--muted:#71717a;--brand:#8b5cf6;--brand2:#00d4aa;--panel:#0d0d14;--border:rgba(255,255,255,0.06)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7}
+.container{max-width:750px;margin:0 auto;padding:60px 24px}
+h1{font-size:2.2em;font-weight:700;margin-bottom:8px;letter-spacing:-0.02em}
+h2{color:var(--brand);font-size:1.2em;margin-top:32px;margin-bottom:8px}
+h3{color:var(--text);margin-top:20px;font-size:1.05em}
+p{margin-bottom:12px;color:var(--muted)}
+strong{color:var(--text)}
+a{color:var(--brand2);text-decoration:none}
+.updated{color:var(--muted);font-size:0.85em;margin-bottom:30px}
+nav{padding:16px 24px;border-bottom:1px solid var(--border)}
+nav a{color:var(--brand2);text-decoration:none;font-size:0.9em;margin-right:20px}
+footer{text-align:center;padding:40px;color:var(--muted);font-size:0.85em;border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+<nav>
+  <a href="/">← Branch Live</a>
+</nav>
+<div class="container">
+  <h1>Terms of Service</h1>
+  <p class="updated">Last updated: July 8, 2026</p>
+
+  <h2>Acceptance of Terms</h2>
+  <p>By using Branch Live services, you agree to these terms. If you do not agree, do not use our services.</p>
+
+  <h2>SMS Messaging Program Terms</h2>
+
+  <h3>Who sends the messages</h3>
+  <p>Branch Live is a messaging platform. The appointment reminders, confirmations, reschedule notices, and booking follow-ups you receive are sent <strong>on behalf of the local service business you booked with</strong> (for example, a salon, landscaper, or cleaning service) — not from Branch Live as the message sender for marketing purposes. Branch Live delivers these messages via its platform at the business's direction. The business name in the message identifies who is contacting you.</p>
+
+  <h3>Appointment reminders from service businesses</h3>
+  <p>When you book an appointment with a business that uses Branch Live, that business may send you transactional SMS reminders about your appointment — including confirmations, upcoming-appointment reminders, reschedule notices, and booking follow-ups. These messages are initiated by the business through the Branch Live platform. You will only receive appointment-related messages; we and the businesses on our platform do not send marketing or promotional text messages to your mobile number.</p>
+
+  <h3>Consent</h3>
+  <p>By providing your phone number and opting in via checkbox, paper form, verbal confirmation, or text message keyword, you consent to receive SMS messages from Branch Live and from the service businesses that use Branch Live to send you appointment reminders. You acknowledge that message frequency varies and message and data rates may apply.</p>
+
+  <h3>Opt-Out</h3>
+  <p>You may opt out of SMS messages at any time by replying STOP, CANCEL, END, QUIT, UNSUBSCRIBE, REVOKE, or STOPALL. After opting out, you will receive a confirmation message and no further messages.</p>
+
+  <h3>Help</h3>
+  <p>Reply HELP or INFO to any message for assistance.</p>
+
+  <h3>Carrier Disclaimer</h3>
+  <p>Carriers are not liable for delayed or undelivered messages. Message and data rates may apply. Check your carrier plan for details.</p>
+
+  <h3>Privacy</h3>
+  <p>Your information is handled per our <a href="/privacy/">Privacy Policy</a>. We do not share mobile information with third parties for marketing purposes.</p>
+
+  <h2>Contact</h2>
+  <p>Branch Live — Dillsburg, PA<br>Email: hello@branchlive.com<br>Support: support@branchlive.com</p>
+</div>
+<footer>© ${year} Branch Live · <a href="/privacy/">Privacy Policy</a> · support@branchlive.com</footer>
+</body>
+</html>`;
+  return new Response(html, { headers: { 'Content-Type': 'text/html', 'Cache-Control': 'public, max-age=0, must-revalidate' } });
+}
+
+// Worker-served Privacy Policy. Same rationale as handleTermsPage(): rendered
+// by the Worker so the support email is plain text, not CF-obfuscated. Content
+// mirrors privacy/index.html.
+function handlePrivacyPage() {
+  const year = new Date().getFullYear();
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Privacy Policy — Branch Live</title>
+<meta name="description" content="Branch Live Privacy Policy — how we collect, use, and protect your information for our AI receptionist service.">
+<style>
+:root{--bg:#06060c;--text:#e4e4e7;--muted:#71717a;--brand:#8b5cf6;--brand2:#00d4aa;--panel:#0d0d14;--border:rgba(255,255,255,0.06)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7}
+.container{max-width:750px;margin:0 auto;padding:60px 24px}
+h1{font-size:2.2em;font-weight:700;margin-bottom:8px;letter-spacing:-0.02em}
+h2{color:var(--brand);font-size:1.2em;margin-top:32px;margin-bottom:8px}
+h3{color:var(--text);margin-top:20px;font-size:1.05em}
+p{margin-bottom:12px;color:var(--muted)}
+strong{color:var(--text)}
+a{color:var(--brand2);text-decoration:none}
+.updated{color:var(--muted);font-size:0.85em;margin-bottom:30px}
+nav{padding:16px 24px;border-bottom:1px solid var(--border)}
+nav a{color:var(--brand2);text-decoration:none;font-size:0.9em;margin-right:20px}
+footer{text-align:center;padding:40px;color:var(--muted);font-size:0.85em;border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+<nav>
+  <a href="/">← Branch Live</a>
+</nav>
+<div class="container">
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated: July 8, 2026</p>
+
+  <h2>Information We Collect</h2>
+  <p>We collect information you provide directly: name, phone number, email address, and business details when you sign up for our services.</p>
+
+  <h2>How We Use Your Information</h2>
+  <p>We use your information to provide and improve our AI receptionist services, communicate with you about your account, and send relevant updates.</p>
+
+  <h2 id="sms-mobile-messaging">SMS Mobile Messaging</h2>
+  <p>Branch Live and its affiliated service businesses send SMS text messages only to people who have given prior express consent, as described below.</p>
+
+  <h3>How you opt in (double opt-in)</h3>
+  <p>You provide your mobile number when you book an appointment — either by phone with our AI receptionist, Emma, or through the business's online booking form. Right after you book, you receive <strong>one</strong> confirmation text: <em>"Reply YES to get appointment reminders from [Business]. Reply STOP to cancel."</em> You are added to our SMS list <strong>only if you reply YES</strong>. We never message a number that has not booked an appointment, and reminders are sent only after you reply YES. There is no automatic opt-in and no pre-checked box.</p>
+
+  <h3>Message types &amp; frequency</h3>
+  <p>You will only receive <strong>appointment-related</strong> messages — confirmations, reminders, reschedule notices, and booking follow-ups. <strong>We never send marketing or promotional text messages.</strong> Frequency is typically 1–4 messages per appointment.</p>
+
+  <h3>Opt-out</h3>
+  <p>Reply <strong>STOP</strong> (or CANCEL, END, QUIT, UNSUBSCRIBE, REVOKE, STOPALL) to any message at any time to unsubscribe. You will receive a one-time confirmation and then no further messages. Reply <strong>START</strong> to resubscribe.</p>
+
+  <h3>Help</h3>
+  <p>Reply <strong>HELP</strong> or <strong>INFO</strong> to any message for assistance, or email hello@branchlive.com. Message and data rates may apply.</p>
+
+  <h3>Non-sharing of mobile information</h3>
+  <p><strong>No mobile information will be shared with third parties or affiliates for marketing or promotional purposes. Text messaging originator opt-in data and consent are not shared with any third parties.</strong></p>
+
+  <h2>Contact</h2>
+  <p>Branch Live — Dillsburg, PA<br>Email: hello@branchlive.com<br>Support: support@branchlive.com</p>
+</div>
+<footer>© ${year} Branch Live · <a href="/terms/">Terms of Service</a> · support@branchlive.com</footer>
+</body>
+</html>`;
+  return new Response(html, { headers: { 'Content-Type': 'text/html', 'Cache-Control': 'public, max-age=0, must-revalidate' } });
+}
+
 async function handlePublicSite(request, env, slug) {
   try {
     const url = new URL(request.url);
@@ -19863,6 +20007,11 @@ export default {
         if (siteMatch) return handlePublicSite(request, env, siteMatch[1]);
         // Sitemap of all published business sites — submitted to search engines.
         if (path === '/sitemap-sites.xml') return handleSitesSitemap(request, env);
+        // Legal pages — served by the Worker (not Pages) so the support email
+        // renders as true plain text instead of being CF-email-obfuscated.
+        // Accept /terms and /terms/ (same for privacy) so both link styles work.
+        if (path === '/terms' || path === '/terms/') return handleTermsPage();
+        if (path === '/privacy' || path === '/privacy/') return handlePrivacyPage();
         // Public blog — /blog (list) and /blog/:slug (post). No auth.
         if (path === '/blog') return handleBlogList(request, env);
         const blogMatch = path.match(/^\/blog\/([a-z0-9-]+)$/);
