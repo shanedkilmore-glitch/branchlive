@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Branch Live — Column 3 · AI-First Thread (Marcus Chen)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* base palette (per brief) */
+    --bg:#0f1117; --bg-2:#14161f; --card:#1a1d27; --card-2:#21242f;
+    --line:#2a2d3a; --line-2:#343846;
+    --text:#e1e4ea; --muted:#9aa0ad; --muted-2:#6a6f7d;
+
+    /* authorship triangle */
+    --amber:#d4a574; --amber-soft:#e8c79b; --amber-deep:#a87f4e;  /* human / brand / inbound-lead avatar */
+    --ai:#b79be0; --ai-soft:#d8c7f0; --ai-deep:#7b5fa8;          /* Branch AI system */
+    --ai-bg:rgba(183,155,224,.10); --ai-line:rgba(183,155,224,.30);
+
+    --green:#7fb98a; --yellow:#d9c47a; --red:#d98a7a;
+
+    --serif:'Fraunces',Georgia,serif;
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    font-family:var(--sans); font-size:14px; color:var(--text);
+    background:
+      radial-gradient(1100px 560px at 82% -12%, rgba(183,155,224,.05), transparent 60%),
+      radial-gradient(820px 480px at -8% 112%, rgba(212,165,116,.04), transparent 60%),
+      var(--bg);
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+  }
+
+  /* column 3 only — fills viewport like the real flex-grow panel */
+  .thread{
+    display:grid;
+    grid-template-rows:auto auto 1fr auto;   /* head · nudge · scroll · compose */
+    height:100vh; min-width:0;
+    background:var(--bg);
+    border-left:1px solid var(--line);
+  }
+  .thread.no-nudge{ grid-template-rows:auto 1fr auto; }
+
+  /* ─────────────────────  HEADER  ───────────────────── */
+  .thread-head{
+    display:flex; align-items:center; gap:14px;
+    padding:14px 22px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(26,29,39,.55), transparent);
+  }
+  .h-ava{
+    width:42px;height:42px;border-radius:12px;flex-shrink:0;
+    background:linear-gradient(135deg,var(--amber),var(--amber-deep));
+    display:grid;place-items:center;
+    color:#1a1208; font-family:var(--serif); font-weight:600; font-size:18px;
+    box-shadow:0 4px 14px rgba(212,165,116,.22);
+  }
+  .h-title{min-width:0;flex:1}
+  .h-name{font-family:var(--serif);font-weight:600;font-size:18px;line-height:1.15;letter-spacing:.2px}
+  .h-meta{display:flex;align-items:center;gap:8px;margin-top:3px;font-size:12.5px;color:var(--muted)}
+  .h-meta .dot{width:3px;height:3px;border-radius:50%;background:var(--muted-2)}
+  .status-badge{
+    display:inline-flex;align-items:center;gap:5px;
+    font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;
+    padding:3px 8px;border-radius:6px;
+    background:rgba(217,138,122,.14); color:var(--red);
+    border:1px solid rgba(217,138,122,.28);
+  }
+  .status-badge .pulse{width:6px;height:6px;border-radius:50%;background:var(--red);box-shadow:0 0 0 0 rgba(217,138,122,.6);animation:pulse 2.2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(217,138,122,.55)}70%{box-shadow:0 0 0 7px rgba(217,138,122,0)}100%{box-shadow:0 0 0 0 rgba(217,138,122,0)}}
+  .h-actions{display:flex;gap:8px}
+  .h-btn{
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:var(--sans);font-size:12.5px;font-weight:600;
+    padding:8px 13px;border-radius:9px;cursor:pointer;
+    background:var(--card);border:1px solid var(--line);color:var(--text);
+    transition:.15s;
+  }
+  .h-btn:hover{border-color:var(--line-2);background:var(--card-2)}
+  .h-btn.primary{background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;border-color:transparent;box-shadow:0 4px 12px rgba(212,165,116,.22)}
+  .h-btn.primary:hover{filter:brightness(1.06)}
+
+  /* ─────────────────────  NUDGE STRIP  ───────────────────── */
+  .ai-nudge{
+    display:flex;align-items:center;gap:11px;
+    padding:11px 22px;
+    background:linear-gradient(90deg, rgba(212,165,116,.11), transparent 72%);
+    border-bottom:1px solid var(--line);
+    font-size:12.5px;
+  }
+  .n-icon{flex-shrink:0;color:var(--amber-soft);font-size:15px;line-height:1}
+  .n-text{color:var(--muted)}
+  .n-text b{color:var(--text);font-weight:600}
+  .n-cta{
+    margin-left:auto;cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:var(--sans);font-size:12px;font-weight:600;
+    padding:6px 12px;border-radius:8px;
+    background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;border:1px solid transparent;
+    transition:.15s;
+  }
+  .n-cta:hover{filter:brightness(1.06)}
+  .n-cta .glyph{color:var(--ai-deep)}
+  .n-dismiss{
+    cursor:pointer;color:var(--muted-2);font-size:14px;line-height:1;
+    width:22px;height:22px;border-radius:6px;display:grid;place-items:center;
+    border:1px solid transparent;
+  }
+  .n-dismiss:hover{color:var(--text);background:var(--card)}
+
+  /* ─────────────────────  TIMELINE  ───────────────────── */
+  .thread-scroll{
+    overflow-y:auto;
+    padding:18px 22px 10px;
+    scrollbar-width:thin; scrollbar-color:var(--line-2) transparent;
+  }
+  .thread-scroll::-webkit-scrollbar{width:9px}
+  .thread-scroll::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:6px;border:2px solid var(--bg)}
+  .thread-scroll::-webkit-scrollbar-track{background:transparent}
+
+  /* ---- AI Brief card ---- */
+  .ai-brief{
+    background:linear-gradient(135deg,var(--ai-bg), rgba(183,155,224,.03));
+    border:1px solid var(--ai-line);
+    border-left:3px solid var(--ai);
+    border-radius:14px;
+    padding:13px 16px 13px;
+    margin:0 0 18px;
+  }
+  .brief-head{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+  .brief-glyph{color:var(--ai-soft);font-size:14px;line-height:1}
+  .brief-title{font-family:var(--serif);font-weight:600;font-size:14px;color:var(--text);letter-spacing:.2px}
+  .brief-factors{font-size:11.5px;color:var(--muted);margin-left:2px}
+  .brief-time{margin-left:auto;font-size:11px;color:var(--muted-2)}
+  .brief-refresh{cursor:pointer;color:var(--muted-2);font-size:13px;margin-left:4px;border-radius:6px;padding:2px;transition:.15s}
+  .brief-refresh:hover{color:var(--ai-soft)}
+  .brief-chevron{color:var(--muted-2);font-size:11px;transition:transform .2s;margin-left:6px}
+  .ai-brief.collapsed .brief-chevron{transform:rotate(-90deg)}
+  .brief-collapsed-summary{display:none;font-size:12px;color:var(--muted);margin-top:9px}
+  .ai-brief.collapsed .brief-collapsed-summary{display:block}
+  .ai-brief.collapsed .brief-body{display:none}
+
+  .brief-body{margin-top:12px;display:flex;flex-direction:column;gap:11px}
+  .brief-row{display:flex;flex-direction:column;gap:4px}
+  .brief-label{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted-2);font-weight:600}
+
+  .brief-row.sentiment .sent-line{display:flex;align-items:center;gap:8px;font-size:13px}
+  .sent-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--green);box-shadow:0 0 8px rgba(127,185,138,.5)}
+  .sent-dot.y{background:var(--yellow);box-shadow:0 0 8px rgba(217,196,122,.5)}
+  .sent-dot.r{background:var(--red);box-shadow:0 0 8px rgba(217,138,122,.5)}
+  .sent-label{font-weight:600;color:var(--text)}
+  .sent-rationale{color:var(--muted);font-size:12.5px;line-height:1.4}
+
+  .brief-task{display:flex;align-items:center;gap:9px;font-size:13px;padding:2px 0}
+  .brief-task .chk{
+    width:16px;height:16px;border-radius:5px;border:1.5px solid var(--line-2);
+    flex-shrink:0;cursor:pointer;display:grid;place-items:center;color:transparent;
+    transition:.15s;background:var(--bg);
+  }
+  .brief-task .chk:hover{border-color:var(--ai)}
+  .brief-task.done .chk{background:var(--ai);border-color:var(--ai);color:#0f1117}
+  .brief-task.done .task-text{text-decoration:line-through;color:var(--muted-2)}
+  .task-text{flex:1}
+  .task-mini{
+    cursor:pointer;font-size:11px;font-weight:600;color:var(--ai-soft);
+    border:1px solid var(--ai-line);background:var(--ai-bg);
+    padding:3px 9px;border-radius:7px;transition:.15s;
+  }
+  .task-mini:hover{background:rgba(183,155,224,.18)}
+
+  .brief-row.next .next-line{display:flex;align-items:center;gap:10px}
+  .next-headline{font-family:var(--serif);font-weight:600;font-size:13.5px;color:var(--text);flex:1;line-height:1.35}
+  .do-it{
+    cursor:pointer;flex-shrink:0;
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:var(--sans);font-size:12px;font-weight:600;
+    padding:7px 13px;border-radius:8px;
+    background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;border:1px solid transparent;
+    box-shadow:0 3px 10px rgba(212,165,116,.22);transition:.15s;
+  }
+  .do-it:hover{filter:brightness(1.07)}
+  .do-it .glyph{color:var(--ai-deep)}
+
+  /* ---- day divider ---- */
+  .day-divider{display:flex;align-items:center;gap:12px;margin:6px 0 16px}
+  .day-divider .ln{flex:1;height:1px;background:var(--line)}
+  .day-divider .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:1.4px;color:var(--muted-2);font-weight:600}
+
+  /* ---- message events ---- */
+  .event{display:flex;gap:11px;margin-bottom:18px;max-width:78%}
+  .event.outbound{margin-left:auto;flex-direction:row-reverse}
+  .e-ava{width:34px;height:34px;border-radius:10px;flex-shrink:0;display:grid;place-items:center;font-weight:600;font-size:13px}
+  .e-ava.lead{background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;font-family:var(--serif)}
+  .e-ava.human{background:linear-gradient(135deg,#3a3f4d,#2a2d3a);color:var(--amber-soft);border:1px solid var(--line-2)}
+  .e-ava.ai{background:linear-gradient(135deg,var(--ai),var(--ai-deep));color:#1a1208}
+  .e-body{min-width:0}
+  .e-meta{display:flex;align-items:center;gap:7px;margin-bottom:4px;font-size:11.5px}
+  .event.outbound .e-meta{justify-content:flex-end}
+  .e-name{font-weight:600;color:var(--text);font-size:12.5px}
+  .e-name.ai{color:var(--ai-soft)}
+  .e-tag{font-size:9.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:2px 6px;border-radius:5px}
+  .e-tag.ai{background:var(--ai-bg);color:var(--ai-soft);border:1px solid var(--ai-line)}
+  .e-time{color:var(--muted-2);font-size:11px}
+
+  .bubble{
+    padding:10px 13px;border-radius:13px;font-size:13.5px;line-height:1.5;
+    border:1px solid var(--line);
+  }
+  .event.inbound .bubble{background:var(--card);border-top-left-radius:4px}
+  .event.outbound.human .bubble{background:linear-gradient(135deg,rgba(212,165,116,.16),rgba(168,127,78,.10));border-color:rgba(212,165,116,.28);border-top-right-radius:4px}
+  .event.outbound.ai .bubble{background:var(--ai-bg);border:1px solid var(--ai-line);border-top-right-radius:4px}
+
+  .bubble-foot{margin-top:6px;font-size:11px;color:var(--muted-2);display:flex;align-items:center;gap:6px}
+  .bubble-foot .rule-link{color:var(--ai-soft);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+
+  /* ---- action / system events (handoff, smart-tag, summary) ---- */
+  .action-event{
+    display:flex;gap:11px;align-items:flex-start;
+    margin:0 0 16px;padding:11px 13px;border-radius:11px;
+    background:var(--card);border:1px solid var(--line);
+  }
+  .action-event.ai{background:linear-gradient(135deg,var(--ai-bg),rgba(26,29,39,.4));border-color:var(--ai-line)}
+  .a-icon{
+    width:26px;height:26px;border-radius:8px;flex-shrink:0;display:grid;place-items:center;
+    font-size:12px;line-height:1;
+  }
+  .a-icon.ai{background:linear-gradient(135deg,var(--ai),var(--ai-deep));color:#1a1208}
+  .a-content{flex:1;min-width:0}
+  .a-line1{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px}
+  .a-name{font-weight:600;color:var(--ai-soft)}
+  .a-title{color:var(--text)}
+  .a-chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .chip{
+    font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:5px;
+    background:var(--bg);border:1px solid var(--line);color:var(--muted);
+  }
+  .chip.hot{background:rgba(217,138,122,.14);color:var(--red);border-color:rgba(217,138,122,.28)}
+  .chip.warm{background:rgba(217,196,122,.14);color:var(--yellow);border-color:rgba(217,196,122,.28)}
+  .chip.mono{font-family:ui-monospace,'SF Mono',Menlo,monospace;color:var(--muted)}
+  .chip.arrow{background:transparent;border:none;color:var(--muted-2)}
+  .a-time{margin-left:auto;font-size:11px;color:var(--muted-2);flex-shrink:0}
+  .a-evidence{margin-top:7px;font-size:12px;color:var(--muted);font-style:italic;line-height:1.4}
+  .a-toggle{cursor:pointer;color:var(--ai-soft);font-size:11px;margin-top:6px;display:inline-flex;align-items:center;gap:4px}
+
+  /* tag transition */
+  .tag-trans{display:inline-flex;align-items:center;gap:6px}
+  .tag-trans .arrow-sym{color:var(--muted-2)}
+
+  /* call summary (folded) */
+  .summary-fold{margin-top:9px;display:none}
+  .action-event.open .summary-fold{display:block}
+  .action-event .a-toggle .chev{transition:transform .2s;display:inline-block}
+  .action-event.open .a-toggle .chev{transform:rotate(90deg)}
+  .summary-list{list-style:none;padding:0;margin:8px 0 0;display:flex;flex-direction:column;gap:6px}
+  .summary-list li{font-size:12.5px;color:var(--text);display:flex;gap:8px;line-height:1.4}
+  .summary-list li .bul{color:var(--ai);flex-shrink:0}
+  .summary-list li.action-item .bul{color:var(--amber)}
+  .summary-meta{margin-top:9px;font-size:11px;color:var(--muted-2);display:flex;gap:10px;align-items:center}
+  .summary-meta .src{color:var(--ai-soft);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+  .dur-pill{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:10.5px;color:var(--muted);background:var(--bg);border:1px solid var(--line);padding:2px 7px;border-radius:5px}
+
+  /* ─────────────────────  COMPOSE  ───────────────────── */
+  .compose{
+    border-top:1px solid var(--line);
+    background:linear-gradient(180deg, transparent, rgba(26,29,39,.45));
+    padding:10px 22px 16px;
+  }
+
+  /* AI draft bar */
+  .ai-draft-bar{
+    display:flex;align-items:center;gap:10px;
+    font-size:11.5px;color:var(--muted);
+    padding:8px 4px 10px;
+    border-bottom:1px dashed var(--line);
+    margin-bottom:10px;
+  }
+  .ai-draft-bar .glyph{color:var(--ai)}
+  .ab-prov{flex:1;min-width:0}
+  .ab-prov b{color:var(--ai-soft);font-weight:600}
+  .ab-prov .tone{color:var(--muted)}
+  .ab-prov .ver{font-family:ui-monospace,Menlo,monospace;color:var(--muted-2);font-size:10.5px}
+  .ab-actions{display:flex;gap:7px;flex-shrink:0}
+  .ab-btn{
+    font-family:var(--sans);font-size:11.5px;font-weight:600;
+    padding:5px 11px;border-radius:8px;cursor:pointer;
+    border:1px solid var(--line);background:var(--card);color:var(--muted);
+    transition:.15s;display:inline-flex;align-items:center;gap:4px;
+  }
+  .ab-btn:hover{color:var(--text);border-color:var(--line-2)}
+  .ab-btn.regenerate:hover{color:var(--ai-soft);border-color:var(--ai-line);background:var(--ai-bg)}
+  .ab-btn.reject:hover{color:var(--red);border-color:rgba(217,138,122,.32)}
+  .ab-btn.accept{background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;border-color:transparent}
+  .ab-btn.accept:hover{filter:brightness(1.07)}
+  /* accepted state */
+  .ai-draft-bar.accepted .ab-actions{gap:7px}
+  .ai-draft-bar.accepted .ab-prov b{color:var(--amber-soft)}
+  .ai-draft-bar.accepted::after{content:''}
+
+  /* hidden when draft rejected */
+  .compose.no-draft .ai-draft-bar{display:none}
+
+  /* mode chips */
+  .compose-tools{display:flex;gap:7px;margin-bottom:10px;flex-wrap:wrap}
+  .ct{
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:var(--sans);font-size:12px;font-weight:600;
+    padding:6px 11px;border-radius:9px;cursor:pointer;
+    background:var(--card);border:1px solid var(--line);color:var(--muted);
+    transition:.15s;
+  }
+  .ct:hover{color:var(--text);border-color:var(--line-2)}
+  .ct.on{background:var(--card-2);color:var(--text);border-color:var(--line-2)}
+  .ct[data-mode="ai"].on{background:var(--ai-bg);color:var(--ai-soft);border-color:var(--ai-line)}
+  .ct[data-mode="ai"] .glyph{color:var(--ai)}
+
+  /* input row */
+  .compose-input{display:flex;gap:10px;align-items:flex-end}
+  .ci-wrap{flex:1;position:relative}
+  .ci-area{
+    width:100%;resize:none;
+    font-family:var(--sans);font-size:13.5px;line-height:1.5;color:var(--text);
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;outline:none;min-height:54px;max-height:160px;
+    transition:.15s;
+  }
+  .ci-area:focus{border-color:var(--ai-line);box-shadow:0 0 0 3px var(--ai-bg)}
+  .ci-area.shimmer{animation:shimmer .5s}
+  @keyframes shimmer{0%{background:var(--ai-bg)}100%{background:var(--card)}}
+  .send{
+    flex-shrink:0;cursor:pointer;
+    display:inline-flex;align-items:center;gap:7px;justify-content:center;
+    font-family:var(--sans);font-size:13px;font-weight:600;
+    padding:0 18px;height:54px;border-radius:12px;
+    background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;border:1px solid transparent;
+    box-shadow:0 4px 14px rgba(212,165,116,.25);transition:.15s;min-width:96px;
+  }
+  .send:hover{filter:brightness(1.07)}
+  .send.locked{
+    background:var(--card);color:var(--muted-2);border:1px solid var(--line);
+    box-shadow:none;cursor:not-allowed;
+  }
+  .send.locked .lock{display:inline}
+  .send .lock{display:none}
+  .send.pulse{animation:sendPulse 1.6s ease-in-out infinite}
+  @keyframes sendPulse{0%,100%{box-shadow:0 4px 14px rgba(212,165,116,.25)}50%{box-shadow:0 4px 22px rgba(212,165,116,.55)}}
+
+  .guard-hint{font-size:10.5px;color:var(--muted-2);margin-top:7px;display:flex;align-items:center;gap:5px}
+  .guard-hint .glyph{color:var(--ai)}
+  .compose.no-draft .guard-hint{display:none}
+
+  /* tiny toast */
+  .toast{
+    position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--card-2);border:1px solid var(--line-2);color:var(--text);
+    padding:9px 16px;border-radius:10px;font-size:12.5px;opacity:0;pointer-events:none;
+    transition:.25s;z-index:50;box-shadow:0 8px 28px rgba(0,0,0,.4);
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<main class="thread" id="thread">
+
+  <!-- ─────────  HEADER  ───────── -->
+  <header class="thread-head">
+    <div class="h-ava">M</div>
+    <div class="h-title">
+      <div class="h-name">Marcus Chen</div>
+      <div class="h-meta">
+        <span>RevTech Solutions</span>
+        <span class="dot"></span>
+        <span>VP Engineering</span>
+        <span class="dot"></span>
+        <span class="status-badge"><span class="pulse"></span>Hot</span>
+      </div>
+    </div>
+    <div class="h-actions">
+      <button class="h-btn">📞 Call</button>
+      <button class="h-btn">✉ Email</button>
+      <button class="h-btn primary">📅 Book demo</button>
+    </div>
+  </header>
+
+  <!-- ─────────  NUDGE STRIP  ───────── -->
+  <div class="ai-nudge" id="nudge">
+    <span class="n-icon">⏰</span>
+    <span class="n-text"><b>Marcus</b> replied at 11:18 PM asking for a Friday demo — the window to lock it in is now.</span>
+    <button class="n-cta" onclick="loadIntoCompose('draft','Drafting a warm reply to lock in the Friday demo slot.')"><span class="glyph">✦</span> Draft follow-up</button>
+    <span class="n-dismiss" onclick="dismissNudge()" title="Dismiss">✕</span>
+  </div>
+
+  <!-- ─────────  TIMELINE  ───────── -->
+  <div class="thread-scroll" id="scroll">
+
+    <!-- AI BRIEF (first child) -->
+    <section class="ai-brief" id="brief">
+      <div class="brief-head" onclick="toggleBrief()">
+        <span class="brief-glyph">✦</span>
+        <span class="brief-title">AI Brief</span>
+        <span class="brief-factors">· 4 factors reviewed</span>
+        <span class="brief-time">just now</span>
+        <span class="brief-refresh" onclick="event.stopPropagation();refreshBrief(event)" title="Re-run triage">↻</span>
+        <span class="brief-chevron">▾</span>
+      </div>
+      <div class="brief-collapsed-summary">Hot &amp; ready · 2 actions · book Friday demo + confirm Priya attends</div>
+      <div class="brief-body">
+        <div class="brief-row sentiment">
+          <span class="brief-label">Sentiment</span>
+          <div class="sent-line">
+            <span class="sent-dot"></span>
+            <span class="sent-label">Hot &amp; ready</span>
+          </div>
+          <div class="sent-rationale">“Ready to move this week, wants Friday demo, bringing Priya (budget owner). Zero price pushback on quoted rate.”</div>
+        </div>
+
+        <div class="brief-row actions">
+          <span class="brief-label">Needs action</span>
+          <div class="brief-task" id="task1">
+            <span class="chk" onclick="toggleTask('task1')">✓</span>
+            <span class="task-text">Confirm Friday 2:30 PM demo slot</span>
+            <span class="task-mini" onclick="loadIntoCompose('draft','Confirming Friday 2:30 demo slot, warm tone.')">Draft reply</span>
+          </div>
+          <div class="brief-task" id="task2">
+            <span class="chk" onclick="toggleTask('task2')">✓</span>
+            <span class="task-text">Confirm Priya (budget owner) can attend</span>
+          </div>
+        </div>
+
+        <div class="brief-row next">
+          <span class="brief-label">Next step</span>
+          <div class="next-line">
+            <span class="next-headline">Hold Friday 2:30 demo slot &amp; send a confirm-by-SMS with calendar hold.</span>
+            <button class="do-it" onclick="loadIntoCompose('draft','Holding Friday 2:30 demo slot, sending confirm + calendar hold, warm tone.')"><span class="glyph">✦</span> Do it</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- YESTERDAY -->
+    <div class="day-divider"><span class="ln"></span><span class="lbl">Yesterday</span><span class="ln"></span></div>
+
+    <!-- human outbound -->
+    <div class="event outbound human">
+      <div class="e-ava human">S</div>
+      <div class="e-body">
+        <div class="e-meta"><span class="e-name">Shane</span><span class="e-time">4:48 PM</span></div>
+        <div class="bubble">Marcus — great call. I'll send over the RevTech demo options tomorrow morning. Friday afternoon still works on your end?</div>
+      </div>
+    </div>
+
+    <!-- TODAY -->
+    <div class="day-divider"><span class="ln"></span><span class="lbl">Today</span><span class="ln"></span></div>
+
+    <!-- AI call summary (folded) -->
+    <div class="action-event ai open" id="callSummary">
+      <div class="a-icon ai">✦</div>
+      <div class="a-content">
+        <div class="a-line1">
+          <span class="a-name">Branch AI</span>
+          <span class="a-title">summarized yesterday's qualifying call</span>
+          <span class="dur-pill">6m 12s</span>
+          <span class="a-time">8:01 AM</span>
+        </div>
+        <div class="a-toggle" onclick="toggleSummary()"><span class="chev">▸</span> Key points</div>
+        <div class="summary-fold">
+          <ul class="summary-list">
+            <li><span class="bul">▸</span> Wants the full RevTech demo this week, Friday afternoon preferred.</li>
+            <li><span class="bul">▸</span> Bringing Priya Mehta (CFO / budget owner) — she signs off.</li>
+            <li><span class="bul">▸</span> Quoted standard rate, zero pushback.</li>
+            <li class="action-item"><span class="bul">▸</span> Action: book first available Friday slot + send calendar hold.</li>
+          </ul>
+          <div class="summary-meta">
+            <span class="src" onclick="toast('Opening call transcript…')">View transcript</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- inbound lead -->
+    <div class="event inbound">
+      <div class="e-ava lead">M</div>
+      <div class="e-body">
+        <div class="e-meta"><span class="e-name">Marcus Chen</span><span class="e-time">11:18 PM</span></div>
+        <div class="bubble">Hey Shane — talked to Priya, we're ready to move. Can we do the full RevTech demo this Friday afternoon? 2:30ish would be perfect. I'll make sure Priya's on it too.</div>
+      </div>
+    </div>
+
+    <!-- AI auto-reply -->
+    <div class="event outbound ai">
+      <div class="e-ava ai">✦</div>
+      <div class="e-body">
+        <div class="e-meta"><span class="e-name ai">Branch AI</span><span class="e-tag ai">Auto-replied</span><span class="e-time">11:19 PM</span></div>
+        <div class="bubble">Hi Marcus! Shane's offline for the evening — I can hold a Friday 2:30 demo slot for you while he's away. Just say the word and I'll lock it in. ✦</div>
+        <div class="bubble-foot">
+          <span>Sent automatically per your</span>
+          <span class="rule-link" onclick="toast('Opening after-hours rule editor…')">after-hours rule</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI → human handoff -->
+    <div class="action-event ai">
+      <div class="a-icon ai">✦</div>
+      <div class="a-content">
+        <div class="a-line1">
+          <span class="a-name">Branch AI</span>
+          <span class="a-title">qualified this lead</span>
+          <span class="a-chips">
+            <span class="chip hot">🔥 Hot</span>
+            <span class="chip mono">score 0.91</span>
+            <span class="chip arrow">→</span>
+            <span class="chip">Shane</span>
+          </span>
+          <span class="a-time">8:02 AM</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- smart tag transition -->
+    <div class="action-event ai">
+      <div class="a-icon ai">✦</div>
+      <div class="a-content">
+        <div class="a-line1">
+          <span class="a-name">Branch AI</span>
+          <span class="a-title">reclassified this lead</span>
+          <span class="tag-trans">
+            <span class="chip warm">Warm</span>
+            <span class="arrow-sym">→</span>
+            <span class="chip hot">🔥 Hot</span>
+          </span>
+          <span class="chip mono">confidence 0.88</span>
+          <span class="a-time">8:02 AM</span>
+        </div>
+        <div class="a-evidence">“demo requested for full team + budget owner attending + zero price pushback”</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ─────────  COMPOSE  ───────── -->
+  <footer class="compose" id="compose">
+
+    <!-- AI draft bar -->
+    <div class="ai-draft-bar" id="draftBar">
+      <span class="glyph">✦</span>
+      <span class="ab-prov">
+        <b>Drafted by Branch AI</b>
+        <span class="ver" id="draftVer">· v1</span>
+        <span class="tone" id="draftTone">· warm, matches his tone</span>
+      </span>
+      <div class="ab-actions" id="draftActions">
+        <button class="ab-btn regenerate" onclick="regenerate()">↻ Regenerate</button>
+        <button class="ab-btn reject" onclick="rejectDraft()">✕ Reject</button>
+        <button class="ab-btn accept" onclick="acceptDraft()">✓ Accept</button>
+      </div>
+    </div>
+
+    <!-- mode chips -->
+    <div class="compose-tools" id="modes">
+      <button class="ct on" data-mode="ai" onclick="setMode('ai')"><span class="glyph">✦</span> AI Draft</button>
+      <button class="ct" data-mode="note" onclick="setMode('note')">📝 Note</button>
+      <button class="ct" data-mode="sms" onclick="setMode('sms')">💬 SMS</button>
+      <button class="ct" data-mode="email" onclick="setMode('email')">✉ Email</button>
+      <button class="ct" data-mode="call" onclick="setMode('call')">📞 Call</button>
+    </div>
+
+    <!-- input -->
+    <div class="compose-input">
+      <div class="ci-wrap">
+        <textarea class="ci-area" id="composeArea" placeholder="Describe what to say, or accept the suggested draft…">Hey Marcus — great news, Friday 2:30 works perfectly. I'll hold the RevTech demo slot and send a calendar hold your way. Looking forward to having Priya on it too. See you Friday — Shane</textarea>
+      </div>
+      <button class="send locked" id="sendBtn" onclick="doSend()">
+        <span class="lock">🔒</span>
+        <span id="sendLabel">Send</span>
+      </button>
+    </div>
+    <div class="guard-hint"><span class="glyph">✦</span> AI-drafted replies need your Accept before they send. No exceptions.</div>
+
+  </footer>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ---- state ----
+  const state = {
+    mode: 'ai',
+    draftState: 'pending',   // pending | edited | accepted | rejected
+    draftVersion: 1,
+    draftEdited: false,
+    originalDraft: document.getElementById('composeArea').value,
+  };
+
+  // three canned variations to simulate regenerate
+  const variations = [
+    "Hey Marcus — great news, Friday 2:30 works perfectly. I'll hold the RevTech demo slot and send a calendar hold your way. Looking forward to having Priya on it too. See you Friday — Shane",
+    "Marcus — Friday 2:30 is locked in for the RevTech demo. Calendar invite coming shortly. Excited Priya can make it — we'll keep it tight and useful. Cheers, Shane",
+    "Hi Marcus! You got it — Friday 2:30 demo slot is yours. I'll shoot over a calendar hold now. Tell Priya to bring any questions; we'll leave time for hers. Best, Shane"
+  ];
+  const toneNotes = ["warm, matches his tone","crisp, action-first","warm, partner-inclusive"];
+
+  // ---- toast ----
+  let toastTimer;
+  function toast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
+  }
+
+  // ---- nudge ----
+  function dismissNudge(){
+    document.getElementById('nudge').style.display='none';
+    document.getElementById('thread').classList.add('no-nudge');
+    toast('Nudge dismissed for this conversation');
+  }
+
+  // ---- AI brief ----
+  function toggleBrief(){
+    document.getElementById('brief').classList.toggle('collapsed');
+  }
+  function refreshBrief(e){
+    e.stopPropagation();
+    const r = e.currentTarget;
+    r.style.transition='transform .6s'; r.style.transform='rotate(360deg)';
+    setTimeout(()=>{r.style.transition='none';r.style.transform='rotate(0)';},600);
+    toast('Triage re-run · no changes');
+  }
+  function toggleTask(id){
+    document.getElementById(id).classList.toggle('done');
+  }
+
+  // ---- call summary ----
+  function toggleSummary(){
+    document.getElementById('callSummary').classList.toggle('open');
+  }
+
+  // ---- compose mode ----
+  const placeholders = {
+    ai:'Describe what to say, or accept the suggested draft…',
+    note:'Add a note for your team…',
+    sms:'Send an SMS to Marcus…',
+    email:'Write an email to Marcus…',
+    call:'Log a call outcome with Marcus…'
+  };
+  function setMode(mode){
+    state.mode = mode;
+    document.querySelectorAll('.ct').forEach(c=>c.classList.toggle('on', c.dataset.mode===mode));
+    document.getElementById('composeArea').placeholder = placeholders[mode];
+    updateSendLock();
+    // relabel send button by channel
+    const labels = {ai:'Send', note:'Post note', sms:'Send SMS', email:'Send Email', call:'Log call'};
+    document.getElementById('sendLabel').textContent = labels[mode];
+  }
+
+  // ---- draft bar actions ----
+  function regenerate(){
+    state.draftVersion = state.draftVersion >= variations.length ? 1 : state.draftVersion + 1;
+    const idx = state.draftVersion - 1;
+    const area = document.getElementById('composeArea');
+    area.classList.add('shimmer');
+    setTimeout(()=>area.classList.remove('shimmer'), 500);
+    area.value = variations[idx];
+    state.originalDraft = variations[idx];
+    state.draftState = 'pending';
+    state.draftEdited = false;
+    document.getElementById('draftVer').textContent = '· v' + state.draftVersion;
+    document.getElementById('draftTone').textContent = '· ' + toneNotes[idx];
+    resetDraftBarUI();
+    updateSendLock();
+    toast('Generated v' + state.draftVersion);
+  }
+
+  function rejectDraft(){
+    document.getElementById('composeArea').value = '';
+    state.draftState = 'rejected';
+    document.getElementById('compose').classList.add('no-draft');
+    setMode('sms'); // fall back to manual SMS
+    toast('Draft rejected · compose cleared to manual');
+  }
+
+  function acceptDraft(){
+    state.draftState = 'accepted';
+    const bar = document.getElementById('draftBar');
+    bar.classList.add('accepted');
+    bar.querySelector('.ab-prov').innerHTML =
+      '<b>✓ Accepted · ready to send</b>' +
+      (state.draftEdited ? ' · edited by you' : '') +
+      ' <span class="ver">· v'+state.draftVersion+'</span>';
+    bar.querySelector('.ab-actions').innerHTML =
+      '<button class="ab-btn reject" onclick="clearDraft()">✕ Clear</button>';
+    updateSendLock();
+    const send = document.getElementById('sendBtn');
+    send.classList.add('pulse');
+    toast('Accepted · your move to send');
+  }
+
+  function clearDraft(){
+    document.getElementById('composeArea').value = '';
+    document.getElementById('compose').classList.add('no-draft');
+    state.draftState = 'rejected';
+    updateSendLock();
+    toast('Draft cleared');
+  }
+
+  function resetDraftBarUI(){
+    const bar = document.getElementById('draftBar');
+    bar.classList.remove('accepted');
+    bar.querySelector('.ab-actions').innerHTML =
+      '<button class="ab-btn regenerate" onclick="regenerate()">↻ Regenerate</button>' +
+      '<button class="ab-btn reject" onclick="rejectDraft()">✕ Reject</button>' +
+      '<button class="ab-btn accept" onclick="acceptDraft()">✓ Accept</button>';
+    const prov = bar.querySelector('.ab-prov');
+    const tone = state.draftEdited ? 'edited by you' : toneNotes[state.draftVersion-1];
+    prov.innerHTML = '<b>Drafted by Branch AI</b> <span class="ver">· v'+state.draftVersion+'</span> <span class="tone" id="draftTone">· '+tone+'</span>';
+  }
+
+  // ---- typing → edited provenance ----
+  const area = document.getElementById('composeArea');
+  area.addEventListener('input', ()=>{
+    if (state.mode === 'ai' && (state.draftState==='pending' || state.draftState==='edited') && area.value !== state.originalDraft){
+      state.draftEdited = true;
+      state.draftState = 'edited';
+      const prov = document.getElementById('draftBar').querySelector('.ab-prov');
+      prov.innerHTML = '<b>Drafted by Branch AI</b> <span class="ver">· v'+state.draftVersion+'</span> <span class="tone">· edited by you</span>';
+    } else if (state.mode === 'ai' && area.value === state.originalDraft && state.draftEdited){
+      state.draftEdited = false;
+      state.draftState = 'pending';
+      const prov = document.getElementById('draftBar').querySelector('.ab-prov');
+      prov.innerHTML = '<b>Drafted by Branch AI</b> <span class="ver">· v'+state.draftVersion+'</span> <span class="tone">· '+toneNotes[state.draftVersion-1]+'</span>';
+    }
+  });
+
+  // ---- send lock guardrail ----
+  function updateSendLock(){
+    const send = document.getElementById('sendBtn');
+    // locked only when in AI Draft mode with a not-yet-accepted draft present
+    const draftVisible = !document.getElementById('compose').classList.contains('no-draft');
+    const locked = state.mode === 'ai' && draftVisible && state.draftState !== 'accepted';
+    send.classList.toggle('locked', locked);
+    send.classList.remove('pulse');
+  }
+
+  function doSend(){
+    const send = document.getElementById('sendBtn');
+    if (send.classList.contains('locked')){
+      toast('Accept the AI draft first — or switch to a manual channel.');
+      return;
+    }
+    const labels = {ai:'Message sent', note:'Note posted', sms:'SMS sent', email:'Email sent', call:'Call logged'};
+    toast(labels[state.mode] || 'Sent');
+  }
+
+  // ---- load intent into compose (from brief / nudge) ----
+  function loadIntoCompose(mode, intent){
+    setMode(mode);
+    document.getElementById('compose').classList.remove('no-draft');
+    state.draftState = 'pending';
+    state.draftEdited = false;
+    const area = document.getElementById('composeArea');
+    area.value = variations[0];
+    state.originalDraft = variations[0];
+    state.draftVersion = 1;
+    resetDraftBarUI();
+    updateSendLock();
+    document.getElementById('sendLabel').textContent = 'Send';
+    area.focus();
+    area.scrollIntoView({behavior:'smooth', block:'nearest'});
+    toast('Loaded draft · ' + intent);
+  }
+</script>
+</body>
+</html>
