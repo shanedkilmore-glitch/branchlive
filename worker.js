@@ -19935,6 +19935,1384 @@ async function runAppointmentFollowupsCron(env) {
 // MAIN ROUTER
 // ═══════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════
+// MOCKUP PAGES — standalone HTML mockups served verbatim at /mockups/*.
+// Inlined (not Pages assets) because the worker.dev host has no static
+// binding; see the /mockups/column3-ai-first route in the fetch handler.
+const COLUMN3_AI_FIRST_MOCKUP_HTML = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Branch Live — Column 3 · AI-First Thread (Marcus Chen)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* base palette (per brief) */
+    --bg:#0f1117; --bg-2:#14161f; --card:#1a1d27; --card-2:#21242f;
+    --line:#2a2d3a; --line-2:#343846;
+    --text:#e1e4ea; --muted:#9aa0ad; --muted-2:#6a6f7d;
+
+    /* authorship triangle */
+    --amber:#d4a574; --amber-soft:#e8c79b; --amber-deep:#a87f4e;  /* human / brand / inbound-lead avatar */
+    --ai:#b79be0; --ai-soft:#d8c7f0; --ai-deep:#7b5fa8;          /* Branch AI system */
+    --ai-bg:rgba(183,155,224,.10); --ai-line:rgba(183,155,224,.30);
+
+    --green:#7fb98a; --yellow:#d9c47a; --red:#d98a7a; --blue:#8ab0d9;
+
+    --serif:'Fraunces',Georgia,serif;
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+
+  /* inline SVG icons — sized via em so they scale with parent text */
+  .ic{width:1em;height:1em;display:inline-block;flex-shrink:0;vertical-align:-0.15em}
+  .ic-wrap{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+  /* explicit sizes for spots where 1em isn't the right anchor */
+  .ic-15{width:15px;height:15px}
+  .ic-16{width:16px;height:16px}
+  .ic-18{width:18px;height:18px}
+  body{
+    font-family:var(--sans); font-size:14px; color:var(--text);
+    background:
+      radial-gradient(1100px 560px at 82% -12%, rgba(183,155,224,.05), transparent 60%),
+      radial-gradient(820px 480px at -8% 112%, rgba(212,165,116,.04), transparent 60%),
+      var(--bg);
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+  }
+
+  /* column 3 only — fills viewport like the real flex-grow panel */
+  .thread{
+    display:grid;
+    grid-template-rows:auto auto 1fr auto;   /* head · nudge · scroll · compose */
+    height:100vh; min-width:0;
+    background:var(--bg);
+    border-left:1px solid var(--line);
+  }
+  .thread.no-nudge{ grid-template-rows:auto 1fr auto; }
+
+  /* ─────────────────────  HEADER  ───────────────────── */
+  .thread-head{
+    display:flex; align-items:center; gap:14px;
+    padding:14px 22px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(26,29,39,.55), transparent);
+  }
+  .h-ava{
+    width:42px;height:42px;border-radius:12px;flex-shrink:0;
+    background:linear-gradient(135deg,var(--amber),var(--amber-deep));
+    display:grid;place-items:center;
+    color:#1a1208; font-family:var(--serif); font-weight:600; font-size:18px;
+    box-shadow:0 4px 14px rgba(212,165,116,.22);
+  }
+  .h-title{min-width:0;flex:1}
+  .h-name{font-family:var(--serif);font-weight:600;font-size:18px;line-height:1.15;letter-spacing:.2px}
+  .h-meta{display:flex;align-items:center;gap:8px;margin-top:3px;font-size:12.5px;color:var(--muted)}
+  .h-meta .dot{width:3px;height:3px;border-radius:50%;background:var(--muted-2)}
+  .status-badge{
+    display:inline-flex;align-items:center;gap:5px;
+    font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;
+    padding:3px 8px;border-radius:6px;
+    background:rgba(217,138,122,.14); color:var(--red);
+    border:1px solid rgba(217,138,122,.28);
+  }
+  .status-badge .pulse{width:6px;height:6px;border-radius:50%;background:var(--red);box-shadow:0 0 0 0 rgba(217,138,122,.6);animation:pulse 2.2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(217,138,122,.55)}70%{box-shadow:0 0 0 7px rgba(217,138,122,0)}100%{box-shadow:0 0 0 0 rgba(217,138,122,0)}}
+  .h-actions{display:flex;gap:8px}
+  .h-btn{
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:var(--sans);font-size:12.5px;font-weight:600;
+    padding:8px 13px;border-radius:9px;cursor:pointer;
+    background:var(--card);border:1px solid var(--line);color:var(--text);
+    transition:.15s;
+  }
+  .h-btn:hover{border-color:var(--line-2);background:var(--card-2)}
+  .h-btn.primary{background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;border-color:transparent;box-shadow:0 4px 12px rgba(212,165,116,.22)}
+  .h-btn.primary:hover{filter:brightness(1.06)}
+
+  /* ─────────────────────  NUDGE STRIP  ───────────────────── */
+  .ai-nudge{
+    display:flex;align-items:center;gap:11px;
+    padding:11px 22px;
+    background:linear-gradient(90deg, rgba(212,165,116,.11), transparent 72%);
+    border-bottom:1px solid var(--line);
+    font-size:12.5px;
+  }
+  .n-icon{flex-shrink:0;color:var(--amber-soft);font-size:15px;line-height:1}
+  .n-text{color:var(--muted)}
+  .n-text b{color:var(--text);font-weight:600}
+  .n-cta{
+    margin-left:auto;cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:var(--sans);font-size:12px;font-weight:600;
+    padding:6px 12px;border-radius:8px;
+    background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;border:1px solid transparent;
+    transition:.15s;
+  }
+  .n-cta:hover{filter:brightness(1.06)}
+  .n-cta .glyph{color:var(--ai-deep)}
+  .n-dismiss{
+    cursor:pointer;color:var(--muted-2);font-size:14px;line-height:1;
+    width:22px;height:22px;border-radius:6px;display:grid;place-items:center;
+    border:1px solid transparent;
+  }
+  .n-dismiss:hover{color:var(--text);background:var(--card)}
+
+  /* ─────────────────────  TIMELINE  ───────────────────── */
+  .thread-scroll{
+    overflow-y:auto;
+    padding:18px 22px 10px;
+    scrollbar-width:thin; scrollbar-color:var(--line-2) transparent;
+  }
+  .thread-scroll::-webkit-scrollbar{width:9px}
+  .thread-scroll::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:6px;border:2px solid var(--bg)}
+  .thread-scroll::-webkit-scrollbar-track{background:transparent}
+
+  /* ---- AI Brief card ---- */
+  .ai-brief{
+    background:linear-gradient(135deg,var(--ai-bg), rgba(183,155,224,.03));
+    border:1px solid var(--ai-line);
+    border-left:3px solid var(--ai);
+    border-radius:14px;
+    padding:13px 16px 13px;
+    margin:0 0 18px;
+  }
+  .brief-head{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+  .brief-glyph{color:var(--ai-soft);font-size:14px;line-height:1}
+  .brief-title{font-family:var(--serif);font-weight:600;font-size:14px;color:var(--text);letter-spacing:.2px}
+  .brief-factors{font-size:11.5px;color:var(--muted);margin-left:2px}
+  .brief-time{margin-left:auto;font-size:11px;color:var(--muted-2)}
+  .brief-refresh{cursor:pointer;color:var(--muted-2);font-size:13px;margin-left:4px;border-radius:6px;padding:2px;transition:.15s}
+  .brief-refresh:hover{color:var(--ai-soft)}
+  .brief-chevron{color:var(--muted-2);font-size:11px;transition:transform .2s;margin-left:6px}
+  .ai-brief.collapsed .brief-chevron{transform:rotate(-90deg)}
+  .brief-collapsed-summary{display:none;font-size:12px;color:var(--muted);margin-top:9px}
+  .ai-brief.collapsed .brief-collapsed-summary{display:block}
+  .ai-brief.collapsed .brief-body{display:none}
+
+  .brief-body{margin-top:12px;display:flex;flex-direction:column;gap:11px}
+  .brief-row{display:flex;flex-direction:column;gap:4px}
+  .brief-label{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted-2);font-weight:600}
+
+  .brief-row.sentiment .sent-line{display:flex;align-items:center;gap:8px;font-size:13px}
+  .sent-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--green);box-shadow:0 0 8px rgba(127,185,138,.5)}
+  .sent-dot.y{background:var(--yellow);box-shadow:0 0 8px rgba(217,196,122,.5)}
+  .sent-dot.r{background:var(--red);box-shadow:0 0 8px rgba(217,138,122,.5)}
+  .sent-label{font-weight:600;color:var(--text)}
+  .sent-rationale{color:var(--muted);font-size:12.5px;line-height:1.45;padding-left:17px;position:relative;font-style:italic}
+
+  .brief-task{display:flex;align-items:center;gap:9px;font-size:13px;padding:2px 0}
+  .brief-task .chk{
+    width:16px;height:16px;border-radius:5px;border:1.5px solid var(--line-2);
+    flex-shrink:0;cursor:pointer;display:grid;place-items:center;color:transparent;
+    transition:.15s;background:var(--bg);
+  }
+  .brief-task .chk:hover{border-color:var(--ai)}
+  .brief-task.done .chk{background:var(--ai);border-color:var(--ai);color:#0f1117}
+  .brief-task.done .task-text{text-decoration:line-through;color:var(--muted-2)}
+  .task-text{flex:1}
+  .task-mini{
+    cursor:pointer;font-size:11px;font-weight:600;color:var(--ai-soft);
+    border:1px solid var(--ai-line);background:var(--ai-bg);
+    padding:3px 9px;border-radius:7px;transition:.15s;
+  }
+  .task-mini:hover{background:rgba(183,155,224,.18)}
+
+  .brief-row.next .next-line{display:flex;align-items:center;gap:10px}
+  .next-headline{font-family:var(--serif);font-weight:600;font-size:13.5px;color:var(--text);flex:1;line-height:1.35}
+  .do-it{
+    cursor:pointer;flex-shrink:0;
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:var(--sans);font-size:12px;font-weight:600;
+    padding:7px 13px;border-radius:8px;
+    background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;border:1px solid transparent;
+    box-shadow:0 3px 10px rgba(212,165,116,.22);transition:.15s;
+  }
+  .do-it:hover{filter:brightness(1.07)}
+  .do-it .glyph{color:var(--ai-deep)}
+
+  /* ---- day divider ---- */
+  .day-divider{display:flex;align-items:center;gap:12px;margin:6px 0 16px}
+  .day-divider .ln{flex:1;height:1px;background:var(--line)}
+  .day-divider .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:1.4px;color:var(--muted-2);font-weight:600}
+
+  /* ---- message events ---- */
+  .event{display:flex;gap:11px;margin-bottom:18px;max-width:78%}
+  .event.outbound{margin-left:auto;flex-direction:row-reverse}
+  .e-ava{width:34px;height:34px;border-radius:10px;flex-shrink:0;display:grid;place-items:center;font-weight:600;font-size:13px}
+  .e-ava.lead{background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;font-family:var(--serif)}
+  .e-ava.human{background:linear-gradient(135deg,#3a3f4d,#2a2d3a);color:var(--amber-soft);border:1px solid var(--line-2)}
+  .e-ava.ai{background:linear-gradient(135deg,var(--ai),var(--ai-deep));color:#1a1208}
+  .e-body{min-width:0}
+  .e-meta{display:flex;align-items:center;gap:7px;margin-bottom:4px;font-size:11.5px}
+  .event.outbound .e-meta{justify-content:flex-end}
+  .e-name{font-weight:600;color:var(--text);font-size:12.5px}
+  .e-name.ai{color:var(--ai-soft)}
+  .e-tag{font-size:9.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:2px 6px;border-radius:5px}
+  .e-tag.ai{background:var(--ai-bg);color:var(--ai-soft);border:1px solid var(--ai-line)}
+  .e-time{color:var(--muted-2);font-size:11px}
+
+  .bubble{
+    padding:10px 13px;border-radius:13px;font-size:13.5px;line-height:1.5;
+    border:1px solid var(--line);
+  }
+  .event.inbound .bubble{background:var(--card);border-top-left-radius:4px}
+  .event.outbound.human .bubble{background:linear-gradient(135deg,rgba(212,165,116,.16),rgba(168,127,78,.10));border-color:rgba(212,165,116,.28);border-top-right-radius:4px}
+  .event.outbound.ai .bubble{background:var(--ai-bg);border:1px solid var(--ai-line);border-top-right-radius:4px}
+
+  .bubble-foot{margin-top:6px;font-size:11px;color:var(--muted-2);display:flex;align-items:center;gap:6px}
+  .bubble-foot .rule-link{color:var(--ai-soft);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+
+  /* ---- action / system events (handoff, smart-tag, summary) ---- */
+  .action-event{
+    display:flex;gap:11px;align-items:flex-start;
+    margin:0 0 16px;padding:11px 13px;border-radius:11px;
+    background:var(--card);border:1px solid var(--line);
+  }
+  .action-event.ai{background:linear-gradient(135deg,var(--ai-bg),rgba(26,29,39,.4));border-color:var(--ai-line)}
+  .a-icon{
+    width:26px;height:26px;border-radius:8px;flex-shrink:0;display:grid;place-items:center;
+    font-size:12px;line-height:1;
+  }
+  .a-icon.ai{background:linear-gradient(135deg,var(--ai),var(--ai-deep));color:#1a1208}
+  .a-content{flex:1;min-width:0}
+  .a-line1{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px}
+  .a-name{font-weight:600;color:var(--ai-soft)}
+  .a-title{color:var(--text)}
+  .a-chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .chip{
+    font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:5px;
+    background:var(--bg);border:1px solid var(--line);color:var(--muted);
+  }
+    .chip.hot{background:rgba(217,138,122,.14);color:var(--red);border-color:rgba(217,138,122,.28)}
+    .chip.warm{background:rgba(217,196,122,.14);color:var(--yellow);border-color:rgba(217,196,122,.28)}
+    .chip.mono{font-family:ui-monospace,'SF Mono',Menlo,monospace;color:var(--muted)}
+    .chip.arrow{background:transparent;border:none;color:var(--muted-2)}
+    .chip.vip{background:rgba(212,165,116,.16);color:var(--amber-soft);border-color:rgba(212,165,116,.32)}
+    .chip.followup{background:rgba(127,185,138,.14);color:var(--green);border-color:rgba(127,185,138,.30)}
+    .chip.won{background:rgba(127,185,138,.18);color:var(--green);border-color:rgba(127,185,138,.34)}
+    .chip.newlead{background:rgba(138,176,217,.14);color:var(--blue);border-color:rgba(138,176,217,.30)}
+  .a-time{margin-left:auto;font-size:11px;color:var(--muted-2);flex-shrink:0}
+  .a-evidence{margin-top:7px;font-size:12px;color:var(--muted);font-style:italic;line-height:1.4}
+  .a-toggle{cursor:pointer;color:var(--ai-soft);font-size:11px;margin-top:6px;display:inline-flex;align-items:center;gap:4px}
+
+  /* tag transition */
+  .tag-trans{display:inline-flex;align-items:center;gap:6px}
+  .tag-trans .arrow-sym{color:var(--muted-2)}
+
+  /* call summary (folded) */
+  .summary-fold{margin-top:9px;display:none}
+  .action-event.open .summary-fold{display:block}
+  .action-event .a-toggle .chev{transition:transform .2s;display:inline-block}
+  .action-event.open .a-toggle .chev{transform:rotate(90deg)}
+  .summary-list{list-style:none;padding:0;margin:8px 0 0;display:flex;flex-direction:column;gap:6px}
+  .summary-list li{font-size:12.5px;color:var(--text);display:flex;gap:8px;line-height:1.4}
+  .summary-list li .bul{color:var(--ai);flex-shrink:0}
+  .summary-list li.action-item .bul{color:var(--amber)}
+  .summary-meta{margin-top:9px;font-size:11px;color:var(--muted-2);display:flex;gap:10px;align-items:center}
+  .summary-meta .src{color:var(--ai-soft);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+  .dur-pill{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:10.5px;color:var(--muted);background:var(--bg);border:1px solid var(--line);padding:2px 7px;border-radius:5px}
+
+  /* ─────────────────────  COMPOSE  ───────────────────── */
+  .compose{
+    border-top:1px solid var(--line);
+    background:linear-gradient(180deg, transparent, rgba(26,29,39,.45));
+    padding:10px 22px 16px;
+  }
+
+  /* AI draft bar */
+  .ai-draft-bar{
+    display:flex;align-items:center;gap:10px;
+    font-size:11.5px;color:var(--muted);
+    padding:8px 4px 10px;
+    border-bottom:1px dashed var(--line);
+    margin-bottom:10px;
+  }
+  .ai-draft-bar .glyph{color:var(--ai)}
+  .ab-prov{flex:1;min-width:0}
+  .ab-prov b{color:var(--ai-soft);font-weight:600}
+  .ab-prov .tone{color:var(--muted)}
+  .ab-prov .ver{font-family:ui-monospace,Menlo,monospace;color:var(--muted-2);font-size:10.5px}
+  .ab-actions{display:flex;gap:7px;flex-shrink:0}
+  .ab-btn{
+    font-family:var(--sans);font-size:11.5px;font-weight:600;
+    padding:5px 11px;border-radius:8px;cursor:pointer;
+    border:1px solid var(--line);background:var(--card);color:var(--muted);
+    transition:.15s;display:inline-flex;align-items:center;gap:4px;
+  }
+  .ab-btn:hover{color:var(--text);border-color:var(--line-2)}
+  .ab-btn.regenerate:hover{color:var(--ai-soft);border-color:var(--ai-line);background:var(--ai-bg)}
+  .ab-btn.reject:hover{color:var(--red);border-color:rgba(217,138,122,.32)}
+  .ab-btn.accept{background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;border-color:transparent}
+  .ab-btn.accept:hover{filter:brightness(1.07)}
+  /* accepted state */
+  .ai-draft-bar.accepted .ab-actions{gap:7px}
+  .ai-draft-bar.accepted .ab-prov b{color:var(--amber-soft)}
+  .ai-draft-bar.accepted::after{content:''}
+
+  /* hidden when draft rejected */
+  .compose.no-draft .ai-draft-bar{display:none}
+
+  /* mode chips */
+  .compose-tools{display:flex;gap:7px;margin-bottom:10px;flex-wrap:wrap}
+  .ct{
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:var(--sans);font-size:12px;font-weight:600;
+    padding:6px 11px;border-radius:9px;cursor:pointer;
+    background:var(--card);border:1px solid var(--line);color:var(--muted);
+    transition:.15s;
+  }
+  .ct:hover{color:var(--text);border-color:var(--line-2)}
+  .ct.on{background:var(--card-2);color:var(--text);border-color:var(--line-2)}
+  .ct[data-mode="ai"].on{background:var(--ai-bg);color:var(--ai-soft);border-color:var(--ai-line)}
+  .ct[data-mode="ai"] .glyph{color:var(--ai)}
+
+  /* input row */
+  .compose-input{display:flex;gap:10px;align-items:flex-end}
+  .ci-wrap{flex:1;position:relative}
+  .ci-attach{
+    position:absolute;left:10px;bottom:11px;z-index:2;
+    width:30px;height:30px;border-radius:8px;display:grid;place-items:center;
+    background:transparent;border:none;cursor:pointer;color:var(--muted-2);
+    transition:.15s;
+  }
+  .ci-attach:hover{color:var(--text);background:var(--bg)}
+  .ci-area{
+    width:100%;resize:none;
+    font-family:var(--sans);font-size:13.5px;line-height:1.5;color:var(--text);
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px 12px 46px;outline:none;min-height:54px;max-height:160px;
+    transition:.15s;
+  }
+  .ci-area:focus{border-color:var(--ai-line);box-shadow:0 0 0 3px var(--ai-bg)}
+  .ci-area.shimmer{animation:shimmer .5s}
+  @keyframes shimmer{0%{background:var(--ai-bg)}100%{background:var(--card)}}
+  .send{
+    flex-shrink:0;cursor:pointer;
+    display:inline-flex;align-items:center;gap:7px;justify-content:center;
+    font-family:var(--sans);font-size:13px;font-weight:600;
+    padding:0 16px;height:54px;border-radius:12px;
+    background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;border:1px solid transparent;
+    box-shadow:0 4px 14px rgba(212,165,116,.25);transition:.15s;min-width:88px;
+  }
+  .send:hover{filter:brightness(1.07)}
+  .send.locked{
+    background:var(--card);color:var(--muted-2);border:1px solid var(--line);
+    box-shadow:none;cursor:not-allowed;
+  }
+  .send .lock{display:none}
+  .send .not-locked{display:inline}
+  .send.locked .lock{display:inline-flex}
+  .send.locked .not-locked{display:none}
+  .send.pulse{animation:sendPulse 1.6s ease-in-out infinite}
+  @keyframes sendPulse{0%,100%{box-shadow:0 4px 14px rgba(212,165,116,.25)}50%{box-shadow:0 4px 22px rgba(212,165,116,.55)}}
+
+  .guard-hint{font-size:10.5px;color:var(--muted-2);margin-top:7px;display:flex;align-items:center;gap:5px}
+  .guard-hint .glyph{color:var(--ai)}
+  .compose.no-draft .guard-hint{display:none}
+
+  /* tiny toast */
+  .toast{
+    position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--card-2);border:1px solid var(--line-2);color:var(--text);
+    padding:9px 16px;border-radius:10px;font-size:12.5px;opacity:0;pointer-events:none;
+    transition:.25s;z-index:50;box-shadow:0 8px 28px rgba(0,0,0,.4);
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* ═════════════════════════════════════════════════════════════════
+     DESKTOP 3-COLUMN LAYOUT  (min-width: 1024px)
+     Mobile (default) is UNCHANGED: .bl-app is display:contents, so the
+     existing <main class="thread"> renders exactly as the single-column
+     mobile view. At ≥1024px the shell becomes a 3-column workspace grid:
+        thread list  │  main feed (.thread)  │  contact details
+     with a top bar spanning all three columns.
+     ═════════════════════════════════════════════════════════════════ */
+
+  /* shell + new panels are inert on mobile */
+  .bl-app{display:contents}
+  .bl-topbar,.bl-threads,.bl-contact{display:none}
+
+  /* ═════════════════════════════════════════════════════════════════
+     MOBILE-FIRST POLISH  (default ≤1023px)
+     Tighten horizontal padding and collapse header button labels on
+     narrow phones so the row never wraps or overflows.
+     ═════════════════════════════════════════════════════════════════ */
+  @media (max-width:480px){
+    .thread-head{padding:12px 14px;gap:10px}
+    .h-ava{width:38px;height:38px;font-size:16px;border-radius:11px}
+    .h-name{font-size:16px}
+    .h-meta{font-size:11.5px;flex-wrap:wrap;row-gap:4px}
+    .h-actions{gap:6px}
+    /* icon-only action buttons on phone — labels hidden, tap targets stay generous */
+    .h-btn{padding:9px 10px}
+    .h-btn .lbl{display:none}
+    .h-btn.primary{padding:9px 11px}
+    .h-btn.primary .lbl{display:inline}    /* keep "Book demo" — it's the primary CTA */
+
+    .ai-nudge{padding:10px 14px;gap:9px;font-size:12px}
+    .n-cta .glyph{display:none}             /* drop the AI glyph, keep text tight */
+
+    .thread-scroll{padding:16px 14px 10px}
+
+    .compose{padding:10px 14px 14px}
+    .send{min-width:50px;padding:0 13px}
+    .send .send-label{display:none}            /* icon-only send button on phone */
+    .compose-tools{gap:6px}
+    .ct{padding:6px 9px;font-size:11.5px}      /* tighter chips so all 5 fit one row */
+    .ai-draft-bar{flex-wrap:wrap;gap:6px;padding:7px 2px 9px}
+    .ai-draft-bar .ab-prov{flex:1 1 100%}
+    .ai-draft-bar .ab-actions{margin-left:0}
+    .ab-btn{padding:5px 9px;font-size:11px}
+
+    .ai-brief{padding:12px 13px}
+    .brief-task{flex-wrap:wrap}
+    .task-mini{margin-left:25px}            /* wrap mini-button under its task */
+
+    .event{max-width:88%}
+  }
+
+  @media (max-width:360px){
+    /* very small phones: tighten further */
+    .thread-head{padding:11px 12px}
+    .h-btn.primary .lbl{display:none}        /* even primary goes icon-only ≤360px */
+  }
+
+  @media (min-width:1024px){
+
+    .bl-app{
+      display:grid;
+      grid-template-columns:284px minmax(0,1fr) 308px;
+      grid-template-rows:auto minmax(0,1fr);
+      height:100vh;
+    }
+
+    /* ─────────────────────  TOP BAR  ───────────────────── */
+    .bl-topbar{
+      display:flex; align-items:center; gap:16px;
+      grid-column:1 / -1;
+      padding:11px 22px;
+      border-bottom:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(26,29,39,.6), rgba(15,17,23,.2));
+    }
+    .tb-aimini{
+      display:inline-flex; align-items:center; gap:7px;
+      font-size:12px; font-weight:600;
+      padding:6px 11px; border-radius:9px;
+      background:var(--ai-bg); border:1px solid var(--ai-line); color:var(--ai-soft);
+    }
+    .tb-aimini .glyph{color:var(--ai)}
+    .tb-aimini .dotsep{color:var(--muted-2)}
+    .tb-aimini .tb-status{color:var(--muted);font-weight:500}
+    .tb-aimini .live{
+      width:6px;height:6px;border-radius:50%;background:var(--ai);
+      box-shadow:0 0 8px var(--ai);animation:pulseAI 2.4s infinite;
+    }
+    @keyframes pulseAI{0%,100%{opacity:1}50%{opacity:.35}}
+    .tb-brand{font-family:var(--serif);font-weight:600;font-size:18px;letter-spacing:.2px;color:var(--text)}
+    .tb-right{margin-left:auto}
+    .tb-new{
+      display:inline-flex;align-items:center;gap:6px;
+      font-family:var(--sans);font-size:12.5px;font-weight:600;
+      padding:8px 14px;border-radius:9px;cursor:pointer;
+      background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;border:1px solid transparent;
+      box-shadow:0 4px 12px rgba(212,165,116,.22);transition:.15s;
+    }
+    .tb-new:hover{filter:brightness(1.06)}
+
+    /* ─────────────────────  LEFT · THREAD LIST  ───────────────────── */
+    .bl-threads{
+      display:flex; flex-direction:column; min-height:0;
+      grid-row:2; grid-column:1;
+      border-right:1px solid var(--line);
+      background:var(--bg-2);
+      overflow:hidden;
+    }
+    .tl-head{
+      display:flex;align-items:center;gap:9px;
+      padding:16px 18px 12px;border-bottom:1px solid var(--line);
+    }
+    .tl-title{font-family:var(--serif);font-weight:600;font-size:16px;letter-spacing:.2px}
+    .tl-count{font-size:11px;font-weight:600;color:var(--muted);background:var(--card);border:1px solid var(--line);padding:2px 8px;border-radius:7px}
+    .tl-search{
+      margin:10px 14px 4px;display:flex;align-items:center;gap:8px;
+      background:var(--card);border:1px solid var(--line);border-radius:9px;
+      padding:7px 11px;font-size:12.5px;color:var(--muted-2);
+    }
+    .tl-list{flex:1;min-height:0;overflow-y:auto;padding:6px 10px 16px;scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+    .tl-list::-webkit-scrollbar{width:8px}
+    .tl-list::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:6px;border:2px solid var(--bg-2)}
+    .tl-list::-webkit-scrollbar-track{background:transparent}
+    .tl-section{margin-top:14px}
+    .tl-section-label{
+      font-size:10px;text-transform:uppercase;letter-spacing:1.3px;color:var(--muted-2);
+      font-weight:700;padding:0 8px 7px;display:flex;align-items:center;gap:7px;
+    }
+    .tl-section-label .nb{color:var(--muted);font-weight:600}
+    .tl-item{
+      display:flex;gap:10px;align-items:flex-start;
+      padding:9px 10px;border-radius:10px;cursor:pointer;transition:.13s;
+    }
+    .tl-item:hover{background:var(--card)}
+    .tl-item.active{background:var(--card-2);box-shadow:inset 2px 0 0 var(--amber)}
+    .tl-ava{
+      width:32px;height:32px;border-radius:9px;flex-shrink:0;
+      display:grid;place-items:center;font-weight:600;font-size:12.5px;
+      background:linear-gradient(135deg,#3a3f4d,#2a2d3a);color:var(--amber-soft);
+      border:1px solid var(--line-2);
+    }
+    .tl-ava.lead{background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;border:none;font-family:var(--serif)}
+    .tl-main{flex:1;min-width:0}
+    .tl-row{display:flex;align-items:center;gap:6px}
+    .tl-name{font-weight:600;font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .tl-time{margin-left:auto;font-size:10.5px;color:var(--muted-2);flex-shrink:0}
+    .tl-preview{font-size:11.5px;color:var(--muted);line-height:1.35;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .tl-tags{display:flex;gap:5px;margin-top:5px;align-items:center;flex-wrap:wrap}
+    .tl-tag{font-size:9.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:1.5px 6px;border-radius:5px}
+    .tl-tag.hot{background:rgba(217,138,122,.14);color:var(--red);border:1px solid rgba(217,138,122,.28)}
+    .tl-tag.warm{background:rgba(217,196,122,.14);color:var(--yellow);border:1px solid rgba(217,196,122,.28)}
+    .tl-tag.ai{background:var(--ai-bg);color:var(--ai-soft);border:1px solid var(--ai-line);text-transform:none;letter-spacing:0}
+    .tl-unread{width:7px;height:7px;border-radius:50%;background:var(--amber);flex-shrink:0;box-shadow:0 0 6px rgba(212,165,116,.6)}
+
+    /* ─────────────────────  CENTER · existing .thread  ───────────────────── */
+    .thread{
+      grid-row:2; grid-column:2;
+      height:100%; min-height:0;
+      border-left:none;            /* gutters come from neighbors */
+    }
+    /* cap the conversation measure on ultra-wide center columns; the inner
+       events keep their left/right chat alignment within the capped column */
+    @media (min-width:1280px){
+      .thread-scroll{padding-left:max(22px, calc(50% - 380px));padding-right:max(22px, calc(50% - 380px))}
+      .compose{padding-left:max(22px, calc(50% - 380px));padding-right:max(22px, calc(50% - 380px))}
+    }
+
+    /* ─────────────────────  RIGHT · CONTACT DETAILS  ───────────────────── */
+    .bl-contact{
+      display:flex; flex-direction:column; min-height:0;
+      grid-row:2; grid-column:3;
+      border-left:1px solid var(--line);
+      background:var(--bg-2);
+      overflow:hidden;
+    }
+    .cp-head{padding:18px 18px 15px;border-bottom:1px solid var(--line)}
+    .cp-id{display:flex;gap:12px;align-items:center}
+    .cp-ava{
+      width:48px;height:48px;border-radius:13px;flex-shrink:0;
+      background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;
+      display:grid;place-items:center;font-family:var(--serif);font-weight:600;font-size:20px;
+      box-shadow:0 4px 14px rgba(212,165,116,.22);
+    }
+    .cp-namewrap{min-width:0}
+    .cp-name{font-family:var(--serif);font-weight:600;font-size:17px;line-height:1.15}
+    .cp-sub{font-size:12px;color:var(--muted);margin-top:2px}
+    .cp-statusrow{margin-top:12px}
+
+    .cp-scroll{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+    .cp-scroll::-webkit-scrollbar{width:8px}
+    .cp-scroll::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:6px;border:2px solid var(--bg-2)}
+    .cp-scroll::-webkit-scrollbar-track{background:transparent}
+
+    .cp-section{padding:15px 18px;border-bottom:1px solid var(--line)}
+    .cp-section:last-child{border-bottom:none}
+    .cp-label{font-size:10px;text-transform:uppercase;letter-spacing:1.3px;color:var(--muted-2);font-weight:700;margin-bottom:9px}
+    .cp-tags{display:flex;flex-wrap:wrap;gap:6px}
+    .cp-tags .chip{font-size:11px;padding:3px 8px}
+
+    .cp-contact-row{display:flex;align-items:center;gap:9px;font-size:12.5px;padding:5px 0;color:var(--text)}
+    .cp-contact-row .gl{color:var(--muted);width:15px;display:inline-flex;justify-content:center;align-items:center;flex-shrink:0}
+    .cp-contact-row:hover .gl{color:var(--amber-soft)}
+
+    .cp-kv{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:4px 0}
+    .cp-kv .k{color:var(--muted)}
+    .cp-kv .v{color:var(--text);font-weight:500;text-align:right}
+    .cp-kv .v.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+
+    .cp-quick{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .cp-act{
+      display:inline-flex;align-items:center;justify-content:center;gap:7px;
+      font-family:var(--sans);font-size:12px;font-weight:600;
+      padding:9px 8px;border-radius:9px;cursor:pointer;
+      background:var(--card);border:1px solid var(--line);color:var(--text);transition:.15s;
+    }
+    .cp-act .ic{color:var(--muted)}
+    .cp-act:hover .ic{color:var(--text)}
+    .cp-act.primary .ic{color:#1a1208}
+    .cp-act:hover{border-color:var(--line-2);background:var(--card-2)}
+    .cp-act.primary{background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;border-color:transparent;box-shadow:0 3px 10px rgba(212,165,116,.22)}
+
+    .cp-next{
+      background:linear-gradient(135deg,var(--ai-bg),rgba(183,155,224,.03));
+      border:1px solid var(--ai-line);border-left:3px solid var(--ai);
+      border-radius:11px;padding:11px 12px;
+    }
+    .cp-next .nh{font-family:var(--serif);font-weight:600;font-size:12.5px;line-height:1.4;color:var(--text)}
+    .cp-next .nd{margin-top:9px}
+
+    .sticky-note{
+      background:linear-gradient(135deg, rgba(217,196,122,.10), rgba(212,165,116,.05));
+      border:1px solid rgba(217,196,122,.22);border-radius:11px;
+      padding:10px 12px;
+    }
+    .sticky-note .sn-head{display:flex;align-items:center;gap:7px;font-size:10.5px;font-weight:700;color:var(--yellow);margin-bottom:7px;text-transform:uppercase;letter-spacing:1px}
+    .sticky-note textarea{
+      width:100%;resize:vertical;min-height:74px;
+      font-family:var(--sans);font-size:12.5px;line-height:1.5;color:var(--text);
+      background:transparent;border:none;outline:none;padding:0;
+    }
+    .sticky-note textarea::placeholder{color:var(--muted-2)}
+
+  } /* end ≥1024px */
+</style>
+</head>
+<body>
+
+<!-- ══════════════  SVG ICON SPRITE  (Lucide-style, 24px grid, currentColor)  ══════════════ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="ic-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>
+    </symbol>
+    <symbol id="ic-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="4" width="20" height="16" rx="2"/>
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+    </symbol>
+    <symbol id="ic-message" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </symbol>
+    <symbol id="ic-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2"/>
+      <path d="M16 2v4M8 2v4M3 10h18"/>
+    </symbol>
+    <symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"/>
+      <path d="M12 7v5l3 2"/>
+    </symbol>
+    <symbol id="ic-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m22 2-7 20-4-9-9-4z"/>
+      <path d="M22 2 11 13"/>
+    </symbol>
+    <symbol id="ic-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2"/>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </symbol>
+    <symbol id="ic-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/>
+      <path d="m21 21-4.3-4.3"/>
+    </symbol>
+    <symbol id="ic-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 5v14M5 12h14"/>
+    </symbol>
+    <symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+    </symbol>
+    <symbol id="ic-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"/>
+      <path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/>
+    </symbol>
+    <symbol id="ic-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>
+    </symbol>
+    <symbol id="ic-paperclip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+    </symbol>
+    <symbol id="ic-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+    </symbol>
+    <symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 6 9 17l-5-5"/>
+    </symbol>
+    <symbol id="ic-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 6 6 18M6 6l12 12"/>
+    </symbol>
+    <symbol id="ic-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/>
+    </symbol>
+    <symbol id="ic-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m6 9 6 6 6-6"/>
+    </symbol>
+    <symbol id="ic-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m9 18 6-6-6-6"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="bl-app" id="blApp">
+
+  <!-- ══════════════  TOP BAR  (desktop only)  ══════════════ -->
+  <div class="bl-topbar">
+    <div class="tb-aimini">
+      <span class="live"></span>
+      <span class="glyph">✦</span>
+      <span>AI on</span>
+      <span class="dotsep">·</span>
+      <span class="tb-status">watching 2 leads · after-hours rule active</span>
+    </div>
+    <span class="tb-brand">Branch Live</span>
+    <div class="tb-right">
+      <button class="tb-new" onclick="toast('New thread started')"><svg class="ic ic-15"><use href="#ic-plus"/></svg> New Thread</button>
+    </div>
+  </div>
+
+  <!-- ══════════════  LEFT · THREAD LIST  (desktop only)  ══════════════ -->
+  <aside class="bl-threads">
+    <div class="tl-head">
+      <span class="tl-title">Threads</span>
+      <span class="tl-count">5 active</span>
+    </div>
+    <div class="tl-search"><svg class="ic ic-15" style="color:var(--muted-2)"><use href="#ic-search"/></svg> <span style="flex:1">Search leads…</span></div>
+    <div class="tl-list" id="tlList">
+
+      <!-- INBOX -->
+      <div class="tl-section">
+        <div class="tl-section-label">Inbox <span class="nb">3</span></div>
+        <div class="tl-item active" data-thread="marcus" onclick="selectThread(this)">
+          <div class="tl-ava lead">M</div>
+          <div class="tl-main">
+            <div class="tl-row"><span class="tl-name">Marcus Chen</span><span class="tl-time">11:18 PM</span></div>
+            <div class="tl-preview">…ready to move, Friday 2:30 demo?</div>
+            <div class="tl-tags"><span class="tl-tag hot"><svg class="ic" style="width:9px;height:9px;vertical-align:-1px"><use href="#ic-flame"/></svg> Hot</span><span class="tl-tag ai">✦ auto-replied</span><span class="tl-unread" style="margin-left:auto"></span></div>
+          </div>
+        </div>
+        <div class="tl-item" data-thread="priya" onclick="selectThread(this)">
+          <div class="tl-ava lead">P</div>
+          <div class="tl-main">
+            <div class="tl-row"><span class="tl-name">Priya Mehta</span><span class="tl-time">9:47 AM</span></div>
+            <div class="tl-preview">Budget approved — what's next?</div>
+            <div class="tl-tags"><span class="tl-tag warm">Warm</span></div>
+          </div>
+        </div>
+        <div class="tl-item" data-thread="daniel" onclick="selectThread(this)">
+          <div class="tl-ava lead">D</div>
+          <div class="tl-main">
+            <div class="tl-row"><span class="tl-name">Daniel Osei</span><span class="tl-time">Yest</span></div>
+            <div class="tl-preview">Can you send the pricing PDF again?</div>
+            <div class="tl-tags"><span class="tl-tag warm">Warm</span><span class="tl-unread" style="margin-left:auto"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TODAY -->
+      <div class="tl-section">
+        <div class="tl-section-label">Today <span class="nb">2</span></div>
+        <div class="tl-item" data-thread="lena" onclick="selectThread(this)">
+          <div class="tl-ava">L</div>
+          <div class="tl-main">
+            <div class="tl-row"><span class="tl-name">Lena Ortiz</span><span class="tl-time">2:01 PM</span></div>
+            <div class="tl-preview">Demo rescheduled to Mon — confirmed</div>
+          </div>
+        </div>
+        <div class="tl-item" data-thread="tom" onclick="selectThread(this)">
+          <div class="tl-ava">T</div>
+          <div class="tl-main">
+            <div class="tl-row"><span class="tl-name">Tom Reilly</span><span class="tl-time">10:30 AM</span></div>
+            <div class="tl-preview">Invoice received, thanks 🙏</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- THIS WEEK -->
+      <div class="tl-section">
+        <div class="tl-section-label">This Week</div>
+        <div class="tl-item" data-thread="sara" onclick="selectThread(this)">
+          <div class="tl-ava">S</div>
+          <div class="tl-main">
+            <div class="tl-row"><span class="tl-name">Sara Nilsson</span><span class="tl-time">Mon</span></div>
+            <div class="tl-preview">Following up next quarter</div>
+          </div>
+        </div>
+        <div class="tl-item" data-thread="mike" onclick="selectThread(this)">
+          <div class="tl-ava">M</div>
+          <div class="tl-main">
+            <div class="tl-row"><span class="tl-name">Mike Falzone</span><span class="tl-time">Sun</span></div>
+            <div class="tl-preview">Out of office until July 14</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- ══════════════  CENTER · existing AI-first thread feed  ══════════════ -->
+  <main class="thread" id="thread">
+
+  <!-- ─────────  HEADER  ───────── -->
+  <header class="thread-head">
+    <div class="h-ava">M</div>
+    <div class="h-title">
+      <div class="h-name">Marcus Chen</div>
+      <div class="h-meta">
+        <span>RevTech Solutions</span>
+        <span class="dot"></span>
+        <span>VP Engineering</span>
+        <span class="dot"></span>
+        <span class="status-badge"><span class="pulse"></span>Hot</span>
+      </div>
+    </div>
+    <div class="h-actions">
+      <button class="h-btn" aria-label="Call"><svg class="ic ic-16"><use href="#ic-phone"/></svg> <span class="lbl">Call</span></button>
+      <button class="h-btn" aria-label="Email"><svg class="ic ic-16"><use href="#ic-mail"/></svg> <span class="lbl">Email</span></button>
+      <button class="h-btn primary"><svg class="ic ic-16"><use href="#ic-calendar"/></svg> <span class="lbl">Book demo</span></button>
+    </div>
+  </header>
+
+  <!-- ─────────  NUDGE STRIP  ───────── -->
+  <div class="ai-nudge" id="nudge">
+    <span class="n-icon"><svg class="ic ic-18"><use href="#ic-clock"/></svg></span>
+    <span class="n-text"><b>Marcus</b> replied at 11:18 PM asking for a Friday demo — the window to lock it in is now.</span>
+    <button class="n-cta" onclick="loadIntoCompose('draft','Drafting a warm reply to lock in the Friday demo slot.')"><span class="glyph">✦</span> Draft follow-up</button>
+    <span class="n-dismiss" onclick="dismissNudge()" title="Dismiss"><svg class="ic ic-15"><use href="#ic-x"/></svg></span>
+  </div>
+
+  <!-- ─────────  TIMELINE  ───────── -->
+  <div class="thread-scroll" id="scroll">
+
+    <!-- AI BRIEF (first child) -->
+    <section class="ai-brief" id="brief">
+      <div class="brief-head" onclick="toggleBrief()">
+        <span class="brief-glyph">✦</span>
+        <span class="brief-title">AI Brief</span>
+        <span class="brief-factors">· 4 factors reviewed</span>
+        <span class="brief-time">just now</span>
+        <span class="brief-refresh" onclick="event.stopPropagation();refreshBrief(event)" title="Re-run triage"><svg class="ic ic-15"><use href="#ic-refresh"/></svg></span>
+        <span class="brief-chevron"><svg class="ic" style="width:12px;height:12px;vertical-align:-2px"><use href="#ic-chevron-down"/></svg></span>
+      </div>
+      <div class="brief-collapsed-summary">Hot &amp; ready · 2 actions · book Friday demo + confirm Priya attends</div>
+      <div class="brief-body">
+        <div class="brief-row sentiment">
+          <span class="brief-label">Sentiment</span>
+          <div class="sent-line">
+            <span class="sent-dot"></span>
+            <span class="sent-label">Hot &amp; ready</span>
+          </div>
+          <div class="sent-rationale">“Ready to move this week, wants Friday demo, bringing Priya (budget owner). Zero price pushback on quoted rate.”</div>
+        </div>
+
+        <div class="brief-row actions">
+          <span class="brief-label">Needs action</span>
+          <div class="brief-task" id="task1">
+            <span class="chk" onclick="toggleTask('task1')"><svg class="ic" style="width:11px;height:11px"><use href="#ic-check"/></svg></span>
+            <span class="task-text">Confirm Friday 2:30 PM demo slot</span>
+            <span class="task-mini" onclick="loadIntoCompose('draft','Confirming Friday 2:30 demo slot, warm tone.')">Draft reply</span>
+          </div>
+          <div class="brief-task" id="task2">
+            <span class="chk" onclick="toggleTask('task2')"><svg class="ic" style="width:11px;height:11px"><use href="#ic-check"/></svg></span>
+            <span class="task-text">Confirm Priya (budget owner) can attend</span>
+          </div>
+        </div>
+
+        <div class="brief-row next">
+          <span class="brief-label">Next step</span>
+          <div class="next-line">
+            <span class="next-headline">Hold Friday 2:30 demo slot &amp; send a confirm-by-SMS with calendar hold.</span>
+            <button class="do-it" onclick="loadIntoCompose('draft','Holding Friday 2:30 demo slot, sending confirm + calendar hold, warm tone.')"><span class="glyph">✦</span> Do it</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- YESTERDAY -->
+    <div class="day-divider"><span class="ln"></span><span class="lbl">Yesterday</span><span class="ln"></span></div>
+
+    <!-- human outbound -->
+    <div class="event outbound human">
+      <div class="e-ava human">S</div>
+      <div class="e-body">
+        <div class="e-meta"><span class="e-name">Shane</span><span class="e-time">4:48 PM</span></div>
+        <div class="bubble">Marcus — great call. I'll send over the RevTech demo options tomorrow morning. Friday afternoon still works on your end?</div>
+      </div>
+    </div>
+
+    <!-- TODAY -->
+    <div class="day-divider"><span class="ln"></span><span class="lbl">Today</span><span class="ln"></span></div>
+
+    <!-- AI call summary (folded) -->
+    <div class="action-event ai open" id="callSummary">
+      <div class="a-icon ai">✦</div>
+      <div class="a-content">
+        <div class="a-line1">
+          <span class="a-name">Branch AI</span>
+          <span class="a-title">summarized yesterday's qualifying call</span>
+          <span class="dur-pill">6m 12s</span>
+          <span class="a-time">8:01 AM</span>
+        </div>
+        <div class="a-toggle" onclick="toggleSummary()"><span class="chev"><svg class="ic" style="width:11px;height:11px;vertical-align:-2px"><use href="#ic-chevron-right"/></svg></span> Key points</div>
+        <div class="summary-fold">
+          <ul class="summary-list">
+            <li><span class="bul"><svg class="ic" style="width:11px;height:11px;vertical-align:-2px"><use href="#ic-chevron-right"/></svg></span> Wants the full RevTech demo this week, Friday afternoon preferred.</li>
+            <li><span class="bul"><svg class="ic" style="width:11px;height:11px;vertical-align:-2px"><use href="#ic-chevron-right"/></svg></span> Bringing Priya Mehta (CFO / budget owner) — she signs off.</li>
+            <li><span class="bul"><svg class="ic" style="width:11px;height:11px;vertical-align:-2px"><use href="#ic-chevron-right"/></svg></span> Quoted standard rate, zero pushback.</li>
+            <li class="action-item"><span class="bul"><svg class="ic" style="width:11px;height:11px;vertical-align:-2px"><use href="#ic-chevron-right"/></svg></span> Action: book first available Friday slot + send calendar hold.</li>
+          </ul>
+          <div class="summary-meta">
+            <span class="src" onclick="toast('Opening call transcript…')">View transcript</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- inbound lead -->
+    <div class="event inbound">
+      <div class="e-ava lead">M</div>
+      <div class="e-body">
+        <div class="e-meta"><span class="e-name">Marcus Chen</span><span class="e-time">11:18 PM</span></div>
+        <div class="bubble">Hey Shane — talked to Priya, we're ready to move. Can we do the full RevTech demo this Friday afternoon? 2:30ish would be perfect. I'll make sure Priya's on it too.</div>
+      </div>
+    </div>
+
+    <!-- AI auto-reply -->
+    <div class="event outbound ai">
+      <div class="e-ava ai">✦</div>
+      <div class="e-body">
+        <div class="e-meta"><span class="e-name ai">Branch AI</span><span class="e-tag ai">Auto-replied</span><span class="e-time">11:19 PM</span></div>
+        <div class="bubble">Hi Marcus! Shane's offline for the evening — I can hold a Friday 2:30 demo slot for you while he's away. Just say the word and I'll lock it in. ✦</div>
+        <div class="bubble-foot">
+          <span>Sent automatically per your</span>
+          <span class="rule-link" onclick="toast('Opening after-hours rule editor…')">after-hours rule</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI → human handoff -->
+    <div class="action-event ai">
+      <div class="a-icon ai">✦</div>
+      <div class="a-content">
+        <div class="a-line1">
+          <span class="a-name">Branch AI</span>
+          <span class="a-title">qualified this lead</span>
+          <span class="a-chips">
+            <span class="chip hot"><svg class="ic" style="width:11px;height:11px;vertical-align:-2px"><use href="#ic-flame"/></svg> Hot</span>
+            <span class="chip mono">score 0.91</span>
+            <span class="chip arrow">→</span>
+            <span class="chip">Shane</span>
+          </span>
+          <span class="a-time">8:02 AM</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- smart tag transition -->
+    <div class="action-event ai">
+      <div class="a-icon ai">✦</div>
+      <div class="a-content">
+        <div class="a-line1">
+          <span class="a-name">Branch AI</span>
+          <span class="a-title">reclassified this lead</span>
+          <span class="tag-trans">
+            <span class="chip warm">Warm</span>
+            <span class="arrow-sym">→</span>
+            <span class="chip hot"><svg class="ic" style="width:11px;height:11px;vertical-align:-2px"><use href="#ic-flame"/></svg> Hot</span>
+          </span>
+          <span class="chip mono">confidence 0.88</span>
+          <span class="a-time">8:02 AM</span>
+        </div>
+        <div class="a-evidence">“demo requested for full team + budget owner attending + zero price pushback”</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ─────────  COMPOSE  ───────── -->
+  <footer class="compose" id="compose">
+
+    <!-- AI draft bar -->
+    <div class="ai-draft-bar" id="draftBar">
+      <span class="glyph">✦</span>
+      <span class="ab-prov">
+        <b>Drafted by Branch AI</b>
+        <span class="ver" id="draftVer">· v1</span>
+        <span class="tone" id="draftTone">· warm, matches his tone</span>
+      </span>
+      <div class="ab-actions" id="draftActions">
+        <button class="ab-btn regenerate" onclick="regenerate()"><svg class="ic ic-15"><use href="#ic-refresh"/></svg> Regenerate</button>
+        <button class="ab-btn reject" onclick="rejectDraft()"><svg class="ic ic-15"><use href="#ic-x"/></svg> Reject</button>
+        <button class="ab-btn accept" onclick="acceptDraft()"><svg class="ic ic-15"><use href="#ic-check"/></svg> Accept</button>
+      </div>
+    </div>
+
+    <!-- mode chips -->
+    <div class="compose-tools" id="modes">
+      <button class="ct on" data-mode="ai" onclick="setMode('ai')"><span class="glyph">✦</span> AI Draft</button>
+      <button class="ct" data-mode="note" onclick="setMode('note')"><svg class="ic ic-15"><use href="#ic-pin"/></svg> Note</button>
+      <button class="ct" data-mode="sms" onclick="setMode('sms')"><svg class="ic ic-15"><use href="#ic-message"/></svg> SMS</button>
+      <button class="ct" data-mode="email" onclick="setMode('email')"><svg class="ic ic-15"><use href="#ic-mail"/></svg> Email</button>
+      <button class="ct" data-mode="call" onclick="setMode('call')"><svg class="ic ic-15"><use href="#ic-phone"/></svg> Call</button>
+    </div>
+
+    <!-- input -->
+    <div class="compose-input">
+      <div class="ci-wrap">
+        <button class="ci-attach" type="button" onclick="toast('Attach a file…')" title="Attach a file" aria-label="Attach a file"><svg class="ic ic-18"><use href="#ic-paperclip"/></svg></button>
+        <textarea class="ci-area" id="composeArea" placeholder="Describe what to say, or accept the suggested draft…">Hey Marcus — great news, Friday 2:30 works perfectly. I'll hold the RevTech demo slot and send a calendar hold your way. Looking forward to having Priya on it too. See you Friday — Shane</textarea>
+      </div>
+      <button class="send locked" id="sendBtn" onclick="doSend()" aria-label="Send">
+        <span class="lock"><svg class="ic ic-16"><use href="#ic-lock"/></svg></span>
+        <svg class="ic ic-18 not-locked"><use href="#ic-send"/></svg>
+        <span class="send-label" id="sendLabel">Send</span>
+      </button>
+    </div>
+    <div class="guard-hint"><span class="glyph">✦</span> AI-drafted replies need your Accept before they send. No exceptions.</div>
+
+  </footer>
+</main>
+
+  <!-- ══════════════  RIGHT · CONTACT DETAILS  (desktop only)  ══════════════ -->
+  <aside class="bl-contact" id="blContact">
+    <div class="cp-head">
+      <div class="cp-id">
+        <div class="cp-ava">M</div>
+        <div class="cp-namewrap">
+          <div class="cp-name" id="cpName">Marcus Chen</div>
+          <div class="cp-sub" id="cpSub">RevTech Solutions · VP Engineering</div>
+        </div>
+      </div>
+      <div class="cp-statusrow" id="cpStatus">
+        <span class="status-badge"><span class="pulse"></span>Hot · wants Friday</span>
+      </div>
+    </div>
+
+    <div class="cp-scroll">
+
+      <div class="cp-section">
+        <div class="cp-label">Quick actions</div>
+        <div class="cp-quick">
+          <button class="cp-act primary"><svg class="ic ic-15"><use href="#ic-calendar"/></svg> Book demo</button>
+          <button class="cp-act"><svg class="ic ic-15"><use href="#ic-phone"/></svg> Call</button>
+          <button class="cp-act"><svg class="ic ic-15"><use href="#ic-mail"/></svg> Email</button>
+          <button class="cp-act"><svg class="ic ic-15"><use href="#ic-message"/></svg> SMS</button>
+        </div>
+      </div>
+
+      <div class="cp-section">
+        <div class="cp-label">Contact</div>
+        <div class="cp-contact-row"><span class="gl"><svg class="ic ic-15"><use href="#ic-mail"/></svg></span> marcus.chen@revtech.io</div>
+        <div class="cp-contact-row"><span class="gl"><svg class="ic ic-15"><use href="#ic-phone"/></svg></span> +1 (415) 555-0143</div>
+        <div class="cp-contact-row"><span class="gl"><svg class="ic ic-15"><use href="#ic-link"/></svg></span> linkedin.com/in/marcuschen</div>
+        <div class="cp-contact-row"><span class="gl"><svg class="ic ic-15"><use href="#ic-globe"/></svg></span> revtech.io</div>
+      </div>
+
+      <div class="cp-section">
+        <div class="cp-label">Tags</div>
+        <div class="cp-tags" id="cpTags">
+          <span class="chip hot"><svg class="ic" style="width:11px;height:11px;vertical-align:-2px"><use href="#ic-flame"/></svg> Hot</span>
+          <span class="chip vip">VIP</span>
+          <span class="chip followup">Follow-up</span>
+          <span class="chip">Demo pending</span>
+          <span class="chip mono">LTV 84k</span>
+          <span class="chip">SMB</span>
+        </div>
+      </div>
+
+      <div class="cp-section">
+        <div class="cp-label">History</div>
+        <div class="cp-kv"><span class="k">Lead source</span><span class="v">Inbound · referral</span></div>
+        <div class="cp-kv"><span class="k">First contact</span><span class="v">Jul 2, 2026</span></div>
+        <div class="cp-kv"><span class="k">Touchpoints</span><span class="v">7</span></div>
+        <div class="cp-kv"><span class="k">Last reply</span><span class="v">11:18 PM today</span></div>
+        <div class="cp-kv"><span class="k">AI score</span><span class="v mono">0.91</span></div>
+      </div>
+
+      <div class="cp-section">
+        <div class="cp-label">Next step</div>
+        <div class="cp-next">
+          <div class="nh">Hold Friday 2:30 demo slot &amp; send confirm-by-SMS with calendar hold.</div>
+          <div class="nd"><button class="do-it" onclick="loadIntoCompose('draft','Holding Friday 2:30 demo slot, sending confirm + calendar hold, warm tone.')"><span class="glyph">✦</span> Do it</button></div>
+        </div>
+      </div>
+
+      <div class="cp-section">
+        <div class="cp-label">Sticky note</div>
+        <div class="sticky-note">
+          <div class="sn-head"><svg class="ic ic-15"><use href="#ic-pin"/></svg> Private note</div>
+          <textarea placeholder="Jots about Marcus — only you see this…">Priya is the real budget owner. Marcus is the champion. Don't move dates without checking with her first.</textarea>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+
+</div><!-- /.bl-app -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ---- state ----
+  const state = {
+    mode: 'ai',
+    draftState: 'pending',   // pending | edited | accepted | rejected
+    draftVersion: 1,
+    draftEdited: false,
+    originalDraft: document.getElementById('composeArea').value,
+  };
+
+  // three canned variations to simulate regenerate
+  const variations = [
+    "Hey Marcus — great news, Friday 2:30 works perfectly. I'll hold the RevTech demo slot and send a calendar hold your way. Looking forward to having Priya on it too. See you Friday — Shane",
+    "Marcus — Friday 2:30 is locked in for the RevTech demo. Calendar invite coming shortly. Excited Priya can make it — we'll keep it tight and useful. Cheers, Shane",
+    "Hi Marcus! You got it — Friday 2:30 demo slot is yours. I'll shoot over a calendar hold now. Tell Priya to bring any questions; we'll leave time for hers. Best, Shane"
+  ];
+  const toneNotes = ["warm, matches his tone","crisp, action-first","warm, partner-inclusive"];
+
+  // ---- toast ----
+  let toastTimer;
+  function toast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
+  }
+
+  // ---- nudge ----
+  function dismissNudge(){
+    document.getElementById('nudge').style.display='none';
+    document.getElementById('thread').classList.add('no-nudge');
+    toast('Nudge dismissed for this conversation');
+  }
+
+  // ---- AI brief ----
+  function toggleBrief(){
+    document.getElementById('brief').classList.toggle('collapsed');
+  }
+  function refreshBrief(e){
+    e.stopPropagation();
+    const r = e.currentTarget;
+    r.style.transition='transform .6s'; r.style.transform='rotate(360deg)';
+    setTimeout(()=>{r.style.transition='none';r.style.transform='rotate(0)';},600);
+    toast('Triage re-run · no changes');
+  }
+  function toggleTask(id){
+    document.getElementById(id).classList.toggle('done');
+  }
+
+  // ---- call summary ----
+  function toggleSummary(){
+    document.getElementById('callSummary').classList.toggle('open');
+  }
+
+  // ---- compose mode ----
+  const placeholders = {
+    ai:'Describe what to say, or accept the suggested draft…',
+    note:'Add a note for your team…',
+    sms:'Send an SMS to Marcus…',
+    email:'Write an email to Marcus…',
+    call:'Log a call outcome with Marcus…'
+  };
+  function setMode(mode){
+    state.mode = mode;
+    document.querySelectorAll('.ct').forEach(c=>c.classList.toggle('on', c.dataset.mode===mode));
+    document.getElementById('composeArea').placeholder = placeholders[mode];
+    updateSendLock();
+    // relabel send button by channel
+    const labels = {ai:'Send', note:'Post note', sms:'Send SMS', email:'Send Email', call:'Log call'};
+    document.getElementById('sendLabel').textContent = labels[mode];
+  }
+
+  // ---- draft bar actions ----
+  function regenerate(){
+    state.draftVersion = state.draftVersion >= variations.length ? 1 : state.draftVersion + 1;
+    const idx = state.draftVersion - 1;
+    const area = document.getElementById('composeArea');
+    area.classList.add('shimmer');
+    setTimeout(()=>area.classList.remove('shimmer'), 500);
+    area.value = variations[idx];
+    state.originalDraft = variations[idx];
+    state.draftState = 'pending';
+    state.draftEdited = false;
+    document.getElementById('draftVer').textContent = '· v' + state.draftVersion;
+    document.getElementById('draftTone').textContent = '· ' + toneNotes[idx];
+    resetDraftBarUI();
+    updateSendLock();
+    toast('Generated v' + state.draftVersion);
+  }
+
+  function rejectDraft(){
+    document.getElementById('composeArea').value = '';
+    state.draftState = 'rejected';
+    document.getElementById('compose').classList.add('no-draft');
+    setMode('sms'); // fall back to manual SMS
+    toast('Draft rejected · compose cleared to manual');
+  }
+
+  function acceptDraft(){
+    state.draftState = 'accepted';
+    const bar = document.getElementById('draftBar');
+    bar.classList.add('accepted');
+    bar.querySelector('.ab-prov').innerHTML =
+      '<b><svg class="ic ic-15" style="vertical-align:-2px"><use href="#ic-check"/></svg> Accepted · ready to send</b>' +
+      (state.draftEdited ? ' · edited by you' : '') +
+      ' <span class="ver">· v'+state.draftVersion+'</span>';
+    bar.querySelector('.ab-actions').innerHTML =
+      '<button class="ab-btn reject" onclick="clearDraft()"><svg class="ic ic-15"><use href="#ic-x"/></svg> Clear</button>';
+    updateSendLock();
+    const send = document.getElementById('sendBtn');
+    send.classList.add('pulse');
+    toast('Accepted · your move to send');
+  }
+
+  function clearDraft(){
+    document.getElementById('composeArea').value = '';
+    document.getElementById('compose').classList.add('no-draft');
+    state.draftState = 'rejected';
+    updateSendLock();
+    toast('Draft cleared');
+  }
+
+  function resetDraftBarUI(){
+    const bar = document.getElementById('draftBar');
+    bar.classList.remove('accepted');
+    bar.querySelector('.ab-actions').innerHTML =
+      '<button class="ab-btn regenerate" onclick="regenerate()"><svg class="ic ic-15"><use href="#ic-refresh"/></svg> Regenerate</button>' +
+      '<button class="ab-btn reject" onclick="rejectDraft()"><svg class="ic ic-15"><use href="#ic-x"/></svg> Reject</button>' +
+      '<button class="ab-btn accept" onclick="acceptDraft()"><svg class="ic ic-15"><use href="#ic-check"/></svg> Accept</button>';
+    const prov = bar.querySelector('.ab-prov');
+    const tone = state.draftEdited ? 'edited by you' : toneNotes[state.draftVersion-1];
+    prov.innerHTML = '<b>Drafted by Branch AI</b> <span class="ver">· v'+state.draftVersion+'</span> <span class="tone" id="draftTone">· '+tone+'</span>';
+  }
+
+  // ---- typing → edited provenance ----
+  const area = document.getElementById('composeArea');
+  area.addEventListener('input', ()=>{
+    if (state.mode === 'ai' && (state.draftState==='pending' || state.draftState==='edited') && area.value !== state.originalDraft){
+      state.draftEdited = true;
+      state.draftState = 'edited';
+      const prov = document.getElementById('draftBar').querySelector('.ab-prov');
+      prov.innerHTML = '<b>Drafted by Branch AI</b> <span class="ver">· v'+state.draftVersion+'</span> <span class="tone">· edited by you</span>';
+    } else if (state.mode === 'ai' && area.value === state.originalDraft && state.draftEdited){
+      state.draftEdited = false;
+      state.draftState = 'pending';
+      const prov = document.getElementById('draftBar').querySelector('.ab-prov');
+      prov.innerHTML = '<b>Drafted by Branch AI</b> <span class="ver">· v'+state.draftVersion+'</span> <span class="tone">· '+toneNotes[state.draftVersion-1]+'</span>';
+    }
+  });
+
+  // ---- send lock guardrail ----
+  function updateSendLock(){
+    const send = document.getElementById('sendBtn');
+    // locked only when in AI Draft mode with a not-yet-accepted draft present
+    const draftVisible = !document.getElementById('compose').classList.contains('no-draft');
+    const locked = state.mode === 'ai' && draftVisible && state.draftState !== 'accepted';
+    send.classList.toggle('locked', locked);
+    send.classList.remove('pulse');
+  }
+
+  function doSend(){
+    const send = document.getElementById('sendBtn');
+    if (send.classList.contains('locked')){
+      toast('Accept the AI draft first — or switch to a manual channel.');
+      return;
+    }
+    const labels = {ai:'Message sent', note:'Note posted', sms:'SMS sent', email:'Email sent', call:'Call logged'};
+    toast(labels[state.mode] || 'Sent');
+  }
+
+  // ---- load intent into compose (from brief / nudge) ----
+  function loadIntoCompose(mode, intent){
+    setMode(mode);
+    document.getElementById('compose').classList.remove('no-draft');
+    state.draftState = 'pending';
+    state.draftEdited = false;
+    const area = document.getElementById('composeArea');
+    area.value = variations[0];
+    state.originalDraft = variations[0];
+    state.draftVersion = 1;
+    resetDraftBarUI();
+    updateSendLock();
+    document.getElementById('sendLabel').textContent = 'Send';
+    area.focus();
+    area.scrollIntoView({behavior:'smooth', block:'nearest'});
+    toast('Loaded draft · ' + intent);
+  }
+
+  // ---- desktop 3-column: thread-list selection ----
+  // Swaps the active highlight and updates the contact panel + center header.
+  // The feed body itself is illustrative (one canned conversation); only the
+  // identity chrome changes, matching how a real list→detail view previews.
+  const threadData = {
+    marcus: {
+      name:'Marcus Chen', sub:'RevTech Solutions · VP Engineering',
+      status:'Hot · wants Friday', ava:'M',
+      tags:['Hot','VIP','Follow-up','Demo pending','LTV 84k','SMB'],
+      kv:{'Lead source':'Inbound · referral','First contact':'Jul 2, 2026','Touchpoints':'7','Last reply':'11:18 PM today','AI score':'0.91'}
+    },
+    priya: {
+      name:'Priya Mehta', sub:'RevTech Solutions · CFO / budget owner',
+      status:'Warm · budget approved', ava:'P',
+      tags:['Warm','VIP','Budget ready','SMB'],
+      kv:{'Lead source':'Referral · Marcus','First contact':'Jul 3, 2026','Touchpoints':'3','Last reply':'9:47 AM today','AI score':'0.74'}
+    },
+    daniel: {
+      name:'Daniel Osei', sub:'Northwind Labs · Director, Platform',
+      status:'Warm · needs pricing', ava:'D',
+      tags:['Warm','New Lead','Pricing follow-up'],
+      kv:{'Lead source':'Inbound · webinar','First contact':'Jun 28, 2026','Touchpoints':'5','Last reply':'Yesterday','AI score':'0.66'}
+    },
+    lena: {
+      name:'Lena Ortiz', sub:'Brightpath · Head of Ops',
+      status:'Cool · demo rescheduled', ava:'L',
+      tags:['New Lead','Demo Mon'],
+      kv:{'Lead source':'Inbound · referral','First contact':'Jul 1, 2026','Touchpoints':'4','Last reply':'2:01 PM today','AI score':'0.52'}
+    },
+    tom: {
+      name:'Tom Reilly', sub:'Coastline Co · Founder',
+      status:'Won · invoiced', ava:'T',
+      tags:['Won','VIP','Invoiced'],
+      kv:{'Lead source':'Inbound · website','First contact':'Jun 19, 2026','Touchpoints':'9','Last reply':'10:30 AM today','AI score':'0.95'}
+    },
+    sara: {
+      name:'Sara Nilsson', sub:'Volta Energy · Procurement',
+      status:'Cold · next quarter', ava:'S',
+      tags:['Cold','Q4'],
+      kv:{'Lead source':'Outbound','First contact':'May 30, 2026','Touchpoints':'2','Last reply':'Monday','AI score':'0.31'}
+    },
+    mike: {
+      name:'Mike Falzone', sub:'Harbor Digital · CTO',
+      status:'Cold · OOO', ava:'M',
+      tags:['Cold','OOO'],
+      kv:{'Lead source':'Inbound','First contact':'Jun 12, 2026','Touchpoints':'3','Last reply':'Sunday','AI score':'0.28'}
+    }
+  };
+
+  function selectThread(el){
+    document.querySelectorAll('.tl-item').forEach(i=>i.classList.remove('active'));
+    el.classList.add('active');
+    const id = el.dataset.thread;
+    const d = threadData[id];
+    if(!d) return;
+    document.getElementById('cpName').textContent = d.name;
+    document.getElementById('cpSub').textContent = d.sub;
+    document.getElementById('cpStatus').innerHTML =
+      '<span class="status-badge"><span class="pulse"></span>'+d.status+'</span>';
+    document.querySelector('.cp-ava').textContent = d.ava;
+    document.getElementById('cpTags').innerHTML =
+      d.tags.map(function(t){
+        var cls='chip'; var txt=t;
+        var pre='';
+        if(/^Hot/.test(t)){cls='chip hot'; pre='<svg class="ic" style="width:11px;height:11px;vertical-align:-2px"><use href="#ic-flame"/></svg> ';}
+        if(/^Won/.test(t)){cls='chip won'; pre='<svg class="ic" style="width:11px;height:11px;vertical-align:-2px"><use href="#ic-check"/></svg> ';}
+        if(/^Warm/.test(t)){cls='chip warm';}
+        if(/^VIP$/.test(t)){cls='chip vip';}
+        if(/^Follow-up$/.test(t)){cls='chip followup';}
+        if(/^New Lead$/.test(t)){cls='chip newlead';}
+        if(/^LTV|^\\d/.test(t)){cls='chip mono';}
+        return '<span class="'+cls+'">'+pre+txt+'</span>';
+      }).join('');
+    // center header identity
+    var headAva=document.querySelector('.thread-head .h-ava');
+    if(headAva) headAva.textContent=d.ava;
+    var headName=document.querySelector('.thread-head .h-name');
+    if(headName) headName.textContent=d.name;
+  }
+</script>
+</body>
+</html>
+`;
+
+
 export default {
   async fetch(request, env, ctx) {
     // Capture the request for origin-checked CORS headers (set before any
@@ -19959,6 +21337,18 @@ export default {
     }
     if (path === '/reset-password') {
       return Response.redirect('https://branchlive.com/reset-password', 302);
+    }
+
+    // ── Mockup previews ──
+    // Standalone HTML mockups, served verbatim (inline const above). Public,
+    // no auth — these are visual concepts for the Branch Live portal redesign.
+    if (path === '/mockups/column3-ai-first') {
+      return new Response(COLUMN3_AI_FIRST_MOCKUP_HTML, {
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=300',
+        },
+      });
     }
 
     // ── Email diagnostic (admin-only) ──
