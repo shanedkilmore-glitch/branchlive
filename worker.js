@@ -11214,8 +11214,21 @@ async function renderJobNotesWidget(env, uid, leadId, timeFmt) {
   </style>`;
 }
 
+async function renderColumn3Thread(env, uid, leadId, ctx) {
+  // Demo data (per Shane: promote as-is, wire real data later).
+  // Reuses the already-built column3 AI-first mockup markup.
+  return new Response(COLUMN3_AI_FIRST_MOCKUP_HTML, {
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  });
+}
+
 async function handleLeadDetailHtmx(request, env, uid, leadId, ctx) {
   try {
+    // Column 3 AI-first promotion — phase 1 guard (incremental; more phases follow)
+    const isFullPage = !request.headers.get('HX-Request');
+    if (isFullPage) {
+      return renderColumn3Thread(env, uid, leadId, ctx);
+    }
     const lead = await env.DB.prepare('SELECT * FROM leads WHERE id = ? AND user_id = ?').bind(leadId, uid).first();
     if (!lead) {
       const body = `<div class="app">${sidebarNav('leads', ctx)}<div class="content">
