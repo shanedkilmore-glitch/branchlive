@@ -7,6 +7,9 @@ __pycache__/
 *.db
 *.db-journal
 
+# Wrangler dry-run output (--outdir tmp/_wr_dry)
+tmp/
+
 # Hermes/agent scratch + temp scripts
 _agy_*
 _ins_*
