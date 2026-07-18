@@ -3107,7 +3107,8 @@ function blShell({ active, title, body, aiSlot }) {
   ];
   const railLinks = railItems.map(([key, href, label, glyph]) => {
     const cls = key === active ? 'active' : '';
-    return '<a href="' + href + '" title="' + htmxEsc(label) + '"' + (cls ? ' class="' + cls + '"' : '') + '>' + glyph + '</a>';
+    return '<a href="' + href + '" title="' + htmxEsc(label) + '"' + (cls ? ' class="' + cls + '"' : '') + '>'
+      + glyph + '<span class="rail-label">' + htmxEsc(label) + '</span></a>';
   }).join('');
   const aiPanel = aiSlot
     ? '<aside class="ai-panel"><div class="ai-brief-mini">' + aiSlot + '</div></aside>'
@@ -3129,7 +3130,7 @@ function blShell({ active, title, body, aiSlot }) {
     + '--ai-bg:rgba(183,155,224,.10);--ai-line:rgba(183,155,224,.30);'
     + '--green:#7fb98a;--yellow:#d9c47a;--red:#d98a7a;--blue:#8ab0d9;'
     + '--serif:\'Fraunces\',Georgia,serif;--sans:\'Inter\',system-ui,-apple-system,sans-serif;'
-    + '--rail-w:64px;'
+    + '--rail-w:208px;'
     // ── Legacy token aliases so simpleShell-era markup renders in this shell ──
     // Pages written for the amber-monotone system reference these names; map
     // them onto the new palette so a migrated page needs no markup rewrite.
@@ -3150,18 +3151,34 @@ function blShell({ active, title, body, aiSlot }) {
     + 'a{color:var(--amber-soft);text-decoration:none}a:hover{color:var(--amber-soft);text-decoration:underline}'
     // ── Shell grid: slim rail + main ──
     + '.bl-app{display:grid;grid-template-columns:var(--rail-w) 1fr;min-height:100vh;background:var(--bg)}'
-    // ── Rail (spans full height) ──
+    // ── Rail (spans full height) — expanded: glyph + label ──
     + '.bl-rail{grid-row:1;grid-column:1;background:var(--bg-2);border-right:1px solid var(--line);'
-    + 'display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 0;'
-    + 'position:sticky;top:0;height:100vh}'
-    + '.bl-rail .rail-brand{width:34px;height:34px;border-radius:10px;'
+    + 'display:flex;flex-direction:column;align-items:stretch;gap:4px;padding:16px 12px;'
+    + 'position:sticky;top:0;height:100vh;overflow:hidden}'
+    + '.bl-rail .rail-brand{width:34px;height:34px;border-radius:10px;flex-shrink:0;'
     + 'background:linear-gradient(135deg,var(--amber),var(--ai));display:flex;align-items:center;justify-content:center;'
-    + 'font-family:var(--serif);font-weight:700;color:#0f1117;font-size:18px;margin-bottom:10px}'
-    + '.bl-rail a{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;'
-    + 'color:var(--muted);text-decoration:none;font-size:18px;transition:background .15s,color .15s}'
+    + 'font-family:var(--serif);font-weight:700;color:#0f1117;font-size:18px}'
+    + '.bl-rail .rail-brand-row{display:flex;align-items:center;gap:10px;padding:2px 6px 12px;'
+    + 'border-bottom:1px solid var(--line);margin-bottom:8px}'
+    + '.bl-rail .rail-brand-txt{font-family:var(--serif);font-weight:600;font-size:15px;color:var(--text);'
+    + 'white-space:nowrap;letter-spacing:.2px}'
+    + '.bl-rail a{width:100%;min-width:0;height:42px;padding:0 12px;border-radius:11px;'
+    + 'display:flex;align-items:center;gap:11px;overflow:hidden;'
+    + 'color:var(--muted);text-decoration:none;font-size:17px;transition:background .15s,color .15s}'
+    + '.bl-rail a .rail-label{font-family:var(--sans);font-size:13.5px;font-weight:600;color:inherit;'
+    + 'white-space:nowrap;letter-spacing:.01em}'
     + '.bl-rail a:hover{background:var(--card);color:var(--text);text-decoration:none}'
-    + '.bl-rail a.active{background:var(--ai-bg);color:var(--ai)}'
+    + '.bl-rail a.active{background:var(--ai-bg);color:var(--ai);border-left:3px solid var(--amber);padding-left:9px}'
     + '.bl-rail .rail-spacer{flex:1}'
+    // Mobile: collapse rail back to icon-only so narrow screens keep full width.
+    + '@media(max-width:820px){'
+    + ':root{--rail-w:64px!important}'
+    + '.bl-rail{padding:14px 0;align-items:center}'
+    + '.bl-rail .rail-brand-row{border-bottom:none;padding:0;margin:0 0 10px;justify-content:center}'
+    + '.bl-rail .rail-brand-txt{display:none}'
+    + '.bl-rail a{width:44px;height:44px;padding:0;justify-content:center;border-left:none!important}'
+    + '.bl-rail a .rail-label{display:none}'
+    + '}'
     // ── Main column: topbar + scroll area ──
     + '.bl-main-wrap{grid-row:1;grid-column:2;display:flex;flex-direction:column;min-width:0;min-height:100vh}'
     + '.bl-topbar{display:flex;align-items:center;gap:16px;padding:11px 22px;border-bottom:1px solid var(--line);'
@@ -3213,18 +3230,17 @@ function blShell({ active, title, body, aiSlot }) {
     + '.badge{display:inline-block;padding:3px 10px;border-radius:9999px;font-size:.72em;font-weight:600;'
     + 'font-family:var(--font-mono);letter-spacing:.02em}'
     + '.badge-new,.badge-booked{background:var(--ai-bg);color:var(--ai-soft);border:1px solid var(--ai-line)}'
-    // ── Mobile: hide the rail, let main go full-width ──
+    // ── Mobile: collapse the rail to icon-only, keep it visible ──
+    // (The detailed collapse rules live with the rail CSS above; this block
+    // adjusts the shell grid + main padding for narrow viewports.)
     + '@media(max-width:820px){'
-    + '.bl-app{grid-template-columns:1fr}'
-    + '.bl-rail{display:none}'
-    + '.bl-main-wrap{grid-column:1}'
     + '.bl-main{padding:24px 18px 48px}'
     + '.tb-title{display:none}'
     + '}'
     + '</style></head><body>'
     + '<div class="bl-app">'
     + '<nav class="bl-rail" aria-label="Primary">'
-    + '<div class="rail-brand">B</div>'
+    + '<div class="rail-brand-row"><div class="rail-brand">B</div><span class="rail-brand-txt">Branch Live</span></div>'
     + railLinks
     + '<span class="rail-spacer"></span>'
     + '<a href="/logout-htmx" title="Sign out">\u2699</a>' // ⚙
@@ -11066,62 +11082,85 @@ async function handleLeadsHtmx(request, env, uid, ctx) {
       'SELECT id, caller_name, caller_phone, caller_email, job_details, urgency, status, created_at FROM leads WHERE user_id = ? ORDER BY created_at DESC LIMIT 200'
     ).bind(uid).all();
     const leads = results || [];
-    const counts = {
-      total: leads.length,
-      new: leads.filter(l => (l.status || 'new') === 'new').length,
-      urgent: leads.filter(l => String(l.urgency).toLowerCase() === 'urgent' || String(l.urgency).toLowerCase() === 'high').length,
-      booked: leads.filter(l => (l.status || '') === 'booked').length,
-    };
-    // Stat card: reuses blShell's .card/.stat-card/.stat-num/.stat-lab primitives.
-    // Number colored via an explicit token var (--amber for the headline count,
-    // --ai for the breakdowns) — no legacy tone classes.
-    const stat = (label, value, colorVar) => `<div class="card stat-card"><div class="stat-num" style="color:var(--${colorVar})">${value}</div><div class="stat-lab">${label}</div></div>`;
+    const activeCount = leads.filter(l => ['new', 'contacted', 'scheduled'].includes(String(l.status || 'new').toLowerCase())).length;
     const initials = n => { const p = String(n || '?').trim().split(/\s+/); return ((p[0] || '?')[0] + (p[1] || '')[0]).toUpperCase(); };
-    const rows = leads.map(l => `<a class="lead-row" href="/p/leads/${l.id}" data-status="${htmxEsc(String(l.status || 'new').toLowerCase())}" data-name="${htmxEsc((l.caller_name || '').toLowerCase())}">
-  <div class="ll-ava">${htmxEsc(initials(l.caller_name))}</div>
-  <div class="ll-main">
-    <div class="name">${htmxEsc(l.caller_name || 'Unknown caller')}</div>
-    <div class="ll-job">${htmxEsc((l.job_details || 'No job details').slice(0, 80))}${(l.job_details || '').length > 80 ? '…' : ''}</div>
+
+    // ?id= selects which lead's thread renders server-side on first paint.
+    // Defaults to the most recent lead. Clicking a row (when JS is on) swaps
+    // via the /api/leads/:id/thread-htmx fragment; the ?id= link is the
+    // no-JS / deep-link fallback.
+    const url = new URL(request.url);
+    const idParam = parseInt(url.searchParams.get('id'), 10);
+    const selectedLead = (idParam && leads.find(l => l.id === idParam)) || leads[0] || null;
+
+    // Build the middle+right columns for the initially-selected lead (or an
+    // empty state when there are no leads at all). renderLeadInboxColumns is
+    // shared with the fragment endpoint so initial render and swap match.
+    let initialThread = '';
+    let initialContact = '';
+    if (selectedLead) {
+      const full = await env.DB.prepare('SELECT * FROM leads WHERE id = ? AND user_id = ?').bind(selectedLead.id, uid).first();
+      if (full) {
+        const cols = await renderLeadInboxColumns(env, uid, full, ctx);
+        initialThread = cols.thread;
+        initialContact = cols.contact;
+      }
+    }
+    if (!initialThread) {
+      initialThread = '<div class="th-scroll" id="threadScroll"><div class="ev-empty"><div class="ev-empty-ic">📞</div><div class="ev-empty-t">No leads yet</div><div class="ev-empty-m">When Emma captures a caller, they land here automatically.</div></div></div>';
+      initialContact = '<div class="cp-head"><div class="cp-name" style="padding:24px 0">Select a lead</div></div>';
+    }
+
+    const rows = leads.map(l => {
+      const isActive = selectedLead && l.id === selectedLead.id;
+      const u = String(l.urgency || '').toLowerCase();
+      const st = String(l.status || 'new').toLowerCase();
+      // Derived hot/warm/cold (real urgency + status, no fabricated scores).
+      let tempChip = '';
+      if (u === 'urgent' || u === 'high') tempChip = (st === 'new' || st === 'contacted') ? '<span class="tl-tag hot">🔥</span>' : '<span class="tl-tag warm">○</span>';
+      else if (u === 'medium' || st === 'scheduled') tempChip = '<span class="tl-tag warm">○</span>';
+      else tempChip = '<span class="tl-tag cold">·</span>';
+      return `<a class="tl-item${isActive ? ' active' : ''}" href="/p/leads?id=${l.id}" data-lead="${l.id}" data-status="${htmxEsc(st)}" data-name="${htmxEsc((l.caller_name || '').toLowerCase())}">
+  <div class="tl-ava">${htmxEsc(initials(l.caller_name))}</div>
+  <div class="tl-main">
+    <div class="tl-row"><span class="tl-name">${htmxEsc(l.caller_name || 'Unknown caller')}</span></div>
+    <div class="tl-preview">${htmxEsc((l.job_details || 'No job details').slice(0, 46))}${(l.job_details || '').length > 46 ? '…' : ''}</div>
   </div>
-  <div class="ll-tags">
-    ${urgencyBadge(l.urgency)}
-    ${statusPill(l.status)}
-    <span class="ll-chev">›</span>
-  </div>
-</a>`).join('');
-    const body = `<span class="eyebrow">Leads</span>
-<h1>Your <em>leads</em></h1>
-<p class="sub">Every caller Emma captures — name, job, urgency, and status.</p>
-<div class="ll-stats">
-  ${stat('Total leads', counts.total, 'amber')}
-  ${stat('New', counts.new, 'ai')}
-  ${stat('High / urgent', counts.urgent, 'ai')}
-  ${stat('Booked', counts.booked, 'ai')}
+  <div class="tl-tags">${tempChip}${statusPill(l.status)}</div>
+</a>`;
+    }).join('');
+
+    const body = `<div class="inbox">
+  <aside class="in-col in-list">
+    <div class="in-head">
+      <div class="in-title">Leads <span class="in-count">${activeCount} active</span></div>
+      <div class="in-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="lead-search" placeholder="Search leads…" oninput="filterLeads(this.value)">
+      </div>
+      <select id="lead-filter" onchange="filterLeads(document.getElementById('lead-search').value)">
+        <option value="all">All statuses</option>
+        <option value="new">New</option>
+        <option value="contacted">Contacted</option>
+        <option value="scheduled">Scheduled</option>
+        <option value="booked">Booked</option>
+        <option value="closed">Closed</option>
+        <option value="lost">Lost</option>
+      </select>
+    </div>
+    <div class="in-list-scroll" id="lead-list">${rows || '<div class="ll-empty"><div class="ll-empty-ic">📞</div><div class="ll-empty-t">No leads yet</div><div class="ll-empty-m">When Emma captures a caller, they land here automatically.</div></div>'}</div>
+    <p id="lead-empty-hint" style="display:none;text-align:center;color:var(--muted-2);padding:24px 12px;font-size:.85rem">No leads match your search.</p>
+  </aside>
+  <section class="in-col in-thread" id="threadCol">${initialThread}</section>
+  <aside class="in-col in-detail" id="detailCol">${initialContact}</aside>
 </div>
-<div class="ll-toolbar">
-  <div class="ll-search">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input id="lead-search" placeholder="Search by name, phone, or job…" oninput="filterLeads(this.value)">
-  </div>
-  <select id="lead-filter" onchange="filterLeads(document.getElementById('lead-search').value)">
-    <option value="all">All statuses</option>
-    <option value="new">New</option>
-    <option value="contacted">Contacted</option>
-    <option value="scheduled">Scheduled</option>
-    <option value="booked">Booked</option>
-    <option value="closed">Closed</option>
-    <option value="lost">Lost</option>
-  </select>
-</div>
-<div id="lead-list">${rows || '<div class="ll-empty"><div class="ll-empty-ic">📞</div><div class="ll-empty-t">No leads yet</div><div class="ll-empty-m">When Emma captures a caller, their details land here automatically.</div></div>'}</div>
-<p id="lead-empty-hint" style="display:none;text-align:center;color:var(--muted-2);padding:32px">No leads match your search.</p>
 <script>
 function filterLeads(q){
   q=(q||'').toLowerCase();
   var f=document.getElementById('lead-filter').value;
   var any=false;
-  document.querySelectorAll('#lead-list .lead-row').forEach(function(r){
-    var name=r.getAttribute('data-name')||r.querySelector('.name').textContent.toLowerCase();
+  document.querySelectorAll('#lead-list .tl-item').forEach(function(r){
+    var name=r.getAttribute('data-name')||r.querySelector('.tl-name').textContent.toLowerCase();
     var st=r.getAttribute('data-status')||'';
     var matchQ=!q||r.textContent.toLowerCase().indexOf(q)!==-1;
     var matchS=f==='all'||st===f;
@@ -11143,55 +11182,166 @@ function filterLeads(q){
     }
   } catch(e){}
 })();
+// Client-side thread swap: clicking a lead fetches its middle+right columns
+// from the fragment endpoint and swaps both in one round-trip. The href=?id=
+// remains the no-JS fallback (full reload). Deep-links via history.replaceState.
+function selectLead(el){
+  var id=el.getAttribute('data-lead');
+  if(!id) return;
+  document.querySelectorAll('#lead-list .tl-item').forEach(function(r){r.classList.remove('active');});
+  el.classList.add('active');
+  var tc=document.getElementById('threadCol');
+  var dc=document.getElementById('detailCol');
+  tc.style.opacity='0.4'; dc.style.opacity='0.4';
+  fetch('/api/leads/'+id+'/thread-htmx',{credentials:'same-origin'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d&&d.ok){ tc.innerHTML=d.thread; dc.innerHTML=d.contact; }
+      tc.style.opacity='1'; dc.style.opacity='1';
+      history.replaceState(null,'','/p/leads?id='+id);
+      var s=document.getElementById('threadScroll'); if(s) s.scrollTop=0;
+    })
+    .catch(function(){ tc.style.opacity='1'; dc.style.opacity='1'; });
+}
+document.querySelectorAll('#lead-list .tl-item').forEach(function(r){
+  r.addEventListener('click',function(e){
+    e.preventDefault();
+    selectLead(r);
+  });
+});
+function inboxToast(msg){
+  var t=document.createElement('div');
+  t.textContent=msg;
+  t.setAttribute('style','position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--card-2);border:1px solid var(--ai-line);color:var(--ai-soft);padding:10px 18px;border-radius:10px;font-size:13px;font-family:var(--sans);z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.4)');
+  document.body.appendChild(t);
+  setTimeout(function(){t.remove();},2200);
+}
 </script>
 <style>
-.ll-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:24px}
-.ll-stats .stat-card{padding:20px 18px}
-.ll-stats .stat-num{font-size:2rem}
-.ll-toolbar{display:flex;gap:12px;align-items:center;margin:24px 0 18px;flex-wrap:wrap}
-.ll-search{position:relative;flex:1;min-width:220px;display:flex;align-items:center}
-.ll-search svg{position:absolute;left:13px;width:16px;height:16px;color:var(--muted-2);pointer-events:none}
-.ll-search input{width:100%;background:var(--card);border:1px solid var(--line);border-radius:11px;
-  padding:11px 13px 11px 38px;color:var(--text);font-family:var(--sans);font-size:.88rem;outline:none;transition:border-color .15s,box-shadow .15s}
-.ll-search input::placeholder{color:var(--muted-2)}
-.ll-search input:focus{border-color:var(--ai-line);box-shadow:0 0 0 3px var(--ai-bg)}
-.ll-toolbar select{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 13px;
-  color:var(--text);font-family:var(--sans);font-size:.88rem;outline:none;cursor:pointer;transition:border-color .15s,box-shadow .15s}
-.ll-toolbar select:focus{border-color:var(--ai-line);box-shadow:0 0 0 3px var(--ai-bg)}
-.lead-row{display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--card);
-  border:1px solid var(--line);border-radius:13px;text-decoration:none;color:var(--text);
-  transition:background .15s,border-color .15s,transform .15s;margin-bottom:10px}
-.lead-row:hover{background:var(--card-2);border-color:var(--line-2);text-decoration:none;transform:translateY(-1px)}
-.ll-ava{width:40px;height:40px;border-radius:11px;flex-shrink:0;display:grid;place-items:center;
-  background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;
-  font-family:var(--serif);font-weight:600;font-size:15px}
-.ll-main{flex:1;min-width:0}
-.ll-main .name{font-family:var(--serif);font-weight:600;font-size:1rem;color:var(--text);line-height:1.2}
-.ll-job{font-size:.84rem;color:var(--muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ll-tags{display:flex;align-items:center;gap:7px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
-.ll-chev{color:var(--muted-2);font-size:1.1rem;flex-shrink:0}
-.ll-empty{text-align:center;padding:48px 20px}
-.ll-empty-ic{font-size:2rem;margin-bottom:10px}
-.ll-empty-t{font-family:var(--serif);font-size:1.1rem;color:var(--text);margin-bottom:6px}
-.ll-empty-m{font-size:.86rem;color:var(--muted-2)}
-/* Urgency + status chips: same color formulas as the /p/leads/:id detail-page
-   chips so the list and the record speak the same visual language. */
-.urg-badge,.status-pill{display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);
-  font-size:.62rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
-  padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--muted);white-space:nowrap}
-.urg-badge .urg-dot{font-size:.5rem;line-height:1}
-.urg-badge.urg-urgent,.urg-badge.urg-high{background:rgba(217,138,122,.14);color:var(--red);border-color:rgba(217,138,122,.28)}
-.urg-badge.urg-med{background:rgba(217,196,122,.14);color:var(--yellow);border-color:rgba(217,196,122,.28)}
-.urg-badge.urg-low{background:var(--bg);color:var(--muted-2);border-color:var(--line)}
+/* Neutralize blShell's default .bl-main padding for the full-height grid. */
+.bl-main{padding:0!important;overflow:hidden}
+.inbox{display:grid;grid-template-columns:300px minmax(0,1fr) 320px;height:calc(100vh - 48px);min-height:0}
+.in-col{min-width:0;display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--line)}
+.in-col:last-child{border-right:none}
+/* ── Left: lead list ── */
+.in-head{padding:14px 14px 10px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:9px}
+.in-title{font-family:var(--serif);font-size:1.15rem;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px}
+.in-count{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ai-soft);background:var(--ai-bg);border:1px solid var(--ai-line);padding:2px 7px;border-radius:6px;font-weight:600}
+.in-search{position:relative;display:flex;align-items:center}
+.in-search svg{position:absolute;left:11px;width:14px;height:14px;color:var(--muted-2);pointer-events:none}
+.in-search input{width:100%;background:var(--bg-2);border:1px solid var(--line);border-radius:9px;padding:8px 10px 8px 32px;color:var(--text);font-family:var(--sans);font-size:.82rem;outline:none}
+.in-search input:focus{border-color:var(--ai-line);box-shadow:0 0 0 2px var(--ai-bg)}
+.in-head select{background:var(--bg-2);border:1px solid var(--line);border-radius:9px;padding:7px 9px;color:var(--text);font-family:var(--sans);font-size:.8rem;outline:none;cursor:pointer}
+.in-list-scroll{overflow-y:auto;flex:1;padding:6px;scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+.in-list-scroll::-webkit-scrollbar{width:7px}
+.in-list-scroll::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:4px}
+.tl-item{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;text-decoration:none;color:var(--text);transition:background .12s;margin-bottom:3px;border-left:3px solid transparent}
+.tl-item:hover{background:var(--card);text-decoration:none}
+.tl-item.active{background:var(--card-2);border-left:3px solid var(--amber)}
+.tl-ava{width:32px;height:32px;border-radius:9px;flex-shrink:0;display:grid;place-items:center;background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;font-family:var(--serif);font-weight:600;font-size:13px}
+.tl-main{flex:1;min-width:0}
+.tl-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.tl-name{font-family:var(--sans);font-weight:600;font-size:.86rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-preview{font-size:.76rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.tl-tags{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.tl-tag{font-size:.7rem;font-weight:700;padding:1px 5px;border-radius:5px;border:1px solid var(--line);background:var(--bg)}
+.tl-tag.hot{background:rgba(217,138,122,.16);color:var(--red);border-color:rgba(217,138,122,.30)}
+.tl-tag.warm{background:rgba(217,196,122,.16);color:var(--yellow);border-color:rgba(217,196,122,.30)}
+.tl-tag.cold{background:var(--bg);color:var(--muted-2);border-color:var(--line)}
+.status-pill{display:inline-flex;font-family:var(--font-mono);font-size:.56rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:5px;border:1px solid var(--line);background:var(--bg);color:var(--muted);white-space:nowrap}
 .status-pill.pill-new{background:rgba(138,176,217,.14);color:var(--blue);border-color:rgba(138,176,217,.30)}
 .status-pill.pill-contacted{background:rgba(212,165,116,.14);color:var(--amber-soft);border-color:rgba(212,165,116,.30)}
 .status-pill.pill-scheduled{background:var(--ai-bg);color:var(--ai-soft);border-color:var(--ai-line)}
 .status-pill.pill-booked{background:rgba(127,185,138,.18);color:var(--green);border-color:rgba(127,185,138,.34)}
 .status-pill.pill-closed{background:rgba(127,185,138,.14);color:var(--green);border-color:rgba(127,185,138,.30)}
 .status-pill.pill-lost{background:var(--bg);color:var(--muted-2);border-color:var(--line)}
+.ll-empty{text-align:center;padding:36px 16px}
+.ll-empty-ic{font-size:1.6rem;margin-bottom:8px}
+.ll-empty-t{font-family:var(--serif);font-size:1rem;color:var(--text);margin-bottom:4px}
+.ll-empty-m{font-size:.8rem;color:var(--muted-2)}
+/* ── Middle: thread ── */
+.in-thread{transition:opacity .12s}
+.th-head{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.th-ava{width:38px;height:38px;border-radius:10px;flex-shrink:0;display:grid;place-items:center;background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;font-family:var(--serif);font-weight:600;font-size:15px}
+.th-main{flex:1;min-width:0}
+.th-name{font-family:var(--serif);font-weight:600;font-size:1.05rem;color:var(--text)}
+.th-meta{font-size:.78rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.th-actions{display:flex;gap:6px;flex-shrink:0}
+.th-btn{display:inline-flex;align-items:center;gap:5px;font-size:.74rem;font-weight:600;padding:6px 10px;border-radius:8px;background:var(--card);border:1px solid var(--line);color:var(--muted);text-decoration:none;transition:.12s}
+.th-btn:hover{background:var(--card-2);color:var(--text);border-color:var(--line-2);text-decoration:none}
+.th-btn.primary{background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1205;border-color:transparent}
+.th-scroll{flex:1;overflow-y:auto;padding:16px 18px;scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+.th-scroll::-webkit-scrollbar{width:7px}
+.th-scroll::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:4px}
+.ev{display:flex;gap:10px;margin-bottom:14px}
+.ev-ic{width:26px;height:26px;border-radius:7px;flex-shrink:0;display:grid;place-items:center;font-size:12px;background:var(--card);border:1px solid var(--line)}
+.ev-body{flex:1;min-width:0}
+.ev-line{font-size:.86rem;color:var(--text)}
+.ev-line b{font-weight:600}
+.ev-time{font-size:.72rem;color:var(--muted-2);margin-top:3px;font-family:var(--font-mono)}
+.ev-text{font-size:.85rem;color:var(--muted);margin-top:6px;line-height:1.5}
+.ev-summary{list-style:none;padding:0;margin:8px 0 0;display:flex;flex-direction:column;gap:5px}
+.ev-summary .ev-bullet{font-size:.82rem;color:var(--text);line-height:1.45;padding-left:14px;position:relative}
+.ev-summary .ev-bullet::before{content:"·";position:absolute;left:4px;color:var(--amber)}
+.dur-pill{font-family:var(--font-mono);font-size:.66rem;color:var(--muted);background:var(--bg-2);border:1px solid var(--line);padding:2px 6px;border-radius:5px;margin-right:6px}
+.ev-card-wrap{margin-top:8px}
+.ev-empty{text-align:center;padding:48px 20px}
+.ev-empty-ic{font-size:1.8rem;margin-bottom:10px}
+.ev-empty-t{font-family:var(--serif);font-size:1.05rem;color:var(--text);margin-bottom:6px}
+.ev-empty-m{font-size:.82rem;color:var(--muted-2);max-width:320px;margin:0 auto;line-height:1.5}
+/* ── Compose ── */
+.compose{border-top:1px solid var(--line);padding:10px 14px;background:var(--bg-2)}
+.cmp-tools{display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap}
+.cmp-mode{font-size:.72rem;font-weight:600;padding:5px 10px;border-radius:7px;background:var(--card);border:1px solid var(--line);color:var(--muted);cursor:pointer;font-family:var(--sans);transition:.12s}
+.cmp-mode:hover{background:var(--card-2);color:var(--text);border-color:var(--line-2)}
+.cmp-input{display:flex;gap:8px;align-items:flex-end}
+.cmp-area{flex:1;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:9px 11px;color:var(--text);font-family:var(--sans);font-size:.84rem;resize:none;outline:none}
+.cmp-area:focus{border-color:var(--ai-line);box-shadow:0 0 0 2px var(--ai-bg)}
+.cmp-send{font-size:.78rem;font-weight:600;padding:9px 16px;border-radius:9px;background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1205;border:none;cursor:pointer;font-family:var(--sans)}
+.cmp-send:hover{filter:brightness(1.06)}
+/* ── Right: contact ── */
+.in-detail{transition:opacity .12s}
+.cp-head{display:flex;align-items:center;gap:11px;padding:16px;border-bottom:1px solid var(--line)}
+.cp-ava{width:42px;height:42px;border-radius:11px;flex-shrink:0;display:grid;place-items:center;background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;font-family:var(--serif);font-weight:600;font-size:16px}
+.cp-namewrap{flex:1;min-width:0}
+.cp-name{font-family:var(--serif);font-weight:600;font-size:1rem;color:var(--text)}
+.cp-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.cp-tag{font-size:.64rem;font-weight:600;padding:2px 7px;border-radius:5px;border:1px solid var(--line);background:var(--bg)}
+.cp-tag.hot{background:rgba(217,138,122,.16);color:var(--red);border-color:rgba(217,138,122,.30)}
+.cp-tag.warm{background:rgba(217,196,122,.16);color:var(--yellow);border-color:rgba(217,196,122,.30)}
+.cp-tag.cold{background:var(--bg);color:var(--muted-2);border-color:var(--line)}
+.cp-tag.mono{font-family:var(--font-mono);color:var(--muted)}
+.cp-status-form{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.cp-lab{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-2);font-weight:600}
+.cp-status-row select{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 9px;color:var(--text);font-family:var(--sans);font-size:.8rem;outline:none;cursor:pointer}
+.cp-sec{padding:14px 16px;border-bottom:1px solid var(--line)}
+.cp-sec-h{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-2);font-weight:600;margin-bottom:10px}
+.cp-row{display:flex;align-items:center;gap:9px;font-size:.83rem;color:var(--text);margin-bottom:8px}
+.cp-row:last-child{margin-bottom:0}
+.cp-ic{width:18px;text-align:center;color:var(--muted);flex-shrink:0}
+.cp-row a{color:var(--amber-soft);text-decoration:none;word-break:break-all}
+.cp-row a:hover{text-decoration:underline}
+.cp-empty{font-size:.8rem;color:var(--muted-2)}
+.cp-kv{display:flex;justify-content:space-between;align-items:center;font-size:.78rem;margin-bottom:7px}
+.cp-kv:last-child{margin-bottom:0}
+.cp-kv .k{color:var(--muted)}
+.cp-kv .v{color:var(--text);font-weight:500}
+.cp-chips{display:flex;flex-direction:column;gap:6px}
+.cp-chip{font-size:.74rem;padding:6px 9px;border-radius:7px;background:var(--card);border:1px solid var(--line);color:var(--text);text-decoration:none}
+.cp-chip:hover{background:var(--card-2);text-decoration:none}
+.cp-widget{padding:14px 16px}
+.cp-widget .card{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:14px;margin:0}
+.cp-widget .card:hover{transform:none}
+.cp-widget h3{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-2);font-weight:600;margin:0 0 10px}
+.cp-widget .jn-list,.cp-widget ul{margin-top:6px}
+@media(max-width:1024px){
+  .inbox{grid-template-columns:260px 1fr;height:auto;min-height:calc(100vh - 48px)}
+  .in-detail{display:none}
+}
 @media(max-width:768px){
-  .ll-stats{grid-template-columns:repeat(2,1fr)}
-  .ll-tags .urg-badge{display:none}
+  .inbox{grid-template-columns:1fr;height:auto}
+  .in-thread,.in-detail{display:none}
+  .in-thread.mobile-open,.in-detail.mobile-open{display:flex}
 }
 </style>`;
     return new Response(blShell({ active: 'leads', title: 'Leads', body: body, aiSlot: null }), { headers: { 'Content-Type': 'text/html' } });
@@ -11442,6 +11592,176 @@ async function renderColumn3Thread(env, uid, leadId, ctx) {
   return new Response(COLUMN3_AI_FIRST_MOCKUP_HTML, {
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// LEAD INBOX — middle (thread) + right (contact) column renderer.
+// Shared by /p/leads (initial render of the first/selected lead) and the
+// /api/leads/:id/thread-htmx fragment endpoint (client-side swap when a
+// row is clicked). Returns { thread, contact } HTML strings. All data is
+// REAL — no fabricated scores, auto-reply bubbles, or after-hours chrome.
+// ═══════════════════════════════════════════════════════════════════════
+async function renderLeadInboxColumns(env, uid, lead, ctx) {
+  const leadId = lead.id;
+  const timeFmt = await getTimeFormat(env, uid);
+  const initials = n => { const p = String(n || '?').trim().split(/\s+/); return ((p[0] || '?')[0] + (p[1] || '')[0]).toUpperCase(); };
+
+  // ── Real per-lead data (same queries the detail page uses) ──
+  const calls = (await env.DB.prepare(
+    'SELECT id, caller_phone, duration_sec, summary, transcript, created_at FROM call_logs WHERE user_id = ? AND (lead_id = ? OR caller_phone = ?) ORDER BY created_at DESC LIMIT 20'
+  ).bind(uid, leadId, lead.caller_phone || '').all()).results || [];
+  const [leadEstimates, leadInvoices, activityLog] = await Promise.all([
+    env.DB.prepare('SELECT id, title, total, status, created_at FROM estimates WHERE user_id = ? AND lead_id = ? ORDER BY created_at DESC').bind(uid, leadId).all(),
+    env.DB.prepare('SELECT id, invoice_number, total, status, created_at FROM invoices WHERE user_id = ? AND lead_id = ? ORDER BY created_at DESC').bind(uid, leadId).all(),
+    env.DB.prepare('SELECT entity_type, entity_id, action, detail, created_at FROM activity_log WHERE user_id = ? AND lead_id = ? ORDER BY created_at ASC').bind(uid, leadId).all(),
+  ]);
+  const smsWidget = await renderLeadAppointmentFollowupWidget(env, uid, lead.caller_phone);
+  const jobNotesWidget = await renderJobNotesWidget(env, uid, leadId, timeFmt);
+
+  // ── Derived priority tag (hot/warm/cold) from real urgency + status ──
+  const u = String(lead.urgency || '').toLowerCase();
+  const st = String(lead.status || 'new').toLowerCase();
+  let tempTag = '';
+  if (u === 'urgent' || u === 'high') {
+    if (st === 'new' || st === 'contacted') tempTag = '<span class="cp-tag hot">🔥 Hot</span>';
+    else tempTag = '<span class="cp-tag warm">○ Warm</span>';
+  } else if (u === 'medium' || st === 'scheduled') {
+    tempTag = '<span class="cp-tag warm">○ Warm</span>';
+  } else {
+    tempTag = '<span class="cp-tag cold">· Cold</span>';
+  }
+  // "Demo pending" — derived from job_details matching demo (no fake source).
+  const demoTag = /demo|consultation|estimate|quote/i.test(lead.job_details || '')
+    ? '<span class="cp-tag mono">Demo pending</span>' : '';
+
+  // ── Activity timeline events (the cross-entity rollup) ──
+  const entityIcon = { lead: '📞', estimate: '📑', invoice: '🧾' };
+  const fmtWhen = d => {
+    if (!d) return '';
+    const date = new Date(d.endsWith('Z') ? d : d.replace(' ', 'T') + 'Z');
+    if (isNaN(date.getTime())) return '';
+    const day = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return day + ' · ' + formatHour(date, timeFmt, '');
+  };
+  const activityRows = (activityLog.results || []).map(a => {
+    const icon = entityIcon[a.entity_type] || '·';
+    const when = fmtWhen(a.created_at);
+    const detail = a.detail ? ' — ' + htmxEsc(a.detail) : '';
+    return `<div class="ev act"><div class="ev-ic">${icon}</div>
+      <div class="ev-body"><div class="ev-line"><b>${htmxEsc(a.action || a.entity_type)}</b>${detail}</div>${when ? `<div class="ev-time">${when}</div>` : ''}</div></div>`;
+  }).join('');
+
+  // ── Call summaries (folded, real) ──
+  const callEvents = calls.map(c => {
+    const when = fmtWhen(c.created_at);
+    const dur = c.duration_sec ? `<span class="dur-pill">${Math.floor(c.duration_sec/60)}m ${c.duration_sec%60}s</span>` : '';
+    const summaryHtml = renderTranscriptSummaryHtml(c.transcript, c.summary, false);
+    if (c.summary || summaryHtml) {
+      const summaryBlock = summaryHtml
+        ? `<ul class="ev-summary">${summaryHtml.replace(/<li/g, '<li class="ev-bullet"').replace(/&bull;/g, '').replace(/position:relative;padding-left:18px[^"]*"/g, '').replace(/color:var\(--text-primary\)/g, 'color:var(--text)')}</ul>`
+        : `<div class="ev-text">${htmxEsc(c.summary)}</div>`;
+      return `<div class="ev call"><div class="ev-ic">📞</div>
+        <div class="ev-body"><div class="ev-line">${dur} <b>Incoming call</b></div>
+        ${when ? `<div class="ev-time">${when}</div>` : ''}${summaryBlock}</div></div>`;
+    }
+    return '';
+  }).filter(Boolean).join('');
+
+  const threadBody = activityRows || callEvents || jobNotesWidget
+    ? activityRows + callEvents + (jobNotesWidget ? `<div class="ev-card-wrap">${jobNotesWidget}</div>` : '')
+    : '<div class="ev-empty"><div class="ev-empty-ic">💬</div><div class="ev-empty-t">No activity yet</div><div class="ev-empty-m">When Emma takes a call or you log a note, the conversation timeline appears here.</div></div>';
+
+  // ── Thread column (middle) ──
+  const thread = `
+<div class="th-head">
+  <div class="th-ava">${htmxEsc(initials(lead.caller_name))}</div>
+  <div class="th-main">
+    <div class="th-name">${htmxEsc(lead.caller_name || 'Unknown caller')}</div>
+    <div class="th-meta">${htmxEsc((lead.job_details || 'No job details').slice(0, 60))}${(lead.job_details||'').length > 60 ? '…' : ''} · ${htmxEsc(u || '—')} priority</div>
+  </div>
+  <div class="th-actions">
+    ${lead.caller_phone ? `<a class="th-btn" href="tel:${htmxEsc(lead.caller_phone)}" title="Call">📞 Call</a>` : ''}
+    ${lead.caller_email ? `<a class="th-btn" href="mailto:${htmxEsc(lead.caller_email)}" title="Email">✉ Email</a>` : ''}
+    <a class="th-btn primary" href="/p/calendar" title="Schedule">🗓 Schedule</a>
+  </div>
+</div>
+<div class="th-scroll" id="threadScroll">${threadBody}</div>
+<footer class="compose" id="compose">
+  <div class="cmp-tools">
+    <button class="cmp-mode" data-mode="ai" onclick="inboxToast('AI Draft — coming in the next phase')">✦ AI Draft</button>
+    <button class="cmp-mode" data-mode="note" onclick="inboxToast('Notes — coming in the next phase')">📝 Note</button>
+    <button class="cmp-mode" data-mode="sms" onclick="inboxToast('SMS sending — coming in the next phase')">💬 SMS</button>
+    <button class="cmp-mode" data-mode="email" onclick="inboxToast('Email sending — coming in the next phase')">✉ Email</button>
+    <button class="cmp-mode" data-mode="call" onclick="inboxToast('Click-to-call — coming in the next phase')">📞 Call</button>
+  </div>
+  <div class="cmp-input">
+    <textarea class="cmp-area" placeholder="Write a follow-up…  (sending lands in the next phase)" rows="2"></textarea>
+    <button class="cmp-send" onclick="inboxToast('Follow-up sending lands in the next phase')">Send →</button>
+  </div>
+</footer>`;
+
+  // ── Contact column (right) ──
+  const contactRows = [
+    lead.caller_email ? `<div class="cp-row"><span class="cp-ic">✉</span><a href="mailto:${htmxEsc(lead.caller_email)}">${htmxEsc(lead.caller_email)}</a></div>` : '',
+    lead.caller_phone ? `<div class="cp-row"><span class="cp-ic">📞</span><a href="tel:${htmxEsc(lead.caller_phone)}">${htmxEsc(lead.caller_phone)}</a></div>` : '',
+    lead.job_details ? `<div class="cp-row"><span class="cp-ic">🔧</span><span>${htmxEsc(lead.job_details)}</span></div>` : '',
+  ].filter(Boolean).join('');
+
+  const statusOptions = ['new', 'contacted', 'scheduled', 'booked', 'closed', 'lost']
+    .map(s => `<option value="${s}"${s === st ? ' selected' : ''}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>`).join('');
+
+  const estimateChips = (leadEstimates.results || []).map(e =>
+    `<a class="cp-chip" href="/p/estimates">📑 ${htmxEsc(e.title || 'Estimate')} · $${Number(e.total || 0).toFixed(0)}</a>`).join('');
+  const invoiceChips = (leadInvoices.results || []).map(i =>
+    `<a class="cp-chip" href="/p/invoices">🧾 ${htmxEsc(i.invoice_number || 'Invoice')} · $${Number(i.total || 0).toFixed(0)}</a>`).join('');
+
+  const touchpoints = (activityLog.results || []).length;
+  const firstContact = fmtWhen(lead.created_at);
+  const lastReply = fmtWhen(lead.updated_at);
+
+  const contact = `
+<div class="cp-head">
+  <div class="cp-ava">${htmxEsc(initials(lead.caller_name))}</div>
+  <div class="cp-namewrap">
+    <div class="cp-name">${htmxEsc(lead.caller_name || 'Unknown caller')}</div>
+    <div class="cp-tags">${tempTag}${demoTag}</div>
+  </div>
+</div>
+<form class="cp-status-form" method="POST" action="/p/leads/${leadId}">
+  <label class="cp-lab">Status</label>
+  <div class="cp-status-row">
+    <select name="status" onchange="this.form.submit()">${statusOptions}</select>
+  </div>
+</form>
+<div class="cp-sec">
+  <div class="cp-sec-h">Contact</div>
+  ${contactRows || '<div class="cp-empty">No contact details</div>'}
+</div>
+<div class="cp-sec">
+  <div class="cp-sec-h">History</div>
+  <div class="cp-kv"><span class="k">First contact</span><span class="v">${firstContact || '—'}</span></div>
+  <div class="cp-kv"><span class="k">Touchpoints</span><span class="v">${touchpoints}</span></div>
+  <div class="cp-kv"><span class="k">Last update</span><span class="v">${lastReply || '—'}</span></div>
+</div>
+${(estimateChips || invoiceChips) ? `<div class="cp-sec"><div class="cp-sec-h">Linked records</div><div class="cp-chips">${estimateChips}${invoiceChips}</div></div>` : ''}
+${smsWidget ? `<div class="cp-widget">${smsWidget}</div>` : ''}`;
+
+  return { thread, contact };
+}
+
+// GET /api/leads/:id/thread-htmx — HTML fragment for the inbox middle + right
+// columns. Cookie-authed (manager+). Returns a JSON-shaped wrapper so the
+// client can swap both columns in one round-trip: { ok, thread, contact }.
+async function handleLeadThreadHtmx(request, env, uid, leadId) {
+  try {
+    const lead = await env.DB.prepare('SELECT * FROM leads WHERE id = ? AND user_id = ?').bind(leadId, uid).first();
+    if (!lead) return json({ ok: false, error: 'Lead not found' }, { status: 404 });
+    const { thread, contact } = await renderLeadInboxColumns(env, uid, lead, null);
+    return json({ ok: true, thread, contact });
+  } catch (e) {
+    console.error('Lead thread htmx error:', e);
+    return json({ ok: false, error: 'Could not load lead thread' }, { status: 500 });
+  }
 }
 
 async function handleLeadDetailHtmx(request, env, uid, leadId, ctx) {
@@ -22012,6 +22332,17 @@ export default {
         const fCtx = await resolveContext(request, env, fUid);
         if (!roleMeets(fCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
         return handleLeadFollowupSmsHtmx(request, env, fCtx.bid, parseInt(followupSmsMatch[1]));
+      }
+      // GET /api/leads/:id/thread-htmx — inbox fragment (middle + right columns)
+      // for the 3-column /p/leads view. Cookie-authed, manager+. Returns JSON
+      // { ok, thread, contact } so the client swaps both columns in one fetch.
+      const threadMatch = path.match(/^\/api\/leads\/(\d+)\/thread-htmx$/);
+      if (threadMatch && method === 'GET') {
+        const fUid = await getUidFromSessionCookie(request, env);
+        if (!fUid) return json({ ok: false, error: 'Not logged in' });
+        const fCtx = await resolveContext(request, env, fUid);
+        if (!roleMeets(fCtx.role, 'manager')) return json({ ok: false, error: 'Manager access required' }, { status: 403 });
+        return handleLeadThreadHtmx(request, env, fCtx.bid, parseInt(threadMatch[1]));
       }
       // ── Estimates & Invoices — cookie-authed (the /p/estimates dashboard has
       // no Bearer token). Create + send are manager-gated like the lead
