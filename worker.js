@@ -16348,7 +16348,7 @@ async function leadNextStepSuggestion(env, lead, aiCtx) {
   const invPending = invoices.some(i => ['partial', 'sent', 'draft'].includes(String(i.status).toLowerCase()));
   const touchpoints = (aiCtx && aiCtx.touchpoints) || 0;
   const lastActivity = (aiCtx && aiCtx.lastActivity) || 'none';
-  const prompt = `You are a CRM coach for a local service business. Given this lead, suggest ONE concrete next action (max 2 sentences, plain language, motivating, no emojis).
+  const prompt = `You are a direct, high-closing sales coach for a local service business. The user is the OWNER who must take the next action. Given this lead, write ONE punchy, urgent next-step nudge (max 2 sentences, no emojis, no fluff).
 Lead name: ${lead.caller_name || 'unknown'}
 Service requested: ${lead.job_details || 'unknown'}
 Status: ${status}
@@ -16358,11 +16358,15 @@ Estimate pending (sent/draft): ${estPending ? 'yes' : 'no'}
 Invoice pending (sent/draft/partial): ${invPending ? 'yes' : 'no'}
 Logged touchpoints so far: ${touchpoints}
 Most recent activity: ${lastActivity}
-Be specific about what to DO next (call, text, send estimate, follow up, book).`;
+Rules:
+- If urgency is urgent/high or status is new/contacted: say "Reach out TODAY" or "Call now" — the ball is in YOUR court.
+- If estimate is pending: push to close it ("send the link", "follow up to lock it in").
+- If invoice is partial: tell them to collect the balance.
+- Name the exact channel (call / text / send estimate). Be blunt. No "consider" or "perhaps".`;
   try {
     const aiRes = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
       messages: [
-        { role: 'system', content: 'You are a concise, warm CRM coach. Never invent facts. Output one short suggestion.' },
+        { role: 'system', content: 'You are a blunt, urgency-driven sales coach. Never invent facts. Output ONE short, punchy action nudge. No softening words.' },
         { role: 'user', content: prompt }
       ],
       max_tokens: 120,
