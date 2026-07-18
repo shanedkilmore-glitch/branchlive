@@ -11072,32 +11072,34 @@ async function handleLeadsHtmx(request, env, uid, ctx) {
       urgent: leads.filter(l => String(l.urgency).toLowerCase() === 'urgent' || String(l.urgency).toLowerCase() === 'high').length,
       booked: leads.filter(l => (l.status || '') === 'booked').length,
     };
-    const stat = (label, value, tone) => `<div class="card stat-card"><div class="stat-num ${tone}">${value}</div><div class="stat-lab">${label}</div></div>`;
+    // Stat card: reuses blShell's .card/.stat-card/.stat-num/.stat-lab primitives.
+    // Number colored via an explicit token var (--amber for the headline count,
+    // --ai for the breakdowns) — no legacy tone classes.
+    const stat = (label, value, colorVar) => `<div class="card stat-card"><div class="stat-num" style="color:var(--${colorVar})">${value}</div><div class="stat-lab">${label}</div></div>`;
     const initials = n => { const p = String(n || '?').trim().split(/\s+/); return ((p[0] || '?')[0] + (p[1] || '')[0]).toUpperCase(); };
     const rows = leads.map(l => `<a class="lead-row" href="/p/leads/${l.id}" data-status="${htmxEsc(String(l.status || 'new').toLowerCase())}" data-name="${htmxEsc((l.caller_name || '').toLowerCase())}">
-  <div class="avatar">${htmxEsc(initials(l.caller_name))}</div>
-  <div class="meta">
+  <div class="ll-ava">${htmxEsc(initials(l.caller_name))}</div>
+  <div class="ll-main">
     <div class="name">${htmxEsc(l.caller_name || 'Unknown caller')}</div>
-    <div class="job">${htmxEsc((l.job_details || 'No job details').slice(0, 80))}${(l.job_details || '').length > 80 ? '…' : ''}</div>
+    <div class="ll-job">${htmxEsc((l.job_details || 'No job details').slice(0, 80))}${(l.job_details || '').length > 80 ? '…' : ''}</div>
   </div>
-  <div class="right">
+  <div class="ll-tags">
     ${urgencyBadge(l.urgency)}
     ${statusPill(l.status)}
-    <span class="chevron" style="color:var(--text-faint)">›</span>
+    <span class="ll-chev">›</span>
   </div>
 </a>`).join('');
-    const body = `<div class="app">${sidebarNav('leads', ctx)}<div class="content">
-<span class="eyebrow">Leads</span>
+    const body = `<span class="eyebrow">Leads</span>
 <h1>Your <em>leads</em></h1>
 <p class="sub">Every caller Emma captures — name, job, urgency, and status.</p>
-<div class="grid2" style="margin-top:24px">
-  ${stat('Total leads', counts.total, 'purple')}
-  ${stat('New', counts.new, '')}
-  ${stat('High/urgent', counts.urgent, 'green')}
-  ${stat('Booked', counts.booked, 'blue')}
+<div class="ll-stats">
+  ${stat('Total leads', counts.total, 'amber')}
+  ${stat('New', counts.new, 'ai')}
+  ${stat('High / urgent', counts.urgent, 'ai')}
+  ${stat('Booked', counts.booked, 'ai')}
 </div>
-<div class="toolbar">
-  <div class="search">
+<div class="ll-toolbar">
+  <div class="ll-search">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     <input id="lead-search" placeholder="Search by name, phone, or job…" oninput="filterLeads(this.value)">
   </div>
@@ -11111,8 +11113,8 @@ async function handleLeadsHtmx(request, env, uid, ctx) {
     <option value="lost">Lost</option>
   </select>
 </div>
-<div id="lead-list">${rows || '<div class="empty-state"><div class="empty-icon">📞</div><div class="empty-title">No leads yet</div><div class="empty-msg">When Emma captures a caller, their details land here automatically.</div></div>'}</div>
-<p id="lead-empty-hint" style="display:none;text-align:center;color:var(--text-faint);padding:32px">No leads match your search.</p>
+<div id="lead-list">${rows || '<div class="ll-empty"><div class="ll-empty-ic">📞</div><div class="ll-empty-t">No leads yet</div><div class="ll-empty-m">When Emma captures a caller, their details land here automatically.</div></div>'}</div>
+<p id="lead-empty-hint" style="display:none;text-align:center;color:var(--muted-2);padding:32px">No leads match your search.</p>
 <script>
 function filterLeads(q){
   q=(q||'').toLowerCase();
@@ -11142,11 +11144,60 @@ function filterLeads(q){
   } catch(e){}
 })();
 </script>
-</div></div>`;
-    return new Response(simpleShell('Leads', body), { headers: { 'Content-Type': 'text/html' } });
+<style>
+.ll-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:24px}
+.ll-stats .stat-card{padding:20px 18px}
+.ll-stats .stat-num{font-size:2rem}
+.ll-toolbar{display:flex;gap:12px;align-items:center;margin:24px 0 18px;flex-wrap:wrap}
+.ll-search{position:relative;flex:1;min-width:220px;display:flex;align-items:center}
+.ll-search svg{position:absolute;left:13px;width:16px;height:16px;color:var(--muted-2);pointer-events:none}
+.ll-search input{width:100%;background:var(--card);border:1px solid var(--line);border-radius:11px;
+  padding:11px 13px 11px 38px;color:var(--text);font-family:var(--sans);font-size:.88rem;outline:none;transition:border-color .15s,box-shadow .15s}
+.ll-search input::placeholder{color:var(--muted-2)}
+.ll-search input:focus{border-color:var(--ai-line);box-shadow:0 0 0 3px var(--ai-bg)}
+.ll-toolbar select{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 13px;
+  color:var(--text);font-family:var(--sans);font-size:.88rem;outline:none;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.ll-toolbar select:focus{border-color:var(--ai-line);box-shadow:0 0 0 3px var(--ai-bg)}
+.lead-row{display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--card);
+  border:1px solid var(--line);border-radius:13px;text-decoration:none;color:var(--text);
+  transition:background .15s,border-color .15s,transform .15s;margin-bottom:10px}
+.lead-row:hover{background:var(--card-2);border-color:var(--line-2);text-decoration:none;transform:translateY(-1px)}
+.ll-ava{width:40px;height:40px;border-radius:11px;flex-shrink:0;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;
+  font-family:var(--serif);font-weight:600;font-size:15px}
+.ll-main{flex:1;min-width:0}
+.ll-main .name{font-family:var(--serif);font-weight:600;font-size:1rem;color:var(--text);line-height:1.2}
+.ll-job{font-size:.84rem;color:var(--muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ll-tags{display:flex;align-items:center;gap:7px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+.ll-chev{color:var(--muted-2);font-size:1.1rem;flex-shrink:0}
+.ll-empty{text-align:center;padding:48px 20px}
+.ll-empty-ic{font-size:2rem;margin-bottom:10px}
+.ll-empty-t{font-family:var(--serif);font-size:1.1rem;color:var(--text);margin-bottom:6px}
+.ll-empty-m{font-size:.86rem;color:var(--muted-2)}
+/* Urgency + status chips: same color formulas as the /p/leads/:id detail-page
+   chips so the list and the record speak the same visual language. */
+.urg-badge,.status-pill{display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);
+  font-size:.62rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+  padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--muted);white-space:nowrap}
+.urg-badge .urg-dot{font-size:.5rem;line-height:1}
+.urg-badge.urg-urgent,.urg-badge.urg-high{background:rgba(217,138,122,.14);color:var(--red);border-color:rgba(217,138,122,.28)}
+.urg-badge.urg-med{background:rgba(217,196,122,.14);color:var(--yellow);border-color:rgba(217,196,122,.28)}
+.urg-badge.urg-low{background:var(--bg);color:var(--muted-2);border-color:var(--line)}
+.status-pill.pill-new{background:rgba(138,176,217,.14);color:var(--blue);border-color:rgba(138,176,217,.30)}
+.status-pill.pill-contacted{background:rgba(212,165,116,.14);color:var(--amber-soft);border-color:rgba(212,165,116,.30)}
+.status-pill.pill-scheduled{background:var(--ai-bg);color:var(--ai-soft);border-color:var(--ai-line)}
+.status-pill.pill-booked{background:rgba(127,185,138,.18);color:var(--green);border-color:rgba(127,185,138,.34)}
+.status-pill.pill-closed{background:rgba(127,185,138,.14);color:var(--green);border-color:rgba(127,185,138,.30)}
+.status-pill.pill-lost{background:var(--bg);color:var(--muted-2);border-color:var(--line)}
+@media(max-width:768px){
+  .ll-stats{grid-template-columns:repeat(2,1fr)}
+  .ll-tags .urg-badge{display:none}
+}
+</style>`;
+    return new Response(blShell({ active: 'leads', title: 'Leads', body: body, aiSlot: null }), { headers: { 'Content-Type': 'text/html' } });
   } catch (e) {
     console.error('Leads htmx error:', e);
-    return new Response(simpleShell('Error', '<h1>⚠️ Error</h1><p style="color:var(--danger)">Could not load leads.</p>'), { headers: { 'Content-Type': 'text/html' }, status: 500 });
+    return new Response(blShell({ active: 'leads', title: 'Error', body: '<span class="eyebrow">Error</span><h1>⚠️ Something went wrong</h1><p class="sub" style="color:var(--red)">Could not load leads.</p><p style="margin-top:24px"><a class="btn btn-ghost btn-sm" href="/p/leads">Try again</a></p>', aiSlot: null }), { headers: { 'Content-Type': 'text/html' }, status: 500 });
   }
 }
 
