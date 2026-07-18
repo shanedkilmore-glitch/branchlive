@@ -11261,6 +11261,15 @@ function inboxToast(msg){
 .ll-empty-m{font-size:.8rem;color:var(--muted-2)}
 /* ── Middle: thread ── */
 .in-thread{transition:opacity .12s}
+/* AI next-step suggestion card (live, Workers AI, fed real lead state).
+   Sits inside .th-scroll (padding:16px 18px), so no horizontal margin here. */
+.ai-nextstep{background:linear-gradient(135deg,var(--ai-bg),rgba(183,155,224,.03));
+  border:1px solid var(--ai-line);border-left:3px solid var(--ai);border-radius:14px;
+  padding:13px 16px;margin-bottom:16px}
+.ans-head{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.6px;color:var(--ai-soft);margin-bottom:6px}
+.ans-glyph{color:var(--ai)}
+.ans-body{font-size:13.5px;line-height:1.5;color:var(--text)}
 .th-head{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line)}
 .th-ava{width:38px;height:38px;border-radius:10px;flex-shrink:0;display:grid;place-items:center;background:linear-gradient(135deg,var(--amber),var(--amber-deep));color:#1a1208;font-family:var(--serif);font-weight:600;font-size:15px}
 .th-main{flex:1;min-width:0}
@@ -11671,6 +11680,25 @@ async function renderLeadInboxColumns(env, uid, lead, ctx) {
     ? activityRows + callEvents + (jobNotesWidget ? `<div class="ev-card-wrap">${jobNotesWidget}</div>` : '')
     : '<div class="ev-empty"><div class="ev-empty-ic">💬</div><div class="ev-empty-t">No activity yet</div><div class="ev-empty-m">When Emma takes a call or you log a note, the conversation timeline appears here.</div></div>';
 
+  // ── Live AI next-step suggestion (Workers AI, fed real lead state) ──
+  // Graceful: if AI fails or returns empty, nextStep is null → no card.
+  const touchpointCount = (activityLog.results || []).length;
+  const lastActivityEntry = (activityLog.results || []).slice(-1)[0];
+  const lastActivityDesc = lastActivityEntry
+    ? `${lastActivityEntry.action || lastActivityEntry.entity_type}${lastActivityEntry.detail ? ' (' + lastActivityEntry.detail + ')' : ''}`
+    : 'none';
+  const nextStep = await leadNextStepSuggestion(env, lead, {
+    estimates: leadEstimates.results,
+    invoices: leadInvoices.results,
+    touchpoints: touchpointCount,
+    lastActivity: lastActivityDesc,
+  });
+  const aiCard = nextStep ? `<div class="ai-nextstep">
+    <div class="ans-head"><span class="ans-glyph">✦</span> Suggested next step</div>
+    <div class="ans-body">${htmxEsc(nextStep)}</div>
+  </div>` : '';
+  const threadBodyWithAI = aiCard + threadBody;
+
   // ── Thread column (middle) ──
   const thread = `
 <div class="th-head">
@@ -11685,7 +11713,7 @@ async function renderLeadInboxColumns(env, uid, lead, ctx) {
     <a class="th-btn primary" href="/p/calendar" title="Schedule">🗓 Schedule</a>
   </div>
 </div>
-<div class="th-scroll" id="threadScroll">${threadBody}</div>
+<div class="th-scroll" id="threadScroll">${threadBodyWithAI}</div>
 <footer class="compose" id="compose">
   <div class="cmp-tools">
     <button class="cmp-mode" data-mode="ai" onclick="inboxToast('AI Draft — coming in the next phase')">✦ AI Draft</button>
@@ -16300,6 +16328,65 @@ Write only the email body (no subject line, no "Subject:" prefix). Start directl
   draft = (draft || '').trim();
   if (!draft) return { ok: false, error: 'Empty response from AI' };
   return { ok: true, draft };
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Live AI next-step suggestion for the leads inbox. Feeds the lead's REAL
+// state (name, job, status, urgency, estimate/invoice state, recent
+// activity) to Workers AI (same env.AI binding + llama-3.3-70b-fast model
+// as the email-draft helper above) and returns a one-suggestion string, or
+// null on any failure (caller renders no card — never a broken one). No
+// external key, no cost (Workers AI free tier). ctx shape:
+//   { estimates:[{status}], invoices:[{status}], touchpoints:int, lastActivity:str }
+async function leadNextStepSuggestion(env, lead, aiCtx) {
+  const urgency = String(lead.urgency || '').toLowerCase();
+  const status = String(lead.status || 'new').toLowerCase();
+  const estimates = (aiCtx && aiCtx.estimates) || [];
+  const invoices = (aiCtx && aiCtx.invoices) || [];
+  const hasEstimate = estimates.some(e => e.status && e.status !== 'void');
+  const estPending = estimates.some(e => ['sent', 'draft'].includes(String(e.status).toLowerCase()));
+  const invPending = invoices.some(i => ['partial', 'sent', 'draft'].includes(String(i.status).toLowerCase()));
+  const touchpoints = (aiCtx && aiCtx.touchpoints) || 0;
+  const lastActivity = (aiCtx && aiCtx.lastActivity) || 'none';
+  const prompt = `You are a CRM coach for a local service business. Given this lead, suggest ONE concrete next action (max 2 sentences, plain language, motivating, no emojis).
+Lead name: ${lead.caller_name || 'unknown'}
+Service requested: ${lead.job_details || 'unknown'}
+Status: ${status}
+Urgency: ${urgency || 'none'}
+Has estimate: ${hasEstimate ? 'yes' : 'no'}
+Estimate pending (sent/draft): ${estPending ? 'yes' : 'no'}
+Invoice pending (sent/draft/partial): ${invPending ? 'yes' : 'no'}
+Logged touchpoints so far: ${touchpoints}
+Most recent activity: ${lastActivity}
+Be specific about what to DO next (call, text, send estimate, follow up, book).`;
+  try {
+    const aiRes = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
+      messages: [
+        { role: 'system', content: 'You are a concise, warm CRM coach. Never invent facts. Output one short suggestion.' },
+        { role: 'user', content: prompt }
+      ],
+      max_tokens: 120,
+      temperature: 0.7
+    });
+    // Normalize (same shape handling as generateEmailDraftCore above).
+    let s = '';
+    if (typeof aiRes === 'string') {
+      s = aiRes;
+    } else if (aiRes && Array.isArray(aiRes.choices) && aiRes.choices[0]) {
+      s = (aiRes.choices[0].message && aiRes.choices[0].message.content) || '';
+    } else if (aiRes && typeof aiRes.response === 'string') {
+      s = aiRes.response;
+    } else if (aiRes && aiRes.result && typeof aiRes.result.response === 'string') {
+      s = aiRes.result.response;
+    } else if (aiRes && typeof aiRes === 'object') {
+      s = (aiRes.response || aiRes.output || '').toString();
+    }
+    s = (s || '').trim();
+    return s || null;
+  } catch (e) {
+    console.error('Lead next-step suggestion AI error:', e);
+    return null; // graceful: no card if AI fails
+  }
 }
 
 // POST /api/email/draft — Bearer-authed. SPA/legacy callers send the transcript
